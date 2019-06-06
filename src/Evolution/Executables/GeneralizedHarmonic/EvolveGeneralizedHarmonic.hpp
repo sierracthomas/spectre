@@ -137,11 +137,12 @@ struct EvolutionMetavars {
       dg::Actions::ExponentialFilter<
           0, typename system::variables_tag::type::tags_list>>>;
 
-  using import_fields =
-      tmpl::list<gr::Tags::SpacetimeMetric<dim, Inertial, DataVector>,
-                 GeneralizedHarmonic::Tags::Pi<dim, Inertial>,
-                 GeneralizedHarmonic::Tags::Phi<dim, Inertial>,
-                 GeneralizedHarmonic::Tags::GaugeH<dim, Inertial>>;
+  using import_fields = tmpl::list<
+      gr::Tags::SpacetimeMetric<dim, Inertial, DataVector>,
+      GeneralizedHarmonic::Tags::Pi<dim, Inertial>,
+      GeneralizedHarmonic::Tags::Phi<dim, Inertial>,
+      GeneralizedHarmonic::Tags::InitialGaugeH<dim, Inertial>,
+      GeneralizedHarmonic::Tags::SpacetimeDerivInitialGaugeH<dim, Inertial>>;
 
   enum class Phase {
     Initialization,

@@ -304,6 +304,6 @@ struct Unity : db::ComputeTag {
   }
   using argument_tags =
       tmpl::list<AreaElement<Frame::Inertial>>;
-}
+};
 }  // namespace Tags
 }  // namespace StrahlkorperGr

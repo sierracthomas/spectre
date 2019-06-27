@@ -300,7 +300,7 @@ struct SurfaceIntegral : db::ComputeTag {
 };
 
 struct Unity : db::ComputeTag {
-  Scalar<DataVector> function(
+ static Scalar<DataVector> function(
       const Scalar<DataVector>& used_for_size) noexcept {
     return make_with_value<Scalar<DataVector>>(used_for_size, 1.0);
   }

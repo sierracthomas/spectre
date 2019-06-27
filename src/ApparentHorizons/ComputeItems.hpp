@@ -72,14 +72,5 @@ struct SpatialChristoffelSecondKindCompute
                                    gr::Tags::InverseSpatialMetric<Dim, Frame>>;
 };
 // }@
-
-struct Unity : db::ComputeTag {
-  Scalar<DataVector> function(
-      const Scalar<DataVector>& used_for_size) noexcept {
-    return make_with_value<Scalar<DataVector>>(used_for_size, 1.0);
-  }
-  using argument_tags =
-      tmpl::list<StrahlkorperGr::Tags::AreaElement<Frame::Inertial>>;
-}
 }  // namespace Tags
 }  // namespace ah

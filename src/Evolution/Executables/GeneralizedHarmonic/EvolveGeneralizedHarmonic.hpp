@@ -22,6 +22,8 @@
 #include "Evolution/Systems/GeneralizedHarmonic/Observe.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/System.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "IO/DataImporter/DataFileReader.hpp"
+#include "IO/DataImporter/ElementActions.hpp"
 #include "IO/Observer/Actions.hpp"  // IWYU pragma: keep
 #include "IO/Observer/Helpers.hpp"
 #include "IO/Observer/ObserverComponent.hpp"  // IWYU pragma: keep
@@ -135,10 +137,17 @@ struct EvolutionMetavars {
       dg::Actions::ExponentialFilter<
           0, typename system::variables_tag::type::tags_list>>>;
 
+  using import_fields =
+      tmpl::list<gr::Tags::SpacetimeMetric<dim, Inertial, DataVector>,
+                 GeneralizedHarmonic::Tags::Pi<dim, Inertial>,
+                 GeneralizedHarmonic::Tags::Phi<dim, Inertial>,
+                 GeneralizedHarmonic::Tags::GaugeH<dim, Inertial>>;
+
   enum class Phase {
     Initialization,
     InitializeTimeStepperHistory,
     RegisterWithObserver,
+    ImportData,
     Evolve,
     Exit
   };
@@ -146,6 +155,7 @@ struct EvolutionMetavars {
   using component_list = tmpl::list<
       observers::Observer<EvolutionMetavars>,
       observers::ObserverWriter<EvolutionMetavars>,
+      importer::DataFileReader<EvolutionMetavars>,
       DgElementArray<
           EvolutionMetavars,
           tmpl::list<
@@ -164,6 +174,7 @@ struct EvolutionMetavars {
                              observers::Actions::RegisterWithObservers<
                                  observers::RegisterObservers<
                                      element_observation_type>>,
+                             importer::Actions::RegisterWithImporter,
                              Parallel::Actions::TerminatePhase>>,
 
               Parallel::PhaseActions<
@@ -175,7 +186,8 @@ struct EvolutionMetavars {
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
                       compute_rhs, update_variables, Actions::AdvanceTime>>>>,
-          GeneralizedHarmonic::Actions::Initialize<dim>::AddOptionsToDataBox>>;
+          GeneralizedHarmonic::Actions::Initialize<dim>::AddOptionsToDataBox,
+          import_fields>>;
 
   static constexpr OptionString help{
       "Evolve a generalized harmonic analytic solution.\n\n"
@@ -192,6 +204,8 @@ struct EvolutionMetavars {
       case Phase::InitializeTimeStepperHistory:
         return Phase::RegisterWithObserver;
       case Phase::RegisterWithObserver:
+        return Phase::ImportData;
+      case Phase::ImportData:
         return Phase::Evolve;
       case Phase::Evolve:
         return Phase::Exit;

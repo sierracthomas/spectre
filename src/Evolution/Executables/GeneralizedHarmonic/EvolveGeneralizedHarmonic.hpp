@@ -146,15 +146,18 @@ struct EvolutionMetavars {
     using tags_to_observe = tmpl::list<StrahlkorperGr::Tags::SurfaceIntegral<
         StrahlkorperGr::Tags::Unity, domain_frame>>;
     using compute_items_on_source = tmpl::list<
+        gr::Tags::SpatialMetricCompute<domain_dim, domain_frame>,
         ah::Tags::InverseSpatialMetricCompute<domain_dim, domain_frame>,
         ah::Tags::ExtrinsicCurvatureCompute<domain_dim, domain_frame>,
         ah::Tags::SpatialChristoffelSecondKindCompute<domain_dim,
                                                       domain_frame>>;
     using vars_to_interpolate_to_target = tmpl::list<
+        gr::Tags::SpatialMetric<domain_dim, domain_frame>,
         gr::Tags::InverseSpatialMetric<domain_dim, domain_frame>,
         gr::Tags::ExtrinsicCurvature<domain_dim, domain_frame>,
         gr::Tags::SpatialChristoffelSecondKind<domain_dim, domain_frame>>;
-    using compute_items_on_target = tmpl::list<>;
+    using compute_items_on_target =
+        tmpl::list<StrahlkorperGr::Tags::AreaElement<domain_frame>>;
     using compute_target_points =
         intrp::Actions::ApparentHorizon<Horizon, ::Frame::Inertial>;
     using post_interpolation_callback =

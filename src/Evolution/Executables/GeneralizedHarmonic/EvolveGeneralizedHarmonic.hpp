@@ -140,8 +140,8 @@ struct EvolutionMetavars {
 
   // Horizon finding struct
   struct Horizon {
-    using tags_to_observe = tmpl::list<
-        StrahlkorperTags::SurfaceIntegral<ah::Tags::Unity, domain_frame>>;
+    using tags_to_observe = tmpl::list<StrahlkorperGr::Tags::SurfaceIntegral<
+        StrahlkorperGr::Tags::Unity, domain_frame>>;
     using compute_items_on_source = tmpl::list<
         ah::Tags::InverseSpatialMetricCompute<domain_dim, domain_frame>,
         ah::Tags::ExtrinsicCurvatureCompute<domain_dim, domain_frame>,

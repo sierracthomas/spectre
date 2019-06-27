@@ -300,6 +300,9 @@ struct SurfaceIntegral : db::ComputeTag {
 };
 
 struct Unity : db::ComputeTag {
+  static std::string name() noexcept {
+    return "Unity";
+  }
   static Scalar<DataVector> function(
       const Scalar<DataVector>& used_for_size) noexcept {
     return make_with_value<Scalar<DataVector>>(used_for_size, 1.0);

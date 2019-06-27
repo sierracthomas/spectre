@@ -46,7 +46,7 @@
 #include "NumericalAlgorithms/Interpolation/InitializeInterpolationTarget.hpp"
 #include "NumericalAlgorithms/Interpolation/Interpolate.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTarget.hpp"
-#include "NumericalAlgorithms/Interpolation/InterpolationTargetKerrHorizon.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTargetApparentHorizon.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTargetReceiveVars.hpp"
 #include "NumericalAlgorithms/Interpolation/Interpolator.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolatorReceivePoints.hpp"

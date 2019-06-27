@@ -157,8 +157,8 @@ struct EvolutionMetavars {
         gr::Tags::ExtrinsicCurvature<domain_dim, domain_frame>,
         gr::Tags::SpatialChristoffelSecondKind<domain_dim, domain_frame>>;
     using compute_items_on_target =
-        tmpl::list<StrahlkorperGr::Tags::Unity,
-                   StrahlkorperGr::Tags::AreaElement<domain_frame>>;
+        tmpl::list<StrahlkorperGr::Tags::AreaElement<domain_frame>,
+                   StrahlkorperGr::Tags::Unity>;
     using compute_target_points =
         intrp::Actions::ApparentHorizon<Horizon, ::Frame::Inertial>;
     using post_interpolation_callback =

@@ -25,8 +25,6 @@
 #include "Evolution/Systems/GeneralizedHarmonic/Observe.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/System.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
-#include "Informer/Tags.hpp"
-#include "Informer/Verbosity.hpp"
 #include "IO/DataImporter/DataFileReader.hpp"
 #include "IO/DataImporter/ElementActions.hpp"
 #include "IO/Observer/Actions.hpp"  // IWYU pragma: keep
@@ -34,6 +32,8 @@
 #include "IO/Observer/ObserverComponent.hpp"  // IWYU pragma: keep
 #include "IO/Observer/RegisterObservers.hpp"
 #include "IO/Observer/Tags.hpp"  // IWYU pragma: keep
+#include "Informer/Tags.hpp"
+#include "Informer/Verbosity.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyBoundaryFluxesLocalTimeStepping.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ComputeNonconservativeBoundaryFluxes.hpp"  // IWYU pragma: keep

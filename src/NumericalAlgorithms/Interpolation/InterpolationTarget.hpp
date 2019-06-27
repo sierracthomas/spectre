@@ -140,7 +140,8 @@ struct InterpolationTarget {
                          InterpolationTargetTag>,
                      Parallel::Actions::TerminatePhase>>,
       Parallel::PhaseActions<
-          typename Metavariables::Phase, Metavariables::Phase::Register,
+          typename Metavariables::Phase,
+          Metavariables::Phase::RegisterWithObserver,
           tmpl::list<::observers::Actions::RegisterSingletonWithObserverWriter<
                          RegistrationHelper>,
                      Parallel::Actions::TerminatePhase>>>;

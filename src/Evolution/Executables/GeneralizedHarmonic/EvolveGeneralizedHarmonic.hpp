@@ -6,6 +6,9 @@
 #include <cstddef>
 #include <vector>
 
+#include "AlgorithmSingleton.hpp"
+#include "ApparentHorizons/ComputeItems.hpp"
+#include "ApparentHorizons/Tags.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/Error.hpp"
@@ -36,6 +39,20 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/LocalLaxFriedrichs.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
+#include "NumericalAlgorithms/Interpolation/AddTemporalIdsToInterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/Callbacks/ObserveTimeSeriesOnSurface.hpp"
+#include "NumericalAlgorithms/Interpolation/CleanUpInterpolator.hpp"
+#include "NumericalAlgorithms/Interpolation/InitializeInterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/Interpolate.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTargetKerrHorizon.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTargetReceiveVars.hpp"
+#include "NumericalAlgorithms/Interpolation/Interpolator.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorReceivePoints.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorReceiveVolumeData.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorRegisterElement.hpp"
+#include "NumericalAlgorithms/Interpolation/Tags.hpp"
+#include "NumericalAlgorithms/Interpolation/TryToInterpolate.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Actions/TerminatePhase.hpp"
 #include "Parallel/InitializationFunctions.hpp"
@@ -93,7 +110,16 @@ struct EvolutionMetavars {
   using normal_dot_numerical_flux = OptionTags::NumericalFlux<
       // dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
       GeneralizedHarmonic::UpwindFlux<dim>>;
-  using events = tmpl::list<>;
+
+  using domain_frame = Frame::Inertial;
+  static constexpr size_t domain_dim = 3;
+  using interpolator_source_vars =
+      tmpl::list<gr::Tags::SpacetimeMetric<domain_dim, domain_frame>,
+                 GeneralizedHarmonic::Tags::Pi<domain_dim, domain_frame>,
+                 GeneralizedHarmonic::Tags::Phi<domain_dim, domain_frame>>;
+
+  using events = tmpl::list<intrp::Events::Registrars::Interpolate<
+      domain_dim, interpolator_source_vars>>;
   using triggers = Triggers::time_triggers;
 
   // A tmpl::list of tags to be added to the ConstGlobalCache by the
@@ -112,8 +138,38 @@ struct EvolutionMetavars {
   struct ObservationType {};
   using element_observation_type = ObservationType;
 
+  // Horizon finding struct
+  struct Horizon {
+    using tags_to_observe = tmpl::list<
+        StrahlkorperTags::SurfaceIntegral<ah::Tags::Unity, domain_frame>>;
+    using compute_items_on_source = tmpl::list<
+        ah::Tags::InverseSpatialMetricCompute<domain_dim, domain_frame>,
+        ah::Tags::ExtrinsicCurvatureCompute<domain_dim, domain_frame>,
+        ah::Tags::SpatialChristoffelSecondKindCompute<domain_dim,
+                                                      domain_frame>>;
+    using vars_to_interpolate_to_target = tmpl::list<
+        gr::Tags::InverseSpatialMetric<domain_dim, domain_frame>,
+        gr::Tags::ExtrinsicCurvature<domain_dim, domain_frame>,
+        gr::Tags::SpatialChristoffelSecondKind<domain_dim, domain_frame>>;
+    using compute_items_on_target = tmpl::list<>;
+    using compute_target_points =
+        intrp::Actions::ApparentHorizon<Horizon, ::Frame::Inertial>;
+    using post_interpolation_callback =
+        intrp::callbacks::FindApparentHorizon<Horizon>;
+
+    using post_horizon_find_callback =
+        intrp::callbacks::ObserveTimeSeriesOnSurface<tags_to_observe, Horizon,
+                                                     Horizon>;
+    // This `type` is so this tag can be used to read options.
+    using type = typename compute_target_points::options_type;
+    static constexpr OptionString help{
+        "Options for interpolation onto Horizon.\n\n"};
+  };
+  using interpolation_target_tags = tmpl::list<Horizon>;
+
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
-      tmpl::list<GeneralizedHarmonic::Actions::Observe>>;
+      tmpl::list<GeneralizedHarmonic::Actions::Observe,
+                 typename Horizon::post_interpolation_callback>>;
 
   using compute_rhs = tmpl::flatten<tmpl::list<
       dg::Actions::ComputeNonconservativeBoundaryFluxes<
@@ -157,6 +213,8 @@ struct EvolutionMetavars {
       observers::Observer<EvolutionMetavars>,
       observers::ObserverWriter<EvolutionMetavars>,
       importer::DataFileReader<EvolutionMetavars>,
+      intrp::Interpolator<EvolutionMetavars>,
+      intrp::InterpolationTarget<EvolutionMetavars, Horizon>,
       DgElementArray<
           EvolutionMetavars,
           tmpl::list<
@@ -172,6 +230,7 @@ struct EvolutionMetavars {
               Parallel::PhaseActions<
                   Phase, Phase::RegisterWithObserver,
                   tmpl::list<Actions::AdvanceTime,
+                             intrp::Actions::RegisterElementWithInterpolator,
                              observers::Actions::RegisterWithObservers<
                                  observers::RegisterObservers<
                                      element_observation_type>>,

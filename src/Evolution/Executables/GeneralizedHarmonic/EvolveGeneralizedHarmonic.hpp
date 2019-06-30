@@ -30,6 +30,7 @@
 #include "IO/Observer/Actions.hpp"  // IWYU pragma: keep
 #include "IO/Observer/Helpers.hpp"
 #include "IO/Observer/ObserverComponent.hpp"  // IWYU pragma: keep
+#include "IO/Observer/ReductionActions.hpp"
 #include "IO/Observer/RegisterObservers.hpp"
 #include "IO/Observer/Tags.hpp"  // IWYU pragma: keep
 #include "Informer/Tags.hpp"

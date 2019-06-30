@@ -22,7 +22,6 @@
 #include "Evolution/Systems/GeneralizedHarmonic/BoundaryConditions.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Equations.hpp"  // IWYU pragma: keep // for UpwindFlux
 #include "Evolution/Systems/GeneralizedHarmonic/Initialize.hpp"
-#include "Evolution/Systems/GeneralizedHarmonic/Observe.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/System.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
 #include "IO/DataImporter/DataFileReader.hpp"
@@ -178,8 +177,7 @@ struct EvolutionMetavars {
   using interpolation_target_tags = tmpl::list<Horizon>;
 
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
-      tmpl::list<GeneralizedHarmonic::Actions::Observe,
-                 typename Horizon::post_interpolation_callback>>;
+      tmpl::list<typename Horizon::post_interpolation_callback>>;
 
   using compute_rhs = tmpl::flatten<tmpl::list<
       dg::Actions::ComputeNonconservativeBoundaryFluxes<
@@ -250,7 +248,6 @@ struct EvolutionMetavars {
               Parallel::PhaseActions<
                   Phase, Phase::Evolve,
                   tmpl::flatten<tmpl::list<
-                      GeneralizedHarmonic::Actions::Observe,
                       Actions::RunEventsAndTriggers,
                       tmpl::conditional_t<
                           local_time_stepping,

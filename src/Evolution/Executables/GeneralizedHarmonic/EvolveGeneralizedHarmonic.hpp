@@ -177,7 +177,7 @@ struct EvolutionMetavars {
   using interpolation_target_tags = tmpl::list<Horizon>;
 
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
-      tmpl::list<typename Horizon::post_interpolation_callback>>;
+      tmpl::list<typename Horizon::post_horizon_find_callback>>;
 
   using compute_rhs = tmpl::flatten<tmpl::list<
       dg::Actions::ComputeNonconservativeBoundaryFluxes<

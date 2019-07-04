@@ -16,6 +16,7 @@
 #include "Evolution/Actions/ComputeTimeDerivative.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/Filtering.hpp"
+#include "Evolution/DiscontinuousGalerkin/ObserveNorms.hpp"
 #include "Evolution/EventsAndTriggers/Actions/RunEventsAndTriggers.hpp"  // IWYU pragma: keep
 #include "Evolution/EventsAndTriggers/Event.hpp"
 #include "Evolution/EventsAndTriggers/EventsAndTriggers.hpp"  // IWYU pragma: keep
@@ -121,8 +122,18 @@ struct EvolutionMetavars {
                  GeneralizedHarmonic::Tags::Pi<domain_dim, domain_frame>,
                  GeneralizedHarmonic::Tags::Phi<domain_dim, domain_frame>>;
 
-  using events = tmpl::list<intrp::Events::Registrars::Interpolate<
-      domain_dim, interpolator_source_vars>>;
+  using constraint_tags = tmpl::list<
+      GeneralizedHarmonic::Tags::GaugeConstraint<domain_dim, domain_frame>,
+      GeneralizedHarmonic::Tags::FConstraint<domain_dim, domain_frame>,
+      GeneralizedHarmonic::Tags::TwoIndexConstraint<domain_dim, domain_frame>,
+      GeneralizedHarmonic::Tags::ThreeIndexConstraint<domain_dim, domain_frame>,
+      GeneralizedHarmonic::Tags::FourIndexConstraint<domain_dim, domain_frame>,
+      GeneralizedHarmonic::Tags::ConstraintEnergy<domain_dim, domain_frame>>;
+  using observation_events = tmpl::list<
+      dg::Events::Registrars::ObserveNorms<domain_dim, constraint_tags>>;
+  using events = tmpl::push_back<observation_events,
+                                 intrp::Events::Registrars::Interpolate<
+                                     domain_dim, interpolator_source_vars>>;
   using triggers = Triggers::time_triggers;
 
   // A tmpl::list of tags to be added to the ConstGlobalCache by the
@@ -177,7 +188,8 @@ struct EvolutionMetavars {
   using interpolation_target_tags = tmpl::list<Horizon>;
 
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
-      tmpl::list<typename Horizon::post_horizon_find_callback>>;
+      tmpl::push_back<Event<observation_events>::creatable_classes,
+                      typename Horizon::post_horizon_find_callback>>;
 
   using compute_rhs = tmpl::flatten<tmpl::list<
       dg::Actions::ComputeNonconservativeBoundaryFluxes<

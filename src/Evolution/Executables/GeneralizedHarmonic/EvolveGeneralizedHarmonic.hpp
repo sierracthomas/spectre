@@ -16,6 +16,7 @@
 #include "Evolution/Actions/ComputeTimeDerivative.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/Filtering.hpp"
+#include "Evolution/DiscontinuousGalerkin/ObserveFields.hpp"
 #include "Evolution/DiscontinuousGalerkin/ObserveNorms.hpp"
 #include "Evolution/EventsAndTriggers/Actions/RunEventsAndTriggers.hpp"  // IWYU pragma: keep
 #include "Evolution/EventsAndTriggers/Event.hpp"
@@ -130,7 +131,9 @@ struct EvolutionMetavars {
       GeneralizedHarmonic::Tags::FourIndexConstraint<domain_dim, domain_frame>,
       GeneralizedHarmonic::Tags::ConstraintEnergy<domain_dim, domain_frame>>;
   using observation_events = tmpl::list<
-      dg::Events::Registrars::ObserveNorms<domain_dim, constraint_tags>>;
+      dg::Events::Registrars::ObserveNorms<domain_dim, constraint_tags>,
+      dg::Events::Registrars::ObserveFields<domain_dim, constraint_tags,
+                                            tmpl::list<>>>;
   using events = tmpl::push_back<observation_events,
                                  intrp::Events::Registrars::Interpolate<
                                      domain_dim, interpolator_source_vars>>;

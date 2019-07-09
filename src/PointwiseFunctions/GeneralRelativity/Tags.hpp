@@ -155,6 +155,12 @@ struct TraceExtrinsicCurvature : db::SimpleTag {
   static std::string name() noexcept { return "TraceExtrinsicCurvature"; }
 };
 
+template <size_t Dim, typename Frame, typename DataType>
+struct RicciTensor : db::SimpleTag {
+  using type = tnsr::ii<DataType, Dim, Frame>;
+  static std::string name() noexcept { return "RicciTensor"; }
+};
+
 /*!
  * \brief The energy density \f$E=t_a t_b T^{ab}\f$, where \f$t_a\f$ denotes the
  * normal to the spatial hypersurface
@@ -163,6 +169,12 @@ template <typename DataType>
 struct EnergyDensity : db::SimpleTag {
   using type = Scalar<DataType>;
   static std::string name() noexcept { return "EnergyDensity"; }
+};
+
+template <size_t Dim, typename Frame, typename DataType>
+struct WeylElectric : db::SimpleTag {
+  using type = tnsr::ii<DataType, Dim, Frame>;
+  static std::string name() noexcept { return "WeylElectric"; }
 };
 }  // namespace Tags
 

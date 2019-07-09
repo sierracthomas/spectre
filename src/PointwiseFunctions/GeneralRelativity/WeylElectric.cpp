@@ -19,15 +19,15 @@ auto weyl = make_with_value<tnsr::ii<DataType, SpatialDim, Frame>>(
 constexpr auto dimensionality = index_dim<0>(weyl);
 for (size_t i = 0; i < dimensionality; ++i) {
   for (size_t j = i; j < dimensionality; ++j) {
-    weyl.get(i, j) += spatial_ricci.get(i, j)
+    weyl.get(i, j) += spatial_ricci.get(i, j);
 
-                          for (size_t k = 0; k < dimensionality; ++k) {
+    for (size_t k = 0; k < dimensionality; ++k) {
       for (size_t l = k; l < dimensionality; ++l) {
         weyl.get(i, j) += extrinsic_curvature.get(k, l) *
                           inverse_spatial_metric.get(k, l) *
-                          extrinsic_curvature.get(i, j)
+                          extrinsic_curvature.get(i, j);
 
-                              for (size_t m = 0; m < dimensionality; ++m) {
+        for (size_t m = 0; m < dimensionality; ++m) {
           weyl.get(i, j) += extrinsic_curvature.get(i, l) *
                             inverse_spatial_metric.get(m, l) *
                             extrinsic_curvature.get(m, j);

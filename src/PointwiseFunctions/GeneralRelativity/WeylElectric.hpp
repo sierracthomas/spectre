@@ -20,8 +20,8 @@ namespace gr {
  */
 template <size_t SpatialDim, typename Frame, typename DataType>
 tnsr::ii<DataType, SpatialDim, Frame> weyl_electric(
-    const tnsr::ii<DataType, SpatialDim, Frame>& spatial_ricci;
-    const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature;
+    const tnsr::ii<DataType, SpatialDim, Frame>& spatial_ricci,
+    const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
 

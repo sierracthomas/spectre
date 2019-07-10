@@ -14,7 +14,8 @@ tnsr::ii<DataType, SpatialDim, Frame> weyl_electric(
     const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
-auto weyl = make_with_value<tnsr::ii<DataType, SpatialDim, Frame>>(0., 0.);
+auto weyl =
+    make_with_value<tnsr::ii<DataType, SpatialDim, Frame>>(spatial_ricci, 0.);
 constexpr auto dimensionality = index_dim<0>(weyl);
 for (size_t i = 0; i < dimensionality; ++i) {
   for (size_t j = i; j < dimensionality; ++j) {

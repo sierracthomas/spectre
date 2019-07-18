@@ -18,7 +18,7 @@
 namespace {
 template <size_t Dim, typename DataType>
 void test_weyl_electric(const DataType& used_for_size) {
-  pypp::check_with_random_values<1>(&gr::ricci_tensor<Dim, DataType>,
+  pypp::check_with_random_values<1>(&gr::weyl_electric<Dim, DataType>,
                                     "WeylElectric", "weyl_electric",
                                     {{{-1., 1.}}}, used_for_size);
 }
@@ -31,5 +31,5 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.WeylElectric",
 
   GENERATE_UNINITIALIZED_DOUBLE_AND_DATAVECTOR;
 
-  CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric, (1, 2, 3),
+  CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric, (1, 2, 3));
 }

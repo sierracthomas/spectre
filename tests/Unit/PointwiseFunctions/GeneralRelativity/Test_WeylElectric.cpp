@@ -20,7 +20,7 @@ template <size_t Dim, typename DataType>
 void test_weyl_electric(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
       &gr::weyl_electric<Dim, Frame::Inertial, DataType>, "WeylElectric",
-      "weyl_electric", {{{-1., 1.}}}, used_for_size);
+      "weyl_electric_tensor", {{{-1., 1.}}}, used_for_size);
 }
 }  // namespace
 

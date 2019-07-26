@@ -22,17 +22,17 @@ tnsr::ii<DataType, SpatialDim, Frame> weyl_electric(
       weyl.get(i, j) += spatial_ricci.get(i, j);
 
       for (size_t k = 0; k < dimensionality; ++k) {
-        for (size_t l = k; l < dimensionality; ++l) {
-          weyl.get(i, j) += extrinsic_curvature.get(k, l) *
-                            inverse_spatial_metric.get(k, l) *
-                            extrinsic_curvature.get(i, j);
+        for (size_t l = 0; l < dimensionality; ++l) {
+         weyl.get(i, j) += extrinsic_curvature.get(k, l) *
+                           inverse_spatial_metric.get(k, l) *
+                           extrinsic_curvature.get(i, j);
 
-          for (size_t m = 0; m < dimensionality; ++m) {
-            weyl.get(i, j) -= extrinsic_curvature.get(i, l) *
+         for (size_t m = 0; m < dimensionality; ++m) {
+             weyl.get(i, j) -= extrinsic_curvature.get(i, l) *
                               inverse_spatial_metric.get(m, l) *
                               extrinsic_curvature.get(m, j);
-          }
         }
+       }
       }
     }
   }

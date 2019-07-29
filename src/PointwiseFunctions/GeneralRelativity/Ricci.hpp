@@ -48,7 +48,7 @@ tnsr::aa<DataType, SpatialDim, Frame, Index> ricci_tensor(
 //@}
 
 namespace Tags {
-/// Compute item for spatial Ricci tensor \f$R_{ij}\f$
+/// Compute item for spatial Ricci tensor \f$\R_{ij}\f$
 /// computed from SpatialChristoffelSecondKind and its spatial derivatives.
 ///
 /// Can be retrieved using `gr::Tags::SpatialRicci`

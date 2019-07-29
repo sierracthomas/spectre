@@ -27,6 +27,7 @@
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
 #include "NumericalAlgorithms/LinearOperators/Divergence.tpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
+#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "Parallel/AddOptionsToDataBox.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "PointwiseFunctions/AnalyticData/Tags.hpp"
@@ -35,6 +36,7 @@
 #include "PointwiseFunctions/GeneralRelativity/ComputeGhQuantities.hpp"
 #include "PointwiseFunctions/GeneralRelativity/ComputeSpacetimeQuantities.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Ricci.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
@@ -135,10 +137,16 @@ struct Initialize {
         gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<Dim, Inertial,
                                                             DataVector>,
         gr::Tags::SpatialChristoffelFirstKindCompute<Dim, Inertial, DataVector>,
-        gr::Tags::SpatialChristoffelSecondKindCompute<Dim, Inertial,
-                                                      DataVector>,
+        gr::Tags::SpatialChristoffelSecondKindVarsCompute<Dim, Inertial,
+                                                          DataVector>,
+        ::Tags::DerivCompute<
+            ::Tags::Variables<tmpl::list<gr::Tags::SpatialChristoffelSecondKind<
+                Dim, Inertial, DataVector>>>,
+            ::Tags::InverseJacobian<::Tags::ElementMap<Dim, Inertial>,
+                                    ::Tags::LogicalCoordinates<Dim>>>,
         gr::Tags::TraceSpatialChristoffelFirstKindCompute<Dim, Inertial,
                                                           DataVector>,
+        gr::Tags::RicciTensorCompute<Dim, Inertial, DataVector>,
         GeneralizedHarmonic::Tags::ExtrinsicCurvatureCompute<Dim, Inertial>,
         GeneralizedHarmonic::Tags::TraceExtrinsicCurvatureCompute<Dim,
                                                                   Inertial>,

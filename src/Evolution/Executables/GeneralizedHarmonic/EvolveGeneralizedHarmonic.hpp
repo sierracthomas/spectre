@@ -201,12 +201,12 @@ struct EvolutionMetavars {
       Actions::ComputeTimeDerivative,
       dg::Actions::ComputeNonconservativeBoundaryFluxes<
           Tags::BoundaryDirectionsInterior<dim>>,
-      // dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
-      GeneralizedHarmonic::Actions::
-          ImposeConstraintPreservingBoundaryConditions<EvolutionMetavars>,
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
+      // dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
+      GeneralizedHarmonic::Actions::
+          ImposeConstraintPreservingBoundaryConditions<EvolutionMetavars>,
       Actions::RecordTimeStepperData>>;
   using update_variables = tmpl::flatten<tmpl::list<
       tmpl::conditional_t<local_time_stepping,

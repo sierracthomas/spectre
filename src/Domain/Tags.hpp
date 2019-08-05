@@ -59,6 +59,16 @@ struct Domain : db::SimpleTag {
 
 /// \ingroup DataBoxTagsGroup
 /// \ingroup ComputationalDomainGroup
+/// The number of grid points per dimension for all elements in the initial
+/// computational domain
+template <size_t Dim>
+struct InitialExtents : db::SimpleTag {
+  static std::string name() noexcept { return "InitialExtents"; }
+  using type = std::vector<std::array<size_t, Dim>>;
+};
+
+/// \ingroup DataBoxTagsGroup
+/// \ingroup ComputationalDomainGroup
 /// The ::Element associated with the DataBox
 template <size_t VolumeDim>
 struct Element : db::SimpleTag {
@@ -441,6 +451,8 @@ struct InterfaceComputeItem
     : Interface<DirectionsTag, Tag>,
       db::ComputeTag,
       virtual db::PrefixTag {
+  static_assert(db::is_compute_item_v<Tag>,
+                "Cannot use a non compute item as an interface compute item.");
   // Defining name here prevents an ambiguous function call when using base
   // tags; Both Interface<Dirs, Tag> and Interface<Dirs, Tag::base> will have a
   // name function and so cannot be disambiguated.

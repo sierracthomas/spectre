@@ -8,7 +8,7 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
-#include "Evolution/Initialization/MergeIntoDataBox.hpp"
+#include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
 
@@ -113,8 +113,8 @@ void test_failure_value() {
 }
 }  // namespace TestAddToBox_detail
 
-SPECTRE_TEST_CASE("Unit.Evolution.Initialization.AddToDataBox",
-                  "[Unit][Evolution]") {
+SPECTRE_TEST_CASE("Unit.ParallelAlgorithms.Initialization.AddToDataBox",
+                  "[Unit][ParallelAlgorithms]") {
   TestAddToBox_detail::test();
 }
 
@@ -122,8 +122,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.Initialization.AddToDataBox",
 // we found that the value being set by the action
 // TestAddToBox_detail::FakeAction is not the same as what is already in the
 // DataBox. The value in the DataBox is: 2 while the value being added is 3]]
-SPECTRE_TEST_CASE("Unit.Evolution.Initialization.AddToDataBox.Error",
-                  "[Unit][Evolution]") {
+SPECTRE_TEST_CASE("Unit.ParallelAlgorithms.Initialization.AddToDataBox.Error",
+                  "[Unit][ParallelAlgorithms]") {
   ERROR_TEST();
   TestAddToBox_detail::test_failure_value();
 }

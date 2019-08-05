@@ -1,18 +1,17 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
-set(LIBRARY "Test_Initialization")
+set(LIBRARY "Test_ParallelDiscontinuousGalerkin")
 
 set(LIBRARY_SOURCES
-  Test_Initialize.cpp
-  Test_MergeIntoDataBox.cpp
+  Test_InitializeDomain.cpp
   )
 
 add_test_library(
   ${LIBRARY}
-  "Evolution/Initialization/"
+  "ParallelAlgorithms/DiscontinuousGalerkin/"
   "${LIBRARY_SOURCES}"
-  "DataStructures;Domain;ErrorHandling;Utilities"
+  "CoordinateMaps;DataStructures;Domain;DiscontinuousGalerkin;ErrorHandling;Utilities"
   )
 
 add_dependencies(

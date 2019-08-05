@@ -22,12 +22,9 @@
 #include "Evolution/EventsAndTriggers/Tags.hpp"
 #include "Evolution/Initialization/ConservativeSystem.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
-#include "Evolution/Initialization/Domain.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Initialize.hpp"
 #include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/Limiter.hpp"
-#include "Evolution/Systems/Burgers/Equations.hpp"  // IWYU pragma: keep // for LocalLaxFriedrichsFlux
 #include "Evolution/Systems/Burgers/System.hpp"
 #include "IO/Observer/Actions.hpp"
 #include "IO/Observer/Helpers.hpp"
@@ -37,12 +34,15 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"  // IWYU pragma: keep
+#include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/LocalLaxFriedrichs.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Actions/TerminatePhase.hpp"
 #include "Parallel/InitializationFunctions.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Burgers/Step.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "Time/Actions/AdvanceTime.hpp"            // IWYU pragma: keep
@@ -79,8 +79,8 @@ struct EvolutionMetavars {
   using analytic_solution_tag =
       OptionTags::AnalyticSolution<Burgers::Solutions::Step>;
   using boundary_condition_tag = analytic_solution_tag;
-  using normal_dot_numerical_flux =
-      OptionTags::NumericalFlux<Burgers::LocalLaxFriedrichsFlux>;
+  using normal_dot_numerical_flux = OptionTags::NumericalFlux<
+      dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
   using limiter = OptionTags::Limiter<
       Limiters::Minmod<1, system::variables_tag::tags_list>>;
 
@@ -136,7 +136,7 @@ struct EvolutionMetavars {
   };
 
   using initialization_actions = tmpl::list<
-      Initialization::Actions::Domain<1>,
+      dg::Actions::InitializeDomain<1>,
       Initialization::Actions::ConservativeSystem,
       Initialization::Actions::Interface<
           system,
@@ -144,7 +144,7 @@ struct EvolutionMetavars {
           Initialization::slice_tags_to_exterior<>>,
       Initialization::Actions::Evolution<system>,
       Initialization::Actions::DiscontinuousGalerkin<EvolutionMetavars>,
-      Initialization::Actions::MinMod<1>,
+      Initialization::Actions::Minmod<1>,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
 
   using component_list = tmpl::list<
@@ -171,11 +171,11 @@ struct EvolutionMetavars {
               Parallel::PhaseActions<
                   Phase, Phase::Evolve,
                   tmpl::flatten<tmpl::list<
-                      Actions::AdvanceTime, Actions::RunEventsAndTriggers,
+                      Actions::RunEventsAndTriggers,
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      compute_rhs, update_variables>>>>,
+                      compute_rhs, update_variables, Actions::AdvanceTime>>>>,
           Parallel::ForwardAllOptionsToDataBox<
               Initialization::option_tags<initialization_actions>>>>;
 

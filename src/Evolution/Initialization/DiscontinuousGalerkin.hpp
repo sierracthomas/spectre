@@ -13,6 +13,7 @@
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
+#include "Domain/CreateInitialMesh.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/Element.hpp"
 #include "Domain/Mesh.hpp"
@@ -20,12 +21,10 @@
 #include "Domain/OrientationMap.hpp"
 #include "Domain/Tags.hpp"
 #include "Evolution/Conservative/Tags.hpp"
-#include "Evolution/Initialization/Helpers.hpp"
-#include "Evolution/Initialization/MergeIntoDataBox.hpp"
-#include "Evolution/Initialization/Tags.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/FluxCommunicationTypes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/MortarHelpers.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
+#include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -109,10 +108,12 @@ struct DiscontinuousGalerkin {
         mortar_data[mortar_id];  // Default initialize data
         mortar_next_temporal_ids.insert({mortar_id, temporal_id});
         mortar_meshes.emplace(
-            mortar_id, dg::mortar_mesh(mesh.slice_away(direction.dimension()),
-                                       element_mesh(initial_extents, neighbor,
-                                                    neighbors.orientation())
-                                           .slice_away(direction.dimension())));
+            mortar_id,
+            dg::mortar_mesh(
+                mesh.slice_away(direction.dimension()),
+                domain::Initialization::create_initial_mesh(
+                    initial_extents, neighbor, neighbors.orientation())
+                    .slice_away(direction.dimension())));
         mortar_sizes.emplace(
             mortar_id,
             dg::mortar_size(element.id(), neighbor, direction.dimension(),
@@ -270,21 +271,21 @@ struct DiscontinuousGalerkin {
   };
 
   using initialization_option_tags =
-      tmpl::list<Tags::InitialExtents<Metavariables::system::volume_dim>>;
+      tmpl::list<::Tags::InitialExtents<Metavariables::system::volume_dim>>;
 
   template <
       typename DbTagsList, typename... InboxTags, typename ArrayIndex,
       typename ActionList, typename ParallelComponent,
       Requires<tmpl::list_contains_v<
           typename db::DataBox<DbTagsList>::simple_item_tags,
-          Tags::InitialExtents<Metavariables::system::volume_dim>>> = nullptr>
+          ::Tags::InitialExtents<Metavariables::system::volume_dim>>> = nullptr>
   static auto apply(db::DataBox<DbTagsList>& box,
                     const tuples::TaggedTuple<InboxTags...>& /*inboxes*/,
                     const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,
                     const ArrayIndex& /*array_index*/, ActionList /*meta*/,
                     const ParallelComponent* const /*meta*/) noexcept {
     const auto& initial_extents =
-        db::get<Tags::InitialExtents<Metavariables::system::volume_dim>>(box);
+        db::get<::Tags::InitialExtents<Metavariables::system::volume_dim>>(box);
     return std::make_tuple(Impl<typename Metavariables::system>::initialize(
         std::move(box), initial_extents));
   }
@@ -294,16 +295,14 @@ struct DiscontinuousGalerkin {
       typename ActionList, typename ParallelComponent,
       Requires<not tmpl::list_contains_v<
           typename db::DataBox<DbTagsList>::simple_item_tags,
-          Tags::InitialExtents<Metavariables::system::volume_dim>>> = nullptr>
+          ::Tags::InitialExtents<Metavariables::system::volume_dim>>> = nullptr>
   static std::tuple<db::DataBox<DbTagsList>&&> apply(
       db::DataBox<DbTagsList>& /*box*/,
       const tuples::TaggedTuple<InboxTags...>& /*inboxes*/,
       const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,
       const ArrayIndex& /*array_index*/, ActionList /*meta*/,
       const ParallelComponent* const /*meta*/) noexcept {
-    ERROR(
-        "Could not find dependency 'Initialization::Tags::InitialExtents' in "
-        "DataBox.");
+    ERROR("Could not find dependency '::Tags::InitialExtents' in DataBox.");
   }
 };
 }  // namespace Actions

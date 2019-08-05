@@ -20,9 +20,7 @@
 #include "Evolution/EventsAndTriggers/EventsAndTriggers.hpp"  // IWYU pragma: keep
 #include "Evolution/EventsAndTriggers/Tags.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
-#include "Evolution/Initialization/Domain.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Initialize.hpp"
 #include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/NonconservativeSystem.hpp"
 #include "Evolution/Systems/ScalarWave/Equations.hpp"  // IWYU pragma: keep // for UpwindFlux
@@ -43,6 +41,8 @@
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "Parallel/Reduction.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/WaveEquation/PlaneWave.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
@@ -149,7 +149,7 @@ struct EvolutionMetavars {
   };
 
   using initialization_actions = tmpl::list<
-      Initialization::Actions::Domain<system::volume_dim>,
+      dg::Actions::InitializeDomain<system::volume_dim>,
       Initialization::Actions::NonconservativeSystem,
       Initialization::Actions::Interface<
           system,
@@ -175,8 +175,7 @@ struct EvolutionMetavars {
 
               Parallel::PhaseActions<
                   Phase, Phase::RegisterWithObserver,
-                  tmpl::list<Actions::AdvanceTime,
-                             observers::Actions::RegisterWithObservers<
+                  tmpl::list<observers::Actions::RegisterWithObservers<
                                  observers::RegisterObservers<
                                      element_observation_type>>,
                              Parallel::Actions::TerminatePhase>>,
@@ -203,6 +202,8 @@ struct EvolutionMetavars {
           EvolutionMetavars>& /*cache_proxy*/) noexcept {
     switch (current_phase) {
       case Phase::Initialization:
+        return Phase::InitializeTimeStepperHistory;
+      case Phase::InitializeTimeStepperHistory:
         return Phase::RegisterWithObserver;
       case Phase::RegisterWithObserver:
         return Phase::Evolve;

@@ -121,7 +121,8 @@ struct EvolutionMetavars {
   using interpolator_source_vars =
       tmpl::list<gr::Tags::SpacetimeMetric<domain_dim, domain_frame>,
                  GeneralizedHarmonic::Tags::Pi<domain_dim, domain_frame>,
-                 GeneralizedHarmonic::Tags::Phi<domain_dim, domain_frame>>;
+                 GeneralizedHarmonic::Tags::Phi<domain_dim, domain_frame>,
+                 gr::Tags::RicciTensor<domain_dim, domain_frame, DataVector>>;
 
   using constraint_tags = tmpl::list<
       GeneralizedHarmonic::Tags::GaugeConstraint<domain_dim, domain_frame>,
@@ -169,7 +170,8 @@ struct EvolutionMetavars {
         gr::Tags::SpatialMetric<domain_dim, domain_frame, DataVector>,
         gr::Tags::InverseSpatialMetric<domain_dim, domain_frame>,
         gr::Tags::ExtrinsicCurvature<domain_dim, domain_frame>,
-        gr::Tags::SpatialChristoffelSecondKind<domain_dim, domain_frame>>;
+        gr::Tags::SpatialChristoffelSecondKind<domain_dim, domain_frame>,
+        gr::Tags::RicciTensor<domain_dim, domain_frame, DataVector>>;
     using compute_items_on_target =
         tmpl::list<StrahlkorperGr::Tags::AreaElement<domain_frame>,
                    StrahlkorperGr::Tags::Unity,

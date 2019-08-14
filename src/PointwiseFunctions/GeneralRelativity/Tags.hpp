@@ -170,6 +170,12 @@ struct EnergyDensity : db::SimpleTag {
   using type = Scalar<DataType>;
   static std::string name() noexcept { return "EnergyDensity"; }
 };
+
+template <size_t Dim, typename Frame, typename DataType>
+struct WeylElectric : db::SimpleTag {
+  using type = tnsr::ii<DataType, Dim, Frame>;
+  static std::string name() noexcept { return "WeylElectric"; }
+};
 }  // namespace Tags
 
 /// The tags for the variables returned by GR analytic solutions.

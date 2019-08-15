@@ -15,8 +15,8 @@ tnsr::ii<DataType, SpatialDim, Frame> weyl_electric(
     const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept {
-  // tnsr::ii<DataType, SpatialDim, Frame> weyl_electric_part{
-  // get<0,0>(inverse_spatial_metric).size()};
+  //tnsr::ii<DataType, SpatialDim, Frame> weyl_electric_part{
+  //get<0,0>(inverse_spatial_metric).size()}; //this line causes an error
   auto weyl_electric_part =
       make_with_value<tnsr::ii<DataType, SpatialDim, Frame>>(spatial_ricci, 0.);
 
@@ -36,7 +36,8 @@ void weyl_electric(
   //  for(auto& tensor_component : *weyl_electric_part) {
   // tensor_component.destructive_resize(
   // get<0,
-  // 0>(inverse_spatial_metric).size());
+  // 0>(inverse_spatial_metric).size()); //this piece of code causes an error -
+  // does not like checking the size of a double (maybe)
 
   for (size_t i = 0; i < SpatialDim; ++i) {
     for (size_t j = i; j < SpatialDim; ++j) {

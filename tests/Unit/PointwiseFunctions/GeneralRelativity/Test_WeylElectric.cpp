@@ -16,11 +16,15 @@
 // IWYU pragma: no_include <boost/preprocessor/tuple/reverse.hpp>
 
 namespace {
-template <size_t Dim, typename DataType>
+template <size_t SpatialDim, typename DataType>
 void test_weyl_electric(const DataType& used_for_size) {
-  pypp::check_with_random_values<1>(
-      &gr::weyl_electric<Dim, Frame::Inertial, DataType>, "WeylElectric",
-      "weyl_electric_tensor", {{{-1., 1.}}}, used_for_size);
+  tnsr::ii<DataType, SpatialDim, Frame::Inertial> (*f)(
+      const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&,
+      const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&,
+      const tnsr::II<DataType, SpatialDim, Frame::Inertial>&) =
+      &gr::weyl_electric<SpatialDim, Frame::Inertial, DataType>;
+  pypp::check_with_random_values<1>(f, "WeylElectric", "weyl_electric_tensor",
+                                    {{{-1., 1.}}}, used_for_size);
 }
 }  // namespace
 

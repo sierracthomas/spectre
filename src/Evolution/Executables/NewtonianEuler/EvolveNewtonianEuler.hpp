@@ -26,7 +26,6 @@
 #include "Evolution/Initialization/ConservativeSystem.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/Limiter.hpp"
 #include "Evolution/Systems/NewtonianEuler/SoundSpeedSquared.hpp"
 #include "Evolution/Systems/NewtonianEuler/System.hpp"
@@ -39,7 +38,7 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"
-#include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/LocalLaxFriedrichs.hpp"
+#include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/Hll.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Actions/TerminatePhase.hpp"
@@ -48,9 +47,11 @@
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/Actions/MutateApply.hpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeInterfaces.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeMortars.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/AddComputeTags.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
-#include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/IsentropicVortex.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/RiemannProblem.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
@@ -81,28 +82,28 @@ class CProxy_ConstGlobalCache;
 
 template <size_t Dim>
 struct EvolutionMetavars {
-  using analytic_solution = NewtonianEuler::Solutions::IsentropicVortex<Dim>;
+  static constexpr size_t volume_dim = Dim;
+  using initial_data = NewtonianEuler::Solutions::RiemannProblem<Dim>;
 
-  using domain_creator_tag = OptionTags::DomainCreator<Dim, Frame::Inertial>;
+  using equation_of_state_type = typename initial_data::equation_of_state_type;
 
-  using system = NewtonianEuler::System<
-      Dim, typename analytic_solution::equation_of_state_type>;
+  using system = NewtonianEuler::System<Dim, equation_of_state_type>;
 
   using temporal_id = Tags::TimeId;
   static constexpr bool local_time_stepping = false;
 
-  using analytic_solution_tag = OptionTags::AnalyticSolution<analytic_solution>;
-  using boundary_condition_tag = analytic_solution_tag;
+  using initial_data_tag = Tags::AnalyticSolution<initial_data>;
+  using boundary_condition_tag = initial_data_tag;
   using analytic_variables_tags =
       typename system::primitive_variables_tag::tags_list;
 
-  using equation_of_state_tag = hydro::Tags::EquationOfState<
-      typename analytic_solution_tag::type::equation_of_state_type>;
+  using equation_of_state_tag =
+      hydro::Tags::EquationOfState<equation_of_state_type>;
 
-  using normal_dot_numerical_flux = OptionTags::NumericalFlux<
-      dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
+  using normal_dot_numerical_flux =
+      Tags::NumericalFlux<dg::NumericalFluxes::Hll<system>>;
 
-  using limiter = OptionTags::Limiter<Limiters::Minmod<
+  using limiter = Tags::Limiter<Limiters::Minmod<
       Dim, tmpl::list<NewtonianEuler::Tags::MassDensityCons<DataVector>,
                       NewtonianEuler::Tags::MomentumDensity<DataVector, Dim,
                                                             Frame::Inertial>,
@@ -165,16 +166,17 @@ struct EvolutionMetavars {
           tmpl::list<NewtonianEuler::Tags::SoundSpeedSquaredCompute<DataVector>,
                      NewtonianEuler::Tags::SoundSpeedCompute<DataVector>>>,
       Actions::UpdateConservatives,
-      Initialization::Actions::Interface<
+      dg::Actions::InitializeInterfaces<
           system,
-          Initialization::slice_tags_to_face<
+          dg::Initialization::slice_tags_to_face<
               typename system::variables_tag,
               typename system::primitive_variables_tag,
               NewtonianEuler::Tags::SoundSpeed<DataVector>>,
-          Initialization::slice_tags_to_exterior<
+          dg::Initialization::slice_tags_to_exterior<
               typename system::primitive_variables_tag,
               NewtonianEuler::Tags::SoundSpeed<DataVector>>>,
-      Initialization::Actions::Evolution<system>,
+      Initialization::Actions::Evolution<EvolutionMetavars>,
+      dg::Actions::InitializeMortars<EvolutionMetavars>,
       Initialization::Actions::DiscontinuousGalerkin<EvolutionMetavars>,
       Initialization::Actions::Minmod<Dim>,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
@@ -208,15 +210,13 @@ struct EvolutionMetavars {
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      compute_rhs, update_variables, Actions::AdvanceTime>>>>,
-          Parallel::ForwardAllOptionsToDataBox<
-              Initialization::option_tags<initialization_actions>>>>;
+                      compute_rhs, update_variables, Actions::AdvanceTime>>>>>>;
 
   using const_global_cache_tag_list =
-      tmpl::list<analytic_solution_tag,
-                 OptionTags::TypedTimeStepper<tmpl::conditional_t<
+      tmpl::list<initial_data_tag,
+                 Tags::TimeStepper<tmpl::conditional_t<
                      local_time_stepping, LtsTimeStepper, TimeStepper>>,
-                 OptionTags::EventsAndTriggers<events, triggers>>;
+                 Tags::EventsAndTriggers<events, triggers>>;
 
   static constexpr OptionString help{
       "Evolve the Newtonian Euler system in conservative form.\n\n"};

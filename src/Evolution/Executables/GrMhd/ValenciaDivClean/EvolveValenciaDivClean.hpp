@@ -26,7 +26,6 @@
 #include "Evolution/Initialization/ConservativeSystem.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/Limiter.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/FixConservatives.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Initialize.hpp"
@@ -34,6 +33,7 @@
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/PalenzuelaEtAl.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/System.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Tags.hpp"
+#include "Evolution/TypeTraits.hpp"
 #include "Evolution/VariableFixing/Actions.hpp"
 #include "Evolution/VariableFixing/FixToAtmosphere.hpp"
 #include "Evolution/VariableFixing/Tags.hpp"
@@ -53,9 +53,23 @@
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeInterfaces.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeMortars.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/BondiHoyleAccretion.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/CylindricalBlastWave.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/MagneticFieldLoop.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/MagneticRotor.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/MagnetizedFmDisk.hpp"
+#include "PointwiseFunctions/AnalyticData/GrMhd/OrszagTangVortex.hpp"
+#include "PointwiseFunctions/AnalyticData/Tags.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Tov.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GrMhd/AlfvenWave.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GrMhd/BondiMichel.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/GrMhd/KomissarovShock.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/SmoothFlow.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/FishboneMoncriefDisk.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/TovStar.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
@@ -84,43 +98,51 @@ class CProxy_ConstGlobalCache;
 }  // namespace Parallel
 /// \endcond
 
+template <typename InitialData>
 struct EvolutionMetavars {
-  // To switch which analytic solution is evolved you only need to change the
-  // line `using analytic_solution = ...;` and include the header file for the
-  // solution.
-  //  using analytic_solution = grmhd::Solutions::SmoothFlow;
-  using analytic_solution = RelativisticEuler::Solutions::FishboneMoncriefDisk;
-
-  using domain_creator_tag = OptionTags::DomainCreator<3, Frame::Inertial>;
-  using system = grmhd::ValenciaDivClean::System<
-      typename analytic_solution::equation_of_state_type>;
+  static constexpr size_t volume_dim = 3;
+  using initial_data = InitialData;
+  static_assert(
+      evolution::is_analytic_data_v<initial_data> xor
+          evolution::is_analytic_solution_v<initial_data>,
+      "initial_data must be either an analytic_data or an analytic_solution");
+  using equation_of_state_type = typename initial_data::equation_of_state_type;
+  using system = grmhd::ValenciaDivClean::System<equation_of_state_type>;
   static constexpr size_t thermodynamic_dim = system::thermodynamic_dim;
   using temporal_id = Tags::TimeId;
   static constexpr bool local_time_stepping = false;
-  using analytic_solution_tag = OptionTags::AnalyticSolution<analytic_solution>;
-  using boundary_condition_tag = analytic_solution_tag;
+  using initial_data_tag =
+      tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
+                          Tags::AnalyticSolution<initial_data>,
+                          Tags::AnalyticData<initial_data>>;
+  using boundary_condition_tag = initial_data_tag;
   using analytic_variables_tags =
       typename system::primitive_variables_tag::tags_list;
-  using equation_of_state_tag = hydro::Tags::EquationOfState<
-      typename analytic_solution_tag::type::equation_of_state_type>;
-  using normal_dot_numerical_flux = OptionTags::NumericalFlux<
-      dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
+  using equation_of_state_tag =
+      hydro::Tags::EquationOfState<equation_of_state_type>;
+  using normal_dot_numerical_flux =
+      Tags::NumericalFlux<dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
   // Do not limit the divergence-cleaning field Phi
-  using limiter = OptionTags::Limiter<Limiters::Minmod<
+  using limiter = Tags::Limiter<Limiters::Minmod<
       3, tmpl::list<grmhd::ValenciaDivClean::Tags::TildeD,
                     grmhd::ValenciaDivClean::Tags::TildeTau,
                     grmhd::ValenciaDivClean::Tags::TildeS<Frame::Inertial>,
                     grmhd::ValenciaDivClean::Tags::TildeB<Frame::Inertial>>>>;
 
   // public for use by the Charm++ registration code
-  using events = tmpl::list<
-      dg::Events::Registrars::ObserveErrorNorms<3, analytic_variables_tags>,
+  using events = tmpl::flatten<tmpl::list<
+      tmpl::conditional_t<
+          evolution::is_analytic_solution_v<initial_data>,
+          dg::Events::Registrars::ObserveErrorNorms<3, analytic_variables_tags>,
+          tmpl::list<>>,
       dg::Events::Registrars::ObserveFields<
           3,
           tmpl::append<
-              db::get_variables_tags_list<system::variables_tag>,
-              db::get_variables_tags_list<system::primitive_variables_tag>>,
-          analytic_variables_tags>>;
+              db::get_variables_tags_list<typename system::variables_tag>,
+              db::get_variables_tags_list<
+                  typename system::primitive_variables_tag>>,
+          tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
+                              analytic_variables_tags, tmpl::list<>>>>>;
   using triggers = Triggers::time_triggers;
 
   using step_choosers =
@@ -134,14 +156,17 @@ struct EvolutionMetavars {
   struct ObservationType {};
   using element_observation_type = ObservationType;
 
-  using observed_reduction_data_tags =
-      observers::collect_reduction_data_tags<Event<events>::creatable_classes>;
+  using observed_reduction_data_tags = observers::collect_reduction_data_tags<
+      typename Event<events>::creatable_classes>;
 
   using compute_rhs = tmpl::flatten<tmpl::list<
       Actions::ComputeVolumeFluxes,
       dg::Actions::SendDataForFluxes<EvolutionMetavars>,
       Actions::ComputeVolumeSources, Actions::ComputeTimeDerivative,
-      dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
+      tmpl::conditional_t<
+          evolution::is_analytic_solution_v<initial_data>,
+          dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
+          tmpl::list<>>,
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
@@ -171,16 +196,17 @@ struct EvolutionMetavars {
       VariableFixing::Actions::FixVariables<
           VariableFixing::FixToAtmosphere<thermodynamic_dim>>,
       Actions::UpdateConservatives,
-      Initialization::Actions::Interface<
+      dg::Actions::InitializeInterfaces<
           system,
-          Initialization::slice_tags_to_face<
+          dg::Initialization::slice_tags_to_face<
               typename system::variables_tag,
               typename system::spacetime_variables_tag,
               typename system::primitive_variables_tag>,
-          Initialization::slice_tags_to_exterior<
+          dg::Initialization::slice_tags_to_exterior<
               typename system::spacetime_variables_tag,
               typename system::primitive_variables_tag>>,
-      Initialization::Actions::Evolution<system>,
+      Initialization::Actions::Evolution<EvolutionMetavars>,
+      dg::Actions::InitializeMortars<EvolutionMetavars>,
       Initialization::Actions::DiscontinuousGalerkin<EvolutionMetavars>,
       Initialization::Actions::Minmod<3>,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
@@ -216,16 +242,14 @@ struct EvolutionMetavars {
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      compute_rhs, update_variables, Actions::AdvanceTime>>>>,
-          Parallel::ForwardAllOptionsToDataBox<
-              Initialization::option_tags<initialization_actions>>>>;
+                      compute_rhs, update_variables, Actions::AdvanceTime>>>>>>;
 
   using const_global_cache_tag_list =
-      tmpl::list<analytic_solution_tag,
-                 OptionTags::TypedTimeStepper<tmpl::conditional_t<
+      tmpl::list<initial_data_tag,
+                 Tags::TimeStepper<tmpl::conditional_t<
                      local_time_stepping, LtsTimeStepper, TimeStepper>>,
-                 grmhd::ValenciaDivClean::OptionTags::DampingParameter,
-                 OptionTags::EventsAndTriggers<events, triggers>>;
+                 grmhd::ValenciaDivClean::Tags::ConstraintDampingParameter,
+                 Tags::EventsAndTriggers<events, triggers>>;
 
   static constexpr OptionString help{
       "Evolve the Valencia formulation of the GRMHD system with divergence "
@@ -257,11 +281,12 @@ struct EvolutionMetavars {
 };
 
 static const std::vector<void (*)()> charm_init_node_funcs{
-    &setup_error_handling, &domain::creators::register_derived_with_charm,
+    &setup_error_handling,
+    &domain::creators::register_derived_with_charm,
     &Parallel::register_derived_classes_with_charm<
         Event<metavariables::events>>,
     &Parallel::register_derived_classes_with_charm<
-        StepChooser<EvolutionMetavars::step_choosers>>,
+        StepChooser<metavariables::step_choosers>>,
     &Parallel::register_derived_classes_with_charm<StepController>,
     &Parallel::register_derived_classes_with_charm<TimeStepper>,
     &Parallel::register_derived_classes_with_charm<

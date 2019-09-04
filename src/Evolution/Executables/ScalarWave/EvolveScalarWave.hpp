@@ -21,7 +21,6 @@
 #include "Evolution/EventsAndTriggers/Tags.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/NonconservativeSystem.hpp"
 #include "Evolution/Systems/ScalarWave/Equations.hpp"  // IWYU pragma: keep // for UpwindFlux
 #include "Evolution/Systems/ScalarWave/System.hpp"
@@ -42,6 +41,8 @@
 #include "Parallel/Reduction.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeInterfaces.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeMortars.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/WaveEquation/PlaneWave.hpp"  // IWYU pragma: keep
@@ -76,15 +77,16 @@ class CProxy_ConstGlobalCache;
 
 template <size_t Dim>
 struct EvolutionMetavars {
+  static constexpr size_t volume_dim = Dim;
   // Customization/"input options" to simulation
   using system = ScalarWave::System<Dim>;
   using temporal_id = Tags::TimeId;
   static constexpr bool local_time_stepping = true;
-  using analytic_solution_tag =
-      OptionTags::AnalyticSolution<ScalarWave::Solutions::PlaneWave<Dim>>;
-  using boundary_condition_tag = analytic_solution_tag;
+  using initial_data_tag =
+      Tags::AnalyticSolution<ScalarWave::Solutions::PlaneWave<Dim>>;
+  using boundary_condition_tag = initial_data_tag;
   using normal_dot_numerical_flux =
-      OptionTags::NumericalFlux<ScalarWave::UpwindFlux<Dim>>;
+      Tags::NumericalFlux<ScalarWave::UpwindFlux<Dim>>;
 
   // public for use by the Charm++ registration code
   using events = tmpl::list<
@@ -98,11 +100,10 @@ struct EvolutionMetavars {
   // A tmpl::list of tags to be added to the ConstGlobalCache by the
   // metavariables
   using const_global_cache_tag_list =
-      tmpl::list<analytic_solution_tag,
-                 OptionTags::TypedTimeStepper<tmpl::conditional_t<
+      tmpl::list<initial_data_tag,
+                 Tags::TimeStepper<tmpl::conditional_t<
                      local_time_stepping, LtsTimeStepper, TimeStepper>>,
-                 OptionTags::EventsAndTriggers<events, triggers>>;
-  using domain_creator_tag = OptionTags::DomainCreator<Dim, Frame::Inertial>;
+                 Tags::EventsAndTriggers<events, triggers>>;
 
   struct ObservationType {};
   using element_observation_type = ObservationType;
@@ -151,11 +152,13 @@ struct EvolutionMetavars {
   using initialization_actions = tmpl::list<
       dg::Actions::InitializeDomain<system::volume_dim>,
       Initialization::Actions::NonconservativeSystem,
-      Initialization::Actions::Interface<
+      dg::Actions::InitializeInterfaces<
           system,
-          Initialization::slice_tags_to_face<typename system::variables_tag>,
-          Initialization::slice_tags_to_exterior<>>,
-      Initialization::Actions::Evolution<system>,
+          dg::Initialization::slice_tags_to_face<
+              typename system::variables_tag>,
+          dg::Initialization::slice_tags_to_exterior<>>,
+      Initialization::Actions::Evolution<EvolutionMetavars>,
+      dg::Actions::InitializeMortars<EvolutionMetavars>,
       Initialization::Actions::DiscontinuousGalerkin<EvolutionMetavars>,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
 
@@ -187,9 +190,7 @@ struct EvolutionMetavars {
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      compute_rhs, update_variables, Actions::AdvanceTime>>>>,
-          Parallel::ForwardAllOptionsToDataBox<
-              Initialization::option_tags<initialization_actions>>>>;
+                      compute_rhs, update_variables, Actions::AdvanceTime>>>>>>;
 
   static constexpr OptionString help{
       "Evolve a Scalar Wave in Dim spatial dimension.\n\n"

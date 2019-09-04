@@ -35,8 +35,7 @@ namespace ValenciaDivClean {
 namespace Actions {
 
 struct InitializeGrTags {
-  using initialization_option_tags =
-      tmpl::list<Initialization::Tags::InitialTime>;
+  using initialization_tags = tmpl::list<Initialization::Tags::InitialTime>;
 
   template <typename DbTagsList, typename... InboxTags, typename Metavariables,
             typename ArrayIndex, typename ActionList,
@@ -67,7 +66,7 @@ struct InitializeGrTags {
           inertial_coords ](std::true_type /*is_analytic_solution*/,
                             const gsl::not_null<GrVars*> local_gr_vars,
                             const auto& local_cache) noexcept {
-          using solution_tag = ::OptionTags::AnalyticSolutionBase;
+          using solution_tag = ::Tags::AnalyticSolutionBase;
           local_gr_vars->assign_subset(
               Parallel::get<solution_tag>(local_cache)
                   .variables(inertial_coords, initial_time,
@@ -76,12 +75,13 @@ struct InitializeGrTags {
         [&inertial_coords](std::false_type /*is_analytic_solution*/,
                            const gsl::not_null<GrVars*> local_gr_vars,
                            const auto& local_cache) noexcept {
-          using analytic_data_tag = ::OptionTags::AnalyticDataBase;
+          using analytic_data_tag = ::Tags::AnalyticDataBase;
           local_gr_vars->assign_subset(
               Parallel::get<analytic_data_tag>(local_cache)
                   .variables(inertial_coords, typename GrVars::tags_list{}));
-        })(evolution::has_analytic_solution_alias<Metavariables>{},
-           make_not_null(&gr_vars), cache);
+        })(
+        evolution::is_analytic_solution<typename Metavariables::initial_data>{},
+        make_not_null(&gr_vars), cache);
 
     return std::make_tuple(
         Initialization::merge_into_databox<InitializeGrTags, simple_tags,

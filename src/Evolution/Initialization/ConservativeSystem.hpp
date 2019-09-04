@@ -50,8 +50,7 @@ namespace Actions {
 /// - Removes: nothing
 /// - Modifies: nothing
 struct ConservativeSystem {
-  using initialization_option_tags =
-      tmpl::list<Initialization::Tags::InitialTime>;
+  using initialization_tags = tmpl::list<Initialization::Tags::InitialTime>;
 
   template <typename DbTagsList, typename... InboxTags, typename Metavariables,
             typename ArrayIndex, typename ActionList,
@@ -138,7 +137,7 @@ struct ConservativeSystem {
           inertial_coords ](std::true_type /*is_analytic_solution*/,
                             const gsl::not_null<PrimitiveVars*> prim_vars,
                             const auto& local_cache) noexcept {
-          using solution_tag = ::OptionTags::AnalyticSolutionBase;
+          using solution_tag = ::Tags::AnalyticSolutionBase;
           prim_vars->assign_subset(
               Parallel::get<solution_tag>(local_cache)
                   .variables(
@@ -149,7 +148,7 @@ struct ConservativeSystem {
         [&inertial_coords](std::false_type /*is_analytic_solution*/,
                            const gsl::not_null<PrimitiveVars*> prim_vars,
                            const auto& local_cache) noexcept {
-          using analytic_data_tag = OptionTags::AnalyticDataBase;
+          using analytic_data_tag = ::Tags::AnalyticDataBase;
           prim_vars->assign_subset(
               Parallel::get<analytic_data_tag>(local_cache)
                   .variables(
@@ -157,8 +156,9 @@ struct ConservativeSystem {
                       typename Metavariables::analytic_variables_tags{}));
           return Parallel::get<analytic_data_tag>(local_cache)
               .equation_of_state();
-        })(evolution::has_analytic_solution_alias<Metavariables>{},
-           make_not_null(&primitive_vars), cache);
+        })(
+        evolution::is_analytic_solution<typename Metavariables::initial_data>{},
+        make_not_null(&primitive_vars), cache);
 
     return Initialization::merge_into_databox<ConservativeSystem, simple_tags,
                                               compute_tags>(
@@ -183,7 +183,7 @@ struct ConservativeSystem {
 
      // Set initial data from analytic solution
      using Vars = typename variables_tag::type;
-     using solution_tag = OptionTags::AnalyticSolutionBase;
+     using solution_tag = ::Tags::AnalyticSolutionBase;
      db::mutate<variables_tag>(
          make_not_null(&box), [&cache, &inertial_coords, initial_time ](
                                   const gsl::not_null<Vars*> vars) noexcept {

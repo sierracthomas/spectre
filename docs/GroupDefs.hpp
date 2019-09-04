@@ -12,6 +12,12 @@
  */
 
 /*!
+ * \defgroup AnalyticDataGroup Analytic Data
+ * \brief Analytic data used to specify (for example) initial data to the
+ * equations implemented in \ref EvolutionSystemsGroup.
+ */
+
+/*!
  * \defgroup AnalyticSolutionsGroup Analytic Solutions
  * \brief Analytic solutions to the equations implemented in \ref
  * EvolutionSystemsGroup and \ref EllipticSystemsGroup.
@@ -494,6 +500,11 @@
  */
 
 /*!
+ * \defgroup LimitersGroup Limiters
+ * \brief Limiters to control shocks and surfaces in the solution.
+ */
+
+/*!
  * \defgroup LinearSolverGroup  Linear Solver
  * \brief Algorithms to solve linear systems of equations
  *
@@ -526,10 +537,10 @@
  * - `component_list`: A `tmpl::list` that collects the additional parallel
  * components this linear solver uses. The executables will append these to
  * their own `component_list`.
- * - `tags`: A type that follows the same structure as those that initialize
- * other parts of the DataBox in `InitializeElement.hpp` files. This means it
- * exposes `simple_tags`, `compute_tags` and a static `initialize` function so
- * that it can be chained into the DataBox initialization.
+ * - `initialize_element`: An action that initializes the DataBox items
+ * required by the linear solver.
+ * - `reinitialize_element`: An action that resets the linear solver to its
+ * initial state.
  * - `perform_step`: The action to be executed after the linear operator has
  * been applied to the operand and written to the DataBox (see above). It will
  * converge the fields towards their solution and update the operand before
@@ -617,24 +628,21 @@
  */
 
 /*!
- * \defgroup LimitersGroup Limiters
- * \brief Limiters to control shocks and surfaces in the solution.
- */
-
-/*!
  * \defgroup SpectralGroup Spectral
  * Things related to spectral transformations.
+ */
+
+// Note: this group is ordered by how it appears in the rendered Doxygen pages
+// (i.e., "Spin-weighted..."), rather than the group's name (i.e., "Swsh...").
+/*!
+ * \defgroup SwshGroup Spin-weighted spherical harmonics
+ * Utilities, tags, and metafunctions for using and manipulating spin-weighted
+ * spherical harmonics
  */
 
 /*!
  * \defgroup SurfacesGroup Surfaces
  * Things related to surfaces.
- */
-
-/*!
- * \defgroup SwshGroup Spin-weighted spherical harmonics
- * Utilities, tags, and metafunctions for using and manipulating spin-weighted
- * spherical harmonics
  */
 
 /*!

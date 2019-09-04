@@ -23,7 +23,6 @@
 #include "Evolution/Initialization/ConservativeSystem.hpp"
 #include "Evolution/Initialization/DiscontinuousGalerkin.hpp"
 #include "Evolution/Initialization/Evolution.hpp"
-#include "Evolution/Initialization/Interface.hpp"
 #include "Evolution/Initialization/Limiter.hpp"
 #include "Evolution/Systems/Burgers/System.hpp"
 #include "IO/Observer/Actions.hpp"
@@ -42,6 +41,8 @@
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeInterfaces.hpp"
+#include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeMortars.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Burgers/Step.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
@@ -73,16 +74,17 @@ class CProxy_ConstGlobalCache;
 /// \endcond
 
 struct EvolutionMetavars {
+  static constexpr size_t volume_dim = 1;
   using system = Burgers::System;
   using temporal_id = Tags::TimeId;
   static constexpr bool local_time_stepping = false;
-  using analytic_solution_tag =
-      OptionTags::AnalyticSolution<Burgers::Solutions::Step>;
-  using boundary_condition_tag = analytic_solution_tag;
-  using normal_dot_numerical_flux = OptionTags::NumericalFlux<
-      dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
-  using limiter = OptionTags::Limiter<
-      Limiters::Minmod<1, system::variables_tag::tags_list>>;
+  using initial_data_tag =
+      Tags::AnalyticSolution<Burgers::Solutions::Step>;
+  using boundary_condition_tag = initial_data_tag;
+  using normal_dot_numerical_flux =
+      Tags::NumericalFlux<dg::NumericalFluxes::LocalLaxFriedrichs<system>>;
+  using limiter =
+      Tags::Limiter<Limiters::Minmod<1, system::variables_tag::tags_list>>;
 
   // public for use by the Charm++ registration code
   using events =
@@ -94,11 +96,10 @@ struct EvolutionMetavars {
   using triggers = Triggers::time_triggers;
 
   using const_global_cache_tag_list =
-      tmpl::list<analytic_solution_tag,
-                 OptionTags::TypedTimeStepper<tmpl::conditional_t<
+      tmpl::list<initial_data_tag,
+                 Tags::TimeStepper<tmpl::conditional_t<
                      local_time_stepping, LtsTimeStepper, TimeStepper>>,
-                 OptionTags::EventsAndTriggers<events, triggers>>;
-  using domain_creator_tag = OptionTags::DomainCreator<1, Frame::Inertial>;
+                 Tags::EventsAndTriggers<events, triggers>>;
 
   struct ObservationType {};
   using element_observation_type = ObservationType;
@@ -138,11 +139,13 @@ struct EvolutionMetavars {
   using initialization_actions = tmpl::list<
       dg::Actions::InitializeDomain<1>,
       Initialization::Actions::ConservativeSystem,
-      Initialization::Actions::Interface<
+      dg::Actions::InitializeInterfaces<
           system,
-          Initialization::slice_tags_to_face<typename system::variables_tag>,
-          Initialization::slice_tags_to_exterior<>>,
-      Initialization::Actions::Evolution<system>,
+          dg::Initialization::slice_tags_to_face<
+              typename system::variables_tag>,
+          dg::Initialization::slice_tags_to_exterior<>>,
+      Initialization::Actions::Evolution<EvolutionMetavars>,
+      dg::Actions::InitializeMortars<EvolutionMetavars>,
       Initialization::Actions::DiscontinuousGalerkin<EvolutionMetavars>,
       Initialization::Actions::Minmod<1>,
       Initialization::Actions::RemoveOptionsAndTerminatePhase>;
@@ -175,9 +178,7 @@ struct EvolutionMetavars {
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      compute_rhs, update_variables, Actions::AdvanceTime>>>>,
-          Parallel::ForwardAllOptionsToDataBox<
-              Initialization::option_tags<initialization_actions>>>>;
+                      compute_rhs, update_variables, Actions::AdvanceTime>>>>>>;
 
   static constexpr OptionString help{
       "Evolve the Burgers equation.\n\n"

@@ -24,7 +24,6 @@
 #include "NumericalAlgorithms/LinearSolver/ConjugateGradient/ResidualMonitorActions.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/LinearSolver/Observe.hpp"
 #include "NumericalAlgorithms/LinearSolver/Tags.hpp"
-#include "Parallel/AddOptionsToDataBox.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Literals.hpp"
 #include "Utilities/TMPL.hpp"
@@ -40,8 +39,11 @@ class ConstGlobalCache;
 }  // namespace Parallel
 namespace LinearSolver {
 namespace cg_detail {
+template <typename FieldsTag>
 struct InitializeHasConverged;
+template <typename FieldsTag>
 struct UpdateFieldValues;
+template <typename FieldsTag>
 struct UpdateOperand;
 }  // namespace cg_detail
 }  // namespace LinearSolver
@@ -55,14 +57,15 @@ struct VectorTag : db::SimpleTag {
   static std::string name() noexcept { return "VectorTag"; }
 };
 
+using fields_tag = VectorTag;
 using residual_square_tag = db::add_tag_prefix<
     LinearSolver::Tags::MagnitudeSquare,
-    db::add_tag_prefix<LinearSolver::Tags::Residual, VectorTag>>;
+    db::add_tag_prefix<LinearSolver::Tags::Residual, fields_tag>>;
 using initial_residual_magnitude_tag = db::add_tag_prefix<
     LinearSolver::Tags::Initial,
     db::add_tag_prefix<
         LinearSolver::Tags::Magnitude,
-        db::add_tag_prefix<LinearSolver::Tags::Residual, VectorTag>>>;
+        db::add_tag_prefix<LinearSolver::Tags::Residual, fields_tag>>>;
 
 struct CheckValueTag : db::SimpleTag {
   using type = double;
@@ -76,7 +79,7 @@ using check_tags = tmpl::list<CheckValueTag, CheckConvergedTag>;
 template <typename Metavariables>
 struct MockResidualMonitor {
   using component_being_mocked =
-      LinearSolver::cg_detail::ResidualMonitor<Metavariables>;
+      LinearSolver::cg_detail::ResidualMonitor<Metavariables, fields_tag>;
   using metavariables = Metavariables;
   // We represent the singleton as an array with only one element for the action
   // testing framework
@@ -84,12 +87,11 @@ struct MockResidualMonitor {
   using array_index = int;
   using const_global_cache_tag_list =
       typename LinearSolver::cg_detail::ResidualMonitor<
-          Metavariables>::const_global_cache_tag_list;
-  using add_options_to_databox = Parallel::AddNoOptionsToDataBox;
+          Metavariables, fields_tag>::const_global_cache_tag_list;
   using phase_dependent_action_list = tmpl::list<Parallel::PhaseActions<
       typename Metavariables::Phase, Metavariables::Phase::Initialization,
       tmpl::list<
-          LinearSolver::cg_detail::InitializeResidualMonitor<Metavariables>>>>;
+          LinearSolver::cg_detail::InitializeResidualMonitor<fields_tag>>>>;
 };
 
 struct MockInitializeHasConverged {
@@ -158,29 +160,23 @@ struct MockElementArray {
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = int;
   using const_global_cache_tag_list = tmpl::list<>;
-  using add_options_to_databox = Parallel::AddNoOptionsToDataBox;
   using phase_dependent_action_list = tmpl::list<Parallel::PhaseActions<
       typename Metavariables::Phase, Metavariables::Phase::Initialization,
       tmpl::list<ActionTesting::InitializeDataBox<check_tags>>>>;
 
   using replace_these_simple_actions =
-      tmpl::list<LinearSolver::cg_detail::InitializeHasConverged,
-                 LinearSolver::cg_detail::UpdateFieldValues,
-                 LinearSolver::cg_detail::UpdateOperand>;
+      tmpl::list<LinearSolver::cg_detail::InitializeHasConverged<fields_tag>,
+                 LinearSolver::cg_detail::UpdateFieldValues<fields_tag>,
+                 LinearSolver::cg_detail::UpdateOperand<fields_tag>>;
   using with_these_simple_actions =
       tmpl::list<MockInitializeHasConverged, MockUpdateFieldValues,
                  MockUpdateOperand>;
-};
-
-struct System {
-  using fields_tag = VectorTag;
 };
 
 struct Metavariables {
   using component_list = tmpl::list<MockResidualMonitor<Metavariables>,
                                     MockElementArray<Metavariables>,
                                     helpers::MockObserverWriter<Metavariables>>;
-  using system = System;
   using const_global_cache_tag_list = tmpl::list<>;
   enum class Phase { Initialization, RegisterWithObserver, Testing, Exit };
 };
@@ -234,7 +230,7 @@ SPECTRE_TEST_CASE(
   SECTION("InitializeResidual") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 4.);
     ActionTesting::invoke_queued_threaded_action<observer_writer>(
         make_not_null(&runner), 0);
@@ -264,7 +260,7 @@ SPECTRE_TEST_CASE(
   SECTION("InitializeResidualAndConverge") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 0.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
@@ -280,12 +276,13 @@ SPECTRE_TEST_CASE(
   SECTION("ComputeAlpha") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
     ActionTesting::simple_action<
-        residual_monitor, LinearSolver::cg_detail::ComputeAlpha<element_array>>(
+        residual_monitor,
+        LinearSolver::cg_detail::ComputeAlpha<fields_tag, element_array>>(
         make_not_null(&runner), 0, 2.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
@@ -299,7 +296,7 @@ SPECTRE_TEST_CASE(
   SECTION("UpdateResidual") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 9.);
     ActionTesting::invoke_queued_threaded_action<observer_writer>(
         make_not_null(&runner), 0);
@@ -307,7 +304,7 @@ SPECTRE_TEST_CASE(
         make_not_null(&runner), 0);
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::UpdateResidual<element_array>>(
+        LinearSolver::cg_detail::UpdateResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 4.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
@@ -339,13 +336,13 @@ SPECTRE_TEST_CASE(
   SECTION("ConvergeByAbsoluteResidual") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::UpdateResidual<element_array>>(
+        LinearSolver::cg_detail::UpdateResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 0.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
@@ -366,20 +363,20 @@ SPECTRE_TEST_CASE(
   SECTION("ConvergeByMaxIterations") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
     // Perform 2 mock iterations
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::UpdateResidual<element_array>>(
+        LinearSolver::cg_detail::UpdateResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::UpdateResidual<element_array>>(
+        LinearSolver::cg_detail::UpdateResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
@@ -400,13 +397,13 @@ SPECTRE_TEST_CASE(
   SECTION("ConvergeByRelativeResidual") {
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::InitializeResidual<element_array>>(
+        LinearSolver::cg_detail::InitializeResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 1.);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);
     ActionTesting::simple_action<
         residual_monitor,
-        LinearSolver::cg_detail::UpdateResidual<element_array>>(
+        LinearSolver::cg_detail::UpdateResidual<fields_tag, element_array>>(
         make_not_null(&runner), 0, 0.25);
     ActionTesting::invoke_queued_simple_action<element_array>(
         make_not_null(&runner), 0);

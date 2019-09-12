@@ -19,9 +19,10 @@ namespace gr {
  * \details Computes the electric part of the Weyl tensor in vacuum \f$E_{ij}\f$
  * as: \f$ E_{ij} = R_{ij} + KK_{ij} - K^m_{i}K_{mj}\f$ where \f$R_{ij}\f$ is
  * the spatial Ricci tensor, \f$K_{ij}\f$ is the extrinsic curvature, and
- * \f$K\f$ is the trace of \f$K_{ij}\f$. An additional definition is E_{ij} =
- * n^a n^b C_{a i b j}, where n is the unit-normal to the hypersurface and C is
- * the Weyl tensor consistent with the conventions in \cite Boyle2019kee.
+ * \f$K\f$ is the trace of \f$K_{ij}\f$. An additional definition is \f$E_{ij} =
+ * n^a n^b C_{a i b j}\f$, where \f$n\f$ is the unit-normal to the hypersurface
+ * and \f$C\f$ is the Weyl tensor consistent with the conventions
+ * in \cite Boyle2019kee.
  * \note This needs additional terms for computations in a non-vacuum.
  */
 template <size_t SpatialDim, typename Frame, typename DataType>

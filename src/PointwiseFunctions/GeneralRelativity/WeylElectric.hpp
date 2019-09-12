@@ -33,7 +33,7 @@ tnsr::ii<DataType, SpatialDim, Frame> weyl_electric(
 
 template <size_t SpatialDim, typename Frame, typename DataType>
 void weyl_electric(
-    const gsl::not_null<tnsr::ii<DataType, SpatialDim, Frame>*>
+    gsl::not_null<tnsr::ii<DataType, SpatialDim, Frame>*>
         weyl_electric_part,
     const tnsr::ii<DataType, SpatialDim, Frame>& spatial_ricci,
     const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature,

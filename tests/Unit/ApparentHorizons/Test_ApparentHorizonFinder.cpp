@@ -54,7 +54,7 @@
 #include "Time/Slab.hpp"
 #include "Time/Tags.hpp"
 #include "Time/Time.hpp"
-#include "Time/TimeId.hpp"
+#include "Time/TimeStepId.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Literals.hpp"
 #include "Utilities/MakeWithValue.hpp"
@@ -92,6 +92,7 @@ namespace {
 // Counter to ensure that this function is called
 size_t test_schwarzschild_horizon_called = 0;
 struct TestSchwarzschildHorizon {
+  using observation_types = tmpl::list<>;
   template <typename DbTags, typename Metavariables>
   static void apply(const db::DataBox<DbTags>& box,
                     const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,
@@ -124,6 +125,7 @@ struct TestSchwarzschildHorizon {
 // Counter to ensure that this function is called
 size_t test_kerr_horizon_called = 0;
 struct TestKerrHorizon {
+  using observation_types = tmpl::list<>;
   template <typename DbTags, typename Metavariables>
   static void apply(const db::DataBox<DbTags>& box,
                     const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,
@@ -211,7 +213,7 @@ struct MockMetavariables {
                  GeneralizedHarmonic::Tags::Pi<3, Frame::Inertial>,
                  GeneralizedHarmonic::Tags::Phi<3, Frame::Inertial>>;
   using interpolation_target_tags = tmpl::list<AhA>;
-  using temporal_id  = ::Tags::TimeId;
+  using temporal_id  = ::Tags::TimeStepId;
   static constexpr size_t volume_dim = 3;
   using component_list =
       tmpl::list<mock_interpolation_target<MockMetavariables, AhA>,
@@ -268,7 +270,7 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
   runner.set_phase(metavars::Phase::Registration);
 
   Slab slab(0.0, 1.0);
-  TimeId temporal_id(true, 0, Time(slab, 0));
+  TimeStepId temporal_id(true, 0, Time(slab, 0));
 
   // Create element_ids.
   std::vector<ElementId<3>> element_ids{};
@@ -294,7 +296,7 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
   ActionTesting::simple_action<
       target_component, intrp::Actions::AddTemporalIdsToInterpolationTarget<
                             typename metavars::AhA>>(
-      make_not_null(&runner), 0, std::vector<TimeId>{temporal_id});
+      make_not_null(&runner), 0, std::vector<TimeStepId>{temporal_id});
 
   // Create volume data and send it to the interpolator.
   for (const auto& element_id : element_ids) {

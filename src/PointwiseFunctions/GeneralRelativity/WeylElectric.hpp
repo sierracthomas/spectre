@@ -41,6 +41,29 @@ void weyl_electric(
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
 
+/*!
+ * \ingroup GeneralRelativityGroup
+ * \brief Computes a scalar version of the electric part of the Weyl tensor
+ * in vaccuum.
+ *
+ * \details Computes a scalar version of the electric part of the Weyl tensor
+ * in vaccuum \f$EE\f$ as \f$ EE = E^k_{j} * E^j_{k} \f$ where \f$ E_{ij}\f$ is
+ * the electric part of the Weyl tensor.
+ * \note The electric part of the Weyl tensor needs additional terms for
+ * scalar computations in a non-vaccuum.
+ */
+template <size_t SpatialDim, typename Frame, typename DataType>
+Scalar<DataType> weyl_electric_scalar(
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept;
+template <size_t SpatialDim, typename Frame, typename DataType>
+void weyl_electric_scalar(
+    gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_part,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric_scalar,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept;
+
 namespace Tags {
 /// Compute item for the electric part of the weyl tensor in vacuum
 /// Computed from the RicciTensor, ExtrinsicCurvature, and InverseSpatialMetric
@@ -58,6 +81,18 @@ struct WeylElectricCompute : WeylElectric<SpatialDim, Frame, DataType>,
       gr::Tags::RicciTensor<SpatialDim, Frame, DataType>,
       gr::Tags::ExtrinsicCurvature<SpatialDim, Frame, DataType>,
       gr::Tags::InverseSpatialMetric<SpatialDim, Frame, DataType>>;
+};
+/// Can be retrieved using gr::Tags::WeylElectricScalar
+
+template <size_t SpatialDim, typename Frame, typename DataType>
+struct WeylElectricScalarCompute
+    : WeylElectricScalar<SpatialDim, Frame, DataType>,
+      db::ComputeTag {
+  static constexpr auto function =
+      &gr::weyl_electric_scalar<SpatialDim, Frame, DataType>;
+  using argument_tags =
+      tmpl::list<gr::Tags::WeylElectric<SpatialDim, Frame, DataType>,
+                 gr::Tags::InverseSpatialMetric<SpatialDim, Frame, DataType>>;
 };
 }  // namespace Tags
 }  // namespace gr

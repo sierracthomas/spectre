@@ -70,6 +70,17 @@ void test_weyl_electric(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(f, "WeylElectric", "weyl_electric_tensor",
                                     {{{-1., 1.}}}, used_for_size);
 }
+
+template <size_t SpatialDim, typename DataType>
+void test_weyl_electric_scalar(const DataType& used_for_size) {
+  Scalar<DataType> (*f)(
+      const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&,
+      const tnsr::II<DataType, SpatialDim, Frame::Inertial>&) =
+    &gr::weyl_electric_scalar<SpatialDim, Frame::Inertial, DataType>;
+  pypp::check_with_random_values<1>(f, "WeylElectricScalar",
+                                    "weyl_electric_scalar", {{{-1., 1.}}},
+                                    used_for_size);
+}
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.WeylElectric",
@@ -80,6 +91,7 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.WeylElectric",
   GENERATE_UNINITIALIZED_DOUBLE_AND_DATAVECTOR;
 
   CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric, (1, 2, 3));
+  CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric_scalar, (1, 2, 3));
   test_compute_item_in_databox<3>(d);
   test_compute_item_in_databox<3>(dv);
 }

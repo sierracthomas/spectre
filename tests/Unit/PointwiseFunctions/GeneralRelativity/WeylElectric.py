@@ -12,3 +12,7 @@ def weyl_electric_tensor(spatial_ricci, extrinsic_curvature,
            np.einsum("il,kl,kj",
            extrinsic_curvature, inverse_spatial_metric,
            extrinsic_curvature))
+
+def weyl_electric_scalar(weyl_electric, inverse_spatial_metric):
+    return (np.einsum("ij,kl,ik,jl", weyl_electric, weyl_electric,
+                      inverse_spatial_metric, inverse_spatial_metric))

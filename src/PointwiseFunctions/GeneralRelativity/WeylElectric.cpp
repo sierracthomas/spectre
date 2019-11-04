@@ -49,6 +49,27 @@ void weyl_electric(
     }
   }
 }
+
+template <size_t SpatialDim, typename Frame, typename DataType>
+Scalar<DataType> weyl_electric_scalar(
+    const tnsr::II<DataType, SpatialDim, Frame>& inverse_spatial_metric,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric) noexcept {
+  auto weyl_electric_scalar =
+      make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
+  for (size_t i = 0; i < SpatialDim; ++i) {
+    for (size_t j = i; j < SpatialDim; ++j) {
+      for (size_t k = 0; k < SpatialDim; ++k) {
+        for (size_t l = 0; l < SpatialDim; ++l) {
+          get(weyl_electric_scalar) += weyl_electric.get(i, j) *
+                                       weyl_electric.get(k, l) *
+                                       inverse_spatial_metric.get(i, k) *
+                                       inverse_spatial_metric.get(j, l);
+        }
+      }
+    }
+  }
+}
+
 }  // namespace gr
 
 // Explicit Instantiations

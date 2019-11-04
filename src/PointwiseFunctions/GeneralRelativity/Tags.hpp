@@ -143,6 +143,12 @@ template <size_t Dim, typename Frame, typename DataType>
 struct WeylElectric : db::SimpleTag {
   using type = tnsr::ii<DataType, Dim, Frame>;
 };
+
+template <size_t Dim, typename Frame, typename DataType>
+struct WeylElectricScalar : db::SimpleTag {
+  using type = Scalar<DataVector>;
+  static std::string name() noexcept { return "WeylElectricScalar"; }
+};
 }  // namespace Tags
 
 /// GR Tags commonly needed for the evolution of hydro systems

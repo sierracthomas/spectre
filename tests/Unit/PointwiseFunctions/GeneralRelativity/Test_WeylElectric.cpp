@@ -28,13 +28,14 @@ void test_weyl_electric(const DataType& used_for_size) {
 }
 
 template <size_t SpatialDim, typename DataType>
-void test_weyl_electric_scalar(const Scalar<DataVector>& scalar) {
+void test_weyl_electric_scalar(const DataType& used_for_size) {
   Scalar<DataType> (*f)(
       const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&,
-      const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&) =
-      &gr::weyl_electric_scalar<DataType>;
-  pypp::check_with_random_values<1>(
-      f, "WeylElectricScalar", "weyl_electric_scalar", {{{-1., 1.}}}, scalar);
+      const tnsr::II<DataType, SpatialDim, Frame::Inertial>&) =
+      &gr::weyl_electric_scalar<SpatialDim, Frame::Inertial, DataType>;
+  pypp::check_with_random_values<1>(f, "WeylElectricScalar",
+                                    "weyl_electric_scalar", {{{-1., 1.}}},
+                                    used_for_size);
 }
 }  // namespace
 

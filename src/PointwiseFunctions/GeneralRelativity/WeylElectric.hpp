@@ -45,6 +45,13 @@ Scalar<DataType> weyl_electric_scalar(
     const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
+template <size_t SpatialDim, typename Frame, typename DataType>
+void weyl_electric_scalar(
+    gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_part,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric_scalar,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept;
+
 namespace Tags {
 /// Compute item for the electric part of the weyl tensor in vacuum
 /// Computed from the RicciTensor, ExtrinsicCurvature, and InverseSpatialMetric

@@ -79,17 +79,8 @@ struct WeylElectricScalarCompute
   static constexpr auto function =
       &gr::weyl_electric_scalar<SpatialDim, Frame, DataType>;
   using argument_tags =
-      tmpl::list<gr::Tags::WeylElectric<3, Frame, DataVector>,
-                 gr::Tags::InverseSpatialMetric<3, Frame, DataVector>>;
-
-  /* struct WeylElectricScalarCompute : WeylElectricScalar,
-                                     db::ComputeTag {
-    static constexpr auto function =
-      &gr::weyl_electric_scalar<DataType, Frame, SpatialDim>;
-    using argument_tags =
-        tmpl::list<gr::Tags::WeylElectric<3, Frame, DataType>,
-                   gr::Tags::InverseSpatialMetric<3, Frame, DataType>>;
-  */
+      tmpl::list<gr::Tags::WeylElectric<SpatialDim, Frame, DataType>,
+                 gr::Tags::InverseSpatialMetric<SpatialDim, Frame, DataType>>;
 };
 }  // namespace Tags
 }  // namespace gr

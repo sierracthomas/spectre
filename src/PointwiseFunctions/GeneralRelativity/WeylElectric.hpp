@@ -70,5 +70,26 @@ struct WeylElectricCompute : WeylElectric<SpatialDim, Frame, DataType>,
       gr::Tags::ExtrinsicCurvature<SpatialDim, Frame, DataType>,
       gr::Tags::InverseSpatialMetric<SpatialDim, Frame, DataType>>;
 };
+/// Can be retrieved using gr::Tags::WeylElectricScalar
+
+template <size_t SpatialDim, typename Frame, typename DataType>
+struct WeylElectricScalarCompute
+    : WeylElectricScalar<SpatialDim, Frame, DataType>,
+      db::ComputeTag {
+  static constexpr auto function =
+      &gr::weyl_electric_scalar<SpatialDim, Frame, DataType>;
+  using argument_tags =
+      tmpl::list<gr::Tags::WeylElectric<3, Frame, DataVector>,
+                 gr::Tags::InverseSpatialMetric<3, Frame, DataVector>>;
+
+  /* struct WeylElectricScalarCompute : WeylElectricScalar,
+                                     db::ComputeTag {
+    static constexpr auto function =
+      &gr::weyl_electric_scalar<DataType, Frame, SpatialDim>;
+    using argument_tags =
+        tmpl::list<gr::Tags::WeylElectric<3, Frame, DataType>,
+                   gr::Tags::InverseSpatialMetric<3, Frame, DataType>>;
+  */
+};
 }  // namespace Tags
 }  // namespace gr

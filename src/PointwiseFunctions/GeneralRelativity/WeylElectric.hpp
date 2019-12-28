@@ -40,6 +40,18 @@ void weyl_electric(
     const tnsr::ii<DataType, SpatialDim, Frame>& extrinsic_curvature,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
+
+/*!
+ * \ingroup GeneralRelativityGroup
+ * \brief Computes a scalar version of the electric part of the Weyl tensor
+ * in vaccuum.
+ *
+ * \details Computes a scalar version of the electric part of the Weyl tensor
+ * in vaccuum \f$EE\f$ as \f$ EE = E^k_{j} * E^j_{k} \f$ where \f$ E_{ij}\f$ is
+ * the electric part of the Weyl tensor.
+ * \note The electric part of the Weyl tensor needs additional terms for
+ * scalar computations in a non-vaccuum.
+ */
 template <size_t SpatialDim, typename Frame, typename DataType>
 Scalar<DataType> weyl_electric_scalar(
     const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,

@@ -68,7 +68,7 @@ Scalar<DataType> weyl_electric_scalar(
 template <size_t SpatialDim, typename Frame, typename DataType>
 void weyl_electric_scalar(
     gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_part,
-    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric_scalar,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept;
 

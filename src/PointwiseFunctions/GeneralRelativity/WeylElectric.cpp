@@ -108,7 +108,7 @@ void weyl_electric_scalar(
           inverse_spatial_metric) noexcept;                                 \
   template void gr::weyl_electric_scalar(                                   \
       const gsl::not_null<Scalar<DTYPE(data)>*> weyl_electric_scalar_part,  \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& spatial_ricci,   \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& weyl_electric,   \
       const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                  \
           inverse_spatial_metric) noexcept;
 

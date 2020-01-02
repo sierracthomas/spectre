@@ -51,12 +51,13 @@ void weyl_electric(
 
 /*!
  * \ingroup GeneralRelativityGroup
- * \brief Computes a scalar version of the electric part of the Weyl tensor
- * in vaccuum.
+ * \brief Computes the scalar \f$E_{ij} E^{ij}\f$ from the electric
+ * part of the Weyl tensor \f$E_{ij}\f$.
  *
- * \details Computes a scalar version of the electric part of the Weyl tensor
- * in vaccuum \f$EE\f$ as \f$ EE = E^k_{j} * E^j_{k} \f$ where \f$ E_{ij}\f$ is
- * the electric part of the Weyl tensor.
+ * \details Computes the scalar \f$E_{ij} E^{ij}\f$ from the electric part
+ * of the Weyl tensor \f$E_{ij}\f$ and the inverse spatial metric
+ * \f$g^{ij}\f$, i.e. \f$E_{ij} = g^{ik}g^{jl}E_{ij}E_{kl}\f$.
+ *
  * \note The electric part of the Weyl tensor needs additional terms for
  * scalar computations in a non-vaccuum.
  */

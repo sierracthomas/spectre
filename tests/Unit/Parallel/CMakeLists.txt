@@ -33,6 +33,7 @@ add_algorithm_test(Test_AlgorithmNestedApply2)
 add_algorithm_test(Test_AlgorithmParallel)
 add_algorithm_test(Test_AlgorithmNodelock)
 add_algorithm_test(Test_AlgorithmReduction)
+add_algorithm_test(Test_PiDart)
 
 # Test ConstGlobalCache
 add_charm_module(Test_ConstGlobalCache)

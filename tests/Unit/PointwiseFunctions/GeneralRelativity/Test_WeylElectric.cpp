@@ -46,5 +46,6 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.WeylElectric",
 
   GENERATE_UNINITIALIZED_DOUBLE_AND_DATAVECTOR;
 
+  CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric, (1, 2, 3));
   CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_weyl_electric_scalar, (1, 2, 3));
 }

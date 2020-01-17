@@ -43,6 +43,7 @@
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeNormalVector.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpatialMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/WeylElectric.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -134,7 +135,9 @@ struct InitializeGhAnd3Plus1Variables {
         GeneralizedHarmonic::Tags::TraceExtrinsicCurvatureCompute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma0Compute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma1Compute<Dim, frame>,
-        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>>;
+        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>,
+        gr::Tags::WeylElectricCompute<Dim, frame, DataVector>,
+        gr::Tags::WeylElectricScalarCompute<Dim, frame, DataVector>>;
 
     return std::make_tuple(
         Initialization::merge_into_databox<InitializeGhAnd3Plus1Variables,

@@ -79,6 +79,7 @@
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Ricci.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/WeylElectric.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
 #include "Time/Actions/ChangeSlabSize.hpp"
 #include "Time/Actions/ChangeStepSize.hpp"
@@ -151,6 +152,7 @@ struct EvolutionMetavars {
   using observe_fields = tmpl::append<
       analytic_solution_fields,
       tmpl::list<
+          gr::Tags::WeylElectricScalar<volume_dim, Frame::Inertial, DataVector>,
           ::Tags::PointwiseL2Norm<
               GeneralizedHarmonic::Tags::GaugeConstraint<volume_dim, frame>>,
           ::Tags::PointwiseL2Norm<GeneralizedHarmonic::Tags::

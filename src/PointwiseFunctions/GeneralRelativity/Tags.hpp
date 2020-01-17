@@ -155,12 +155,6 @@ struct TraceExtrinsicCurvature : db::SimpleTag {
   static std::string name() noexcept { return "TraceExtrinsicCurvature"; }
 };
 
-template <size_t Dim, typename Frame, typename DataType>
-struct RicciTensor : db::SimpleTag {
-  using type = tnsr::ii<DataType, Dim, Frame>;
-  static std::string name() noexcept { return "RicciTensor"; }
-};
-
 /*!
  * \brief Computes Ricci tensor from the (spatial or spacetime)
  * Christoffel symbol of the second kind and its derivative.

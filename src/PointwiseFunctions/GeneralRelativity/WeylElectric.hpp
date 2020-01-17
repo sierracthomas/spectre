@@ -107,7 +107,9 @@ template <size_t SpatialDim, typename Frame, typename DataType>
 struct WeylElectricScalarCompute
     : WeylElectricScalar<SpatialDim, Frame, DataType>,
       db::ComputeTag {
-  static constexpr auto function =
+  static constexpr Scalar<DataType> (*function)(
+      const tnsr::ii<DataType, SpatialDim, Frame>&,
+      const tnsr::II<DataType, SpatialDim, Frame>&) =
       &gr::weyl_electric_scalar<SpatialDim, Frame, DataType>;
   using argument_tags =
       tmpl::list<gr::Tags::WeylElectric<SpatialDim, Frame, DataType>,

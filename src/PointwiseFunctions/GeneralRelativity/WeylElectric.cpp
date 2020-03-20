@@ -48,16 +48,36 @@ void weyl_electric(
   }
 }
 
+namespace {
 template <size_t SpatialDim, typename Frame, typename DataType>
-Scalar<DataType> weyl_electric_scalar(
+void weyl_electric_scalar_impl(
+    const gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_result,
+    const gsl::not_null<tnsr::ii<DataType, SpatialDim, Frame>*>
+        weyl_electric_up_down,
     const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
     const tnsr::II<DataType, SpatialDim, Frame>&
         inverse_spatial_metric) noexcept {
-  Scalar<DataType> weyl_electric_scalar_result{};
-  weyl_electric_scalar<SpatialDim>(make_not_null(&weyl_electric_scalar_result),
-                                   weyl_electric, inverse_spatial_metric);
-  return weyl_electric_scalar_result;
+  for (size_t i = 0; i < SpatialDim; ++i) {
+    for (size_t j = 0; j < SpatialDim; ++j) {
+      for (size_t k = j; k < SpatialDim; ++k) {
+        weyl_electric_up_down->get(j, k) +=
+            weyl_electric.get(i, j) * inverse_spatial_metric.get(i, k);
+      }
+    }
+  }
+  for (size_t j = 0; j < SpatialDim; ++j) {
+    for (size_t k = 0; k < SpatialDim; ++k) {
+      if (UNLIKELY(j == 0 and k == 0)) {
+        get(*weyl_electric_scalar_result) =
+            weyl_electric_up_down->get(j, k) * weyl_electric_up_down->get(j, k);
+      } else {
+        get(*weyl_electric_scalar_result) +=
+            weyl_electric_up_down->get(j, k) * weyl_electric_up_down->get(j, k);
+      }
+    }
+  }
 }
+}  // namespace
 
 template <size_t SpatialDim, typename Frame, typename DataType>
 void weyl_electric_scalar(
@@ -67,20 +87,25 @@ void weyl_electric_scalar(
         inverse_spatial_metric) noexcept {
   *weyl_electric_scalar_result =
       make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
-  for (size_t i = 0; i < SpatialDim; ++i) {
-    for (size_t j = 0; j < SpatialDim; ++j) {
-      for (size_t k = 0; k < SpatialDim; ++k) {
-        for (size_t l = 0; l < SpatialDim; ++l) {
-          get(*weyl_electric_scalar_result) += weyl_electric.get(i, j) *
-                                             weyl_electric.get(k, l) *
-                                             inverse_spatial_metric.get(i, k) *
-                                             inverse_spatial_metric.get(j, l);
-        }
-      }
-    }
-  }
-}
 
+  tnsr::ii<DataVector, 3> weyl_electric_up_down{
+      get_size(get<0, 0>(inverse_spatial_metric)), 0.0};
+
+  weyl_electric_scalar_impl(weyl_electric_scalar_result,
+                            make_not_null(&weyl_electric_up_down),
+                            weyl_electric, inverse_spatial_metric);
+  }
+  template <size_t SpatialDim, typename Frame, typename DataType>
+  Scalar<DataType> weyl_electric_scalar(
+      const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
+      const tnsr::II<DataType, SpatialDim, Frame>&
+          inverse_spatial_metric) noexcept {
+    Scalar<DataType> weyl_electric_scalar_result{};
+    weyl_electric_scalar<SpatialDim>(
+        make_not_null(&weyl_electric_scalar_result), weyl_electric,
+        inverse_spatial_metric);
+    return weyl_electric_scalar_result;
+  }
 }  // namespace gr
 
 #define DIM(data) BOOST_PP_TUPLE_ELEM(0, data)

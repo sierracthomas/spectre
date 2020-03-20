@@ -90,7 +90,7 @@ void weyl_electric_scalar(
   *weyl_electric_scalar_result =
       make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
 
-  tnsr::ii<DataVector, 3> weyl_electric_up_down{
+  tnsr::ii<DataType, 3> weyl_electric_up_down{
       get_size(get<0, 0>(inverse_spatial_metric)), 0.0};
 
   weyl_electric_scalar_impl(weyl_electric_scalar_result,

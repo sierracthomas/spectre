@@ -5,14 +5,10 @@
 
 #include <cstddef>
 
+#include "DataStructures/VariablesTag.hpp"
 #include "Evolution/Systems/CurvedScalarWave/Equations.hpp"
 #include "Evolution/Systems/CurvedScalarWave/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-
-namespace Tags {
-template <class>
-class Variables;
-} // Namespace Tags
 
 /*!
  * \ingroup EvolutionSystemsGroup
@@ -26,9 +22,7 @@ struct System {
   static constexpr bool has_primitive_and_conservative_vars = false;
   static constexpr size_t volume_dim = Dim;
 
-  using variables_tag = Tags::Variables<tmpl::list<Pi, Phi<Dim>, Psi>>;
+  using variables_tag = ::Tags::Variables<tmpl::list<Pi, Phi<Dim>, Psi>>;
   using gradients_tags = tmpl::list<Pi, Phi<Dim>, Psi>;
-
-  using compute_time_derivative = ComputeDuDt<Dim>;
 };
 }  // namespace CurvedScalarWave

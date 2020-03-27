@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>  // IWYU pragma: keep
@@ -177,13 +177,15 @@ static_assert(
     "Failed testing make_array_from_list");
 
 // Test as_const
-static_assert(cpp17::is_same_v<const double&, decltype(cpp17::as_const(
-                                                  std::declval<double>()))>,
-              "Failed testing as_const");
+static_assert(
+    cpp17::is_same_v<const double&,
+                     decltype(cpp17::as_const(std::declval<const double&>()))>,
+    "Failed testing as_const");
 static_assert(cpp17::is_same_v<const double&, decltype(cpp17::as_const(
                                                   std::declval<double&>()))>,
               "Failed testing as_const");
-static_assert(5 == cpp17::as_const(5), "Failed testing as_const");
+static_assert(5 == cpp17::as_const(static_cast<const int&>(5)),
+              "Failed testing as_const");
 
 SPECTRE_TEST_CASE("Unit.Utilities.ConstantExpressions", "[Unit][Utilities]") {
   CHECK((std::array<std::array<size_t, 3>, 3>{

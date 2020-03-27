@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Options/Options.hpp"
 
 /// \cond
@@ -25,9 +25,10 @@ namespace Tags {
 /// \ingroup LoggingGroup
 /// \brief Tag for putting `::Verbosity` in a DataBox.
 struct Verbosity : db::SimpleTag {
-  static std::string name() noexcept { return "Verbosity"; }
   using type = ::Verbosity;
   using option_tags = tmpl::list<OptionTags::Verbosity>;
+
+  static constexpr bool pass_metavariables = false;
   static ::Verbosity create_from_options(
       const ::Verbosity& verbosity) noexcept {
     return verbosity;

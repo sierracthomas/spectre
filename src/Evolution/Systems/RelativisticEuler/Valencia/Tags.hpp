@@ -6,7 +6,7 @@
 #include <cstddef>
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Evolution/Systems/RelativisticEuler/Valencia/TagsDeclarations.hpp"
 
@@ -18,17 +18,20 @@ namespace RelativisticEuler {
 namespace Valencia {
 /// %Tags for the Valencia formulation of the relativistic Euler system.
 namespace Tags {
+/// The characteristic speeds
+template <size_t Dim>
+struct CharacteristicSpeeds : db::SimpleTag {
+  using type = std::array<DataVector, Dim + 2>;
+};
 
 /// The densitized rest-mass density \f${\tilde D}\f$
 struct TildeD : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "TildeD"; }
 };
 
 /// The densitized energy density \f${\tilde \tau}\f$
 struct TildeTau : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "TildeTau"; }
 };
 
 /// The densitized momentum density \f${\tilde S_i}\f$

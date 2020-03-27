@@ -6,12 +6,15 @@ set(LIBRARY WaveEquation)
 set(LIBRARY_SOURCES
   PlaneWave.cpp
   RegularSphericalWave.cpp
+  SemidiscretizedDg.cpp
   )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
+  PUBLIC
+  DataStructures
+  ErrorHandling
+  Options
   )

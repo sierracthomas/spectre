@@ -1,24 +1,25 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <boost/optional.hpp>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
 
-#include "ControlSystem/FunctionOfTime.hpp"
-#include "ControlSystem/PiecewisePolynomial.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/CoordinateMaps/Translation.hpp"
+#include "Domain/FunctionsOfTime/FunctionOfTime.hpp"
+#include "Domain/FunctionsOfTime/PiecewisePolynomial.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/CoordinateMaps/TestMapHelpers.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/Domain/CoordinateMaps/TestMapHelpers.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace domain {
 SPECTRE_TEST_CASE("Unit.Domain.CoordMapsTimeDependent.Translation",
@@ -31,13 +32,15 @@ SPECTRE_TEST_CASE("Unit.Domain.CoordMapsTimeDependent.Translation",
 
   const std::array<DataVector, deriv_order + 1> init_func{
       {{1.0}, {-2.0}, {2.0}, {0.0}}};
-  FunctionsOfTime::PiecewisePolynomial<deriv_order> f_of_t_derived(t,
-                                                                   init_func);
-  FunctionOfTime& f_of_t = f_of_t_derived;
 
-  const std::unordered_map<std::string, FunctionOfTime&> f_of_t_list = {
-      {"trans", f_of_t}};
-  const CoordMapsTimeDependent::Translation trans_map{};
+  using Polynomial = domain::FunctionsOfTime::PiecewisePolynomial<deriv_order>;
+  using FoftPtr = std::unique_ptr<domain::FunctionsOfTime::FunctionOfTime>;
+  std::unordered_map<std::string, FoftPtr> f_of_t_list{};
+  f_of_t_list["translation"] = std::make_unique<Polynomial>(t, init_func);
+
+  const FoftPtr& f_of_t = f_of_t_list.at("translation");
+
+  const CoordMapsTimeDependent::Translation trans_map{"translation"};
   // test serialized/deserialized map
   const auto trans_map_deserialized = serialize_and_deserialize(trans_map);
 
@@ -45,7 +48,7 @@ SPECTRE_TEST_CASE("Unit.Domain.CoordMapsTimeDependent.Translation",
 
   while (t < final_time) {
     const std::array<double, 1> trans_x{{square(t)}};
-    const std::array<double, 1> frame_vel{{f_of_t.func_and_deriv(t)[1][0]}};
+    const std::array<double, 1> frame_vel{{f_of_t->func_and_deriv(t)[1][0]}};
 
     CHECK_ITERABLE_APPROX(trans_map(point_xi, t, f_of_t_list),
                           point_xi + trans_x);

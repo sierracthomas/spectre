@@ -10,9 +10,8 @@
 #include "PointwiseFunctions/AnalyticData/AnalyticData.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/KerrSchild.hpp"
 #include "PointwiseFunctions/GeneralRelativity/KerrSchildCoords.hpp"
-#include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/PolytropicFluid.hpp"  // IWYU pragma: keep
-#include "PointwiseFunctions/Hydro/Tags.hpp"
+#include "PointwiseFunctions/Hydro/TagsDeclarations.hpp"
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
@@ -33,10 +32,9 @@ namespace AnalyticData {
  *
  * In the context of studying Bondi-Hoyle accretion, i.e. non-spherical
  * accretion on to a Kerr black hole moving relative to a gas cloud, this class
- * implements the method proposed by Font & Ibáñez (1998) \ref font_98 "[1]" to
- * initialize the GRMHD variables. The fluid quantities are initialized with
- * their (constant) values far from the black hole, e.g.
- * \f$\rho = \rho_\infty\f$. Here we assume a
+ * implements the method proposed by \cite Font1998 to initialize the GRMHD
+ * variables. The fluid quantities are initialized with their (constant) values
+ * far from the black hole, e.g. \f$\rho = \rho_\infty\f$. Here we assume a
  * polytropic equation of state, so only the rest mass density, as well as the
  * polytropic constant and the polytropic exponent, are provided as inputs.
  * The spatial velocity is initialized using a field that ensures that the
@@ -52,8 +50,7 @@ namespace AnalyticData {
  *
  * where \f$\gamma_{ij} = g_{ij}\f$ is the spatial metric, and \f$v_\infty\f$
  * is the flow speed far from the black hole. Note that
- * \f$v_\infty^2 = v_i v^i\f$. Finally, following the work by
- * Penner (2011) \ref penner_11 "[2]",
+ * \f$v_\infty^2 = v_i v^i\f$. Finally, following the work by \cite Penner2011,
  * the magnetic field is initialized using Wald's solution to Maxwell's
  * equations in Kerr black hole spacetime. In Kerr ("spherical
  * Kerr-Schild") coordinates, the spatial components of the Faraday tensor read
@@ -78,12 +75,6 @@ namespace AnalyticData {
  *
  * where \f$\gamma = \text{det}(\gamma_{ij})\f$. Wald's solution reproduces a
  * uniform magnetic field far from the black hole.
- *
- * \anchor font_98 [1] J.A. Font & J.M. Ibáñez, ApJ
- * [494 (1998) 297](http://esoads.eso.org/abs/1998ApJ...494..297F)
- *
- * \anchor penner_11 [2] A.J. Penner, MNRAS
- * [414 (2011) 1467](http://cdsads.u-strasbg.fr/abs/2011MNRAS.414.1467P)
  */
 class BondiHoyleAccretion : public MarkAsAnalyticData {
  public:
@@ -150,12 +141,11 @@ class BondiHoyleAccretion : public MarkAsAnalyticData {
       default;
   ~BondiHoyleAccretion() = default;
 
-  BondiHoyleAccretion(BhMass::type bh_mass, BhDimlessSpin::type bh_dimless_spin,
-                      RestMassDensity::type rest_mass_density,
-                      FlowSpeed::type flow_speed,
-                      MagFieldStrength::type magnetic_field_strength,
-                      PolytropicConstant::type polytropic_constant,
-                      PolytropicExponent::type polytropic_exponent) noexcept;
+  BondiHoyleAccretion(double bh_mass, double bh_dimless_spin,
+                      double rest_mass_density, double flow_speed,
+                      double magnetic_field_strength,
+                      double polytropic_constant,
+                      double polytropic_exponent) noexcept;
 
   // @{
   /// Retrieve hydro variable at `x`
@@ -179,17 +169,15 @@ class BondiHoyleAccretion : public MarkAsAnalyticData {
 
   template <typename DataType>
   auto variables(const tnsr::I<DataType, 3>& x,
-                 tmpl::list<hydro::Tags::SpatialVelocity<
-                     DataType, 3, Frame::Inertial>> /*meta*/) const noexcept
-      -> tuples::TaggedTuple<
-          hydro::Tags::SpatialVelocity<DataType, 3, Frame::Inertial>>;
+                 tmpl::list<hydro::Tags::SpatialVelocity<DataType, 3>> /*meta*/)
+      const noexcept
+      -> tuples::TaggedTuple<hydro::Tags::SpatialVelocity<DataType, 3>>;
 
   template <typename DataType>
-  auto variables(const tnsr::I<DataType, 3>& x,
-                 tmpl::list<hydro::Tags::MagneticField<
-                     DataType, 3, Frame::Inertial>> /*meta*/) const noexcept
-      -> tuples::TaggedTuple<
-          hydro::Tags::MagneticField<DataType, 3, Frame::Inertial>>;
+  auto variables(
+      const tnsr::I<DataType, 3>& x,
+      tmpl::list<hydro::Tags::MagneticField<DataType, 3>> /*meta*/) const
+      noexcept -> tuples::TaggedTuple<hydro::Tags::MagneticField<DataType, 3>>;
 
   template <typename DataType>
   auto variables(
@@ -213,9 +201,9 @@ class BondiHoyleAccretion : public MarkAsAnalyticData {
 
   /// Retrieve a collection of hydro variables at `x`
   template <typename DataType, typename... Tags>
-  tuples::TaggedTuple<Tags...> variables(
-      const tnsr::I<DataType, 3, Frame::Inertial>& x,
-      tmpl::list<Tags...> /*meta*/) const noexcept {
+  tuples::TaggedTuple<Tags...> variables(const tnsr::I<DataType, 3>& x,
+                                         tmpl::list<Tags...> /*meta*/) const
+      noexcept {
     static_assert(sizeof...(Tags) > 1,
                   "The generic template will recurse infinitely if only one "
                   "tag is being retrieved.");
@@ -247,26 +235,23 @@ class BondiHoyleAccretion : public MarkAsAnalyticData {
 
   // compute the spatial velocity in spherical Kerr-Schild coordinates
   template <typename DataType>
-  typename hydro::Tags::SpatialVelocity<DataType, 3, Frame::NoFrame>::type
-  spatial_velocity(const DataType& r_squared, const DataType& cos_theta,
-                   const DataType& sin_theta) const noexcept;
+  tnsr::I<DataType, 3, Frame::NoFrame> spatial_velocity(
+      const DataType& r_squared, const DataType& cos_theta,
+      const DataType& sin_theta) const noexcept;
   // compute the magnetic field in spherical Kerr-Schild coordinates
   template <typename DataType>
-  typename hydro::Tags::MagneticField<DataType, 3, Frame::NoFrame>::type
-  magnetic_field(const DataType& r_squared, const DataType& cos_theta,
-                 const DataType& sin_theta) const noexcept;
+  tnsr::I<DataType, 3, Frame::NoFrame> magnetic_field(
+      const DataType& r_squared, const DataType& cos_theta,
+      const DataType& sin_theta) const noexcept;
 
-  BhMass::type bh_mass_ = std::numeric_limits<double>::signaling_NaN();
-  BhDimlessSpin::type bh_spin_a_ = std::numeric_limits<double>::signaling_NaN();
-  RestMassDensity::type rest_mass_density_ =
+  double bh_mass_ = std::numeric_limits<double>::signaling_NaN();
+  double bh_spin_a_ = std::numeric_limits<double>::signaling_NaN();
+  double rest_mass_density_ = std::numeric_limits<double>::signaling_NaN();
+  double flow_speed_ = std::numeric_limits<double>::signaling_NaN();
+  double magnetic_field_strength_ =
       std::numeric_limits<double>::signaling_NaN();
-  FlowSpeed::type flow_speed_ = std::numeric_limits<double>::signaling_NaN();
-  MagFieldStrength::type magnetic_field_strength_ =
-      std::numeric_limits<double>::signaling_NaN();
-  PolytropicConstant::type polytropic_constant_ =
-      std::numeric_limits<double>::signaling_NaN();
-  PolytropicExponent::type polytropic_exponent_ =
-      std::numeric_limits<double>::signaling_NaN();
+  double polytropic_constant_ = std::numeric_limits<double>::signaling_NaN();
+  double polytropic_exponent_ = std::numeric_limits<double>::signaling_NaN();
   EquationsOfState::PolytropicFluid<true> equation_of_state_{};
   gr::Solutions::KerrSchild background_spacetime_{};
   gr::KerrSchildCoords kerr_schild_coords_{};

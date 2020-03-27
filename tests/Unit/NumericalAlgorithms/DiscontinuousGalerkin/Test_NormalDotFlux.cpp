@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -10,18 +10,20 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"  // IWYU pragma: keep
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"  // IWYU pragma: keep
 #include "Domain/FaceNormal.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NormalDotFlux.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 namespace {
 
@@ -57,13 +59,11 @@ void test_with_random_values(
 }
 
 struct Var1 : db::SimpleTag {
-  static std::string name() noexcept { return "Var1"; }
   using type = Scalar<DataVector>;
 };
 
 template <size_t Dim, typename Frame>
 struct Var2 : db::SimpleTag {
-  static std::string name() noexcept { return "Var2"; }
   using type = tnsr::i<DataVector, Dim, Frame>;
 };
 
@@ -129,6 +129,41 @@ Scalar<double> generate_f_dot_n(const size_t normal_seed,
   return Scalar<double>(unnormalized_f_dot_n / magnitude_normal);
 }
 
+template <size_t Dim>
+void test_with_variables() {
+  using Fr = Frame::Inertial;
+  constexpr size_t num_points = 5;
+  tnsr::i<DataVector, Dim, Fr> normal(num_points);
+  db::item_type<flux_tag<Dim, Fr>> fluxes(num_points);
+  Var1::type expected1(num_points);
+  typename Var2<Dim, Fr>::type expected2(num_points);
+  for (size_t i = 0; i < num_points; ++i) {
+    copy_into(make_not_null(&normal), generate_normal<Dim, Fr>(i), {}, i);
+    copy_into(make_not_null(&get<flux1<Dim, Fr>>(fluxes)),
+              generate_flux<Dim, Fr>(i), {}, i);
+    copy_into(make_not_null(&expected1), generate_f_dot_n<Dim>(i, i), {}, i);
+    for (size_t j = 0; j < Dim; ++j) {
+      copy_into(make_not_null(&get<flux2<Dim, Fr>>(fluxes)),
+                generate_flux<Dim, Fr>(i + 10 * j), {{j}}, i);
+      copy_into(make_not_null(&expected2), generate_f_dot_n<Dim>(i, i + 10 * j),
+                {{j}}, i);
+    }
+  }
+
+  const auto magnitude_normal = magnitude(normal);
+  for (size_t d = 0; d < Dim; d++) {
+    normal.get(d) /= get(magnitude_normal);
+  }
+
+  const auto result =
+      normal_dot_flux<db::get_variables_tags_list<variables_tag<Dim, Fr>>>(
+          normal, fluxes);
+
+  CHECK_ITERABLE_APPROX(get<Tags::NormalDotFlux<Var1>>(result), expected1);
+  CHECK_ITERABLE_APPROX((get<Tags::NormalDotFlux<Var2<Dim, Fr>>>(result)),
+                        expected2);
+}
+
 template <size_t Dim, typename Frame>
 void check_compute_item() {
   constexpr size_t num_points = 5;
@@ -151,11 +186,11 @@ void check_compute_item() {
 
   // Doing this through a DataBox would require a full element to be
   // set up.
-  using magnitude_normal_tag =
-      Tags::EuclideanMagnitude<Tags::UnnormalizedFaceNormal<Dim, Frame>>;
+  using magnitude_normal_tag = Tags::EuclideanMagnitude<
+      domain::Tags::UnnormalizedFaceNormal<Dim, Frame>>;
   const auto magnitude_normal = magnitude_normal_tag::function(normal);
   using normalized_normal_tag =
-      Tags::NormalizedCompute<Tags::UnnormalizedFaceNormal<Dim, Frame>>;
+      Tags::NormalizedCompute<domain::Tags::UnnormalizedFaceNormal<Dim, Frame>>;
   const auto normalized_normal =
       normalized_normal_tag::function(normal, magnitude_normal);
   using compute_n_dot_f =
@@ -338,6 +373,13 @@ SPECTRE_TEST_CASE("Unit.Evolution.NormalDotFluxCompute", "[Unit][Evolution]") {
     test_with_random_values(dv, tnsr::Ijaa<DataVector, 1>{});
     test_with_random_values(dv, tnsr::Ijaa<DataVector, 2>{});
     test_with_random_values(dv, tnsr::Ijaa<DataVector, 3>{});
+  }
+  {
+    INFO("Variables");
+    GENERATE_UNINITIALIZED_DATAVECTOR;
+    test_with_variables<1>();
+    test_with_variables<2>();
+    test_with_variables<3>();
   }
   {
     INFO("Compute item");

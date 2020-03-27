@@ -1,23 +1,23 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"
 #include "Domain/Tags.hpp"
 #include "Elliptic/Actions/InitializeAnalyticSolution.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/ParallelComponentHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 
@@ -54,7 +54,7 @@ struct ElementArray {
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<ActionTesting::InitializeDataBox<
-              tmpl::list<::Tags::Coordinates<Dim, Frame::Inertial>>>>>,
+              tmpl::list<domain::Tags::Coordinates<Dim, Frame::Inertial>>>>>,
 
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Testing,
@@ -80,7 +80,8 @@ void test_initialize_analytic_solution(
       {AnalyticSolution<Dim>{}}};
   ActionTesting::emplace_component_and_initialize<element_array>(
       &runner, element_id, {inertial_coords});
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
   ActionTesting::next_action<element_array>(make_not_null(&runner), element_id);
   CHECK_ITERABLE_APPROX(
       get(ActionTesting::get_databox_tag<element_array,

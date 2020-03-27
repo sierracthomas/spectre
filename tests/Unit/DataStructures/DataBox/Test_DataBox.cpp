@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -16,16 +16,20 @@
 #include "DataStructures/DataBox/DataBoxHelpers.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/DataOnSlice.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Index.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
+#include "DataStructures/VariablesTag.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Literals.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
 #include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace db {
 template <typename TagsList>
@@ -38,8 +42,8 @@ template <typename X, typename Symm, typename IndexList>
 class Tensor;
 
 namespace {
-double multiply_by_two(const double& value) { return 2.0 * value; }
-std::string append_word(const std::string& text, const double& value) {
+double multiply_by_two(const double value) { return 2.0 * value; }
+std::string append_word(const std::string& text, const double value) {
   std::stringstream ss;
   ss << value;
   return text + ss.str();
@@ -52,17 +56,14 @@ namespace test_databox_tags {
 /// [databox_tag_example]
 struct Tag0 : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Tag0"; }
 };
 /// [databox_tag_example]
 struct Tag1 : db::SimpleTag {
   using type = std::vector<double>;
-  static std::string name() noexcept { return "Tag1"; }
 };
 struct Tag2Base : db::BaseTag {};
 struct Tag2 : db::SimpleTag, Tag2Base {
   using type = std::string;
-  static std::string name() noexcept { return "Tag2"; }
 };
 struct Tag3 : db::SimpleTag {
   using type = std::string;
@@ -97,7 +98,7 @@ struct TagTensor : db::ComputeTag {
 /// [compute_item_tag_function]
 struct ComputeLambda0 : db::ComputeTag {
   static std::string name() noexcept { return "ComputeLambda0"; }
-  static constexpr double function(const double& a) { return 3.0 * a; }
+  static constexpr double function(const double a) { return 3.0 * a; }
   using argument_tags = tmpl::list<Tag0>;
 };
 /// [compute_item_tag_function]
@@ -116,7 +117,7 @@ struct TagPrefix : db::PrefixTag, db::SimpleTag {
   using type = typename Tag::type;
   using tag = Tag;
   static std::string name() noexcept {
-    return "TagPrefix(" + Tag::name() + ")";
+    return "TagPrefix(" + db::tag_name<Tag>() + ")";
   }
 };
 /// [databox_prefix_tag_example]
@@ -381,12 +382,10 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox", "[Unit][DataStructures]") {
 
 namespace ArgumentTypeTags {
 struct NonCopyable : db::SimpleTag {
-  static std::string name() noexcept { return "NonCopyable"; }
   using type = ::NonCopyable;
 };
 template <size_t N>
 struct String : db::SimpleTag {
-  static std::string name() noexcept { return "String"; }
   using type = std::string;
 };
 }  // namespace ArgumentTypeTags
@@ -469,7 +468,7 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.mutate",
       make_not_null(&original_box),
       [](const gsl::not_null<double*> tag0,
          const gsl::not_null<std::vector<double>*> tag1,
-         const double& compute_tag0) {
+         const double compute_tag0) {
         CHECK(6.28 == compute_tag0);
         *tag0 = 10.32;
         (*tag1)[0] = 837.2;
@@ -773,14 +772,12 @@ namespace {
 auto get_vector() { return tnsr::I<DataVector, 3, Frame::Grid>(5_st, 2.0); }
 
 struct Var1 : db::ComputeTag {
-  static std::string name() noexcept { return "Var1"; }
   static constexpr auto function = get_vector;
   using argument_tags = tmpl::list<>;
 };
 
 struct Var2 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Var2"; }
 };
 
 template <class Tag, class VolumeDim, class Frame>
@@ -830,35 +827,27 @@ namespace test_databox_tags {
 struct ScalarTagBase : db::BaseTag {};
 struct ScalarTag : db::SimpleTag, ScalarTagBase {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "ScalarTag"; }
 };
 struct VectorTag : db::SimpleTag {
   using type = tnsr::I<DataVector, 3>;
-  static std::string name() noexcept { return "VectorTag"; }
 };
 struct ScalarTag2 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "ScalarTag2"; }
 };
 struct VectorTag2 : db::SimpleTag {
   using type = tnsr::I<DataVector, 3>;
-  static std::string name() noexcept { return "VectorTag2"; }
 };
 struct ScalarTag3 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "ScalarTag3"; }
 };
 struct VectorTag3 : db::SimpleTag {
   using type = tnsr::I<DataVector, 3>;
-  static std::string name() noexcept { return "VectorTag3"; }
 };
 struct ScalarTag4 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "ScalarTag4"; }
 };
 struct VectorTag4 : db::SimpleTag {
   using type = tnsr::I<DataVector, 3>;
-  static std::string name() noexcept { return "VectorTag4"; }
 };
 }  // namespace test_databox_tags
 
@@ -1148,11 +1137,9 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.Variables",
 namespace {
 struct Tag1 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Tag1"; }
 };
 struct Tag2 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Tag2"; }
 };
 }  // namespace
 
@@ -1209,11 +1196,9 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.reset_compute_items",
 namespace ExtraResetTags {
 struct Var : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Var"; }
 };
 struct Int : db::SimpleTag {
   using type = int;
-  static std::string name() noexcept { return "Int"; }
 };
 struct CheckReset : db::ComputeTag {
   static std::string name() noexcept { return "CheckReset"; }
@@ -1501,7 +1486,7 @@ static_assert(
 
 namespace {
 void multiply_by_two_mutate(const gsl::not_null<std::vector<double>*> t,
-                            const double& value) {
+                            const double value) {
   if (t->empty()) {
     t->resize(10);
   }
@@ -1509,7 +1494,7 @@ void multiply_by_two_mutate(const gsl::not_null<std::vector<double>*> t,
     p = 2.0 * value;
   }
 }
-std::vector<double> multiply_by_two_non_mutate(const double& value) {
+std::vector<double> multiply_by_two_non_mutate(const double value) {
   return std::vector<double>(10, 2.0 * value);
 }
 
@@ -1518,7 +1503,7 @@ void mutate_variables(
     const gsl::not_null<Variables<tmpl::list<test_databox_tags::ScalarTag,
                                              test_databox_tags::VectorTag>>*>
         t,
-    const double& value) {
+    const double value) {
   if (t->number_of_grid_points() != 10) {
     *t = Variables<
         tmpl::list<test_databox_tags::ScalarTag, test_databox_tags::VectorTag>>(
@@ -1612,7 +1597,7 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.mutating_compute_item",
       make_not_null(&original_box),
       [](const gsl::not_null<double*> tag0,
          const gsl::not_null<std::vector<double>*> tag1,
-         const double& compute_tag0) {
+         const double compute_tag0) {
         CHECK(6.28 == compute_tag0);
         *tag0 = 10.32;
         (*tag1)[0] = 837.2;
@@ -1668,17 +1653,14 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.mutating_compute_item",
 namespace DataBoxTest_detail {
 struct vector : db::SimpleTag {
   using type = tnsr::I<DataVector, 3, Frame::Grid>;
-  static std::string name() noexcept { return "vector"; }
 };
 
 struct scalar : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "scalar"; }
 };
 
 struct vector2 : db::SimpleTag {
   using type = tnsr::I<DataVector, 3, Frame::Grid>;
-  static std::string name() noexcept { return "vector2"; }
 };
 }  // namespace DataBoxTest_detail
 
@@ -1890,7 +1872,6 @@ class Boxed {
 
 template <size_t N, bool Compute = false, bool DependsOnComputeItem = false>
 struct Parent : db::SimpleTag {
-  static std::string name() noexcept { return "Parent"; }
   using type = std::pair<Boxed<int>, Boxed<double>>;
 };
 template <size_t N, bool DependsOnComputeItem>
@@ -1912,14 +1893,12 @@ int Parent<N, true, DependsOnComputeItem>::count = 0;
 
 template <size_t N>
 struct First : db::SimpleTag {
-  static std::string name() noexcept { return "First"; }
   using type = Boxed<int>;
 
   static constexpr size_t index = 0;
 };
 template <size_t N>
 struct Second : db::SimpleTag {
-  static std::string name() noexcept { return "Second"; }
   using type = Boxed<double>;
 
   static constexpr size_t index = 1;
@@ -2194,7 +2173,6 @@ SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.create_copy_error",
 namespace test_databox_tags {
 struct Tag0Int : db::SimpleTag {
   using type = int;
-  static std::string name() noexcept { return "Tag0Int"; }
 };
 /// [overload_compute_tag_type]
 template <typename ArgumentTag>
@@ -2203,7 +2181,7 @@ struct OverloadType : db::ComputeTag {
 
   static constexpr double function(const int& a) noexcept { return 5 * a; }
 
-  static constexpr double function(const double& a) noexcept { return 3.2 * a; }
+  static constexpr double function(const double a) noexcept { return 3.2 * a; }
   using argument_tags = tmpl::list<ArgumentTag>;
 };
 /// [overload_compute_tag_type]
@@ -2213,9 +2191,9 @@ template <typename ArgumentTag0, typename ArgumentTag1 = void>
 struct OverloadNumberOfArgs : db::ComputeTag {
   static std::string name() noexcept { return "OverloadNumberOfArgs"; }
 
-  static constexpr double function(const double& a) noexcept { return 3.2 * a; }
+  static constexpr double function(const double a) noexcept { return 3.2 * a; }
 
-  static constexpr double function(const double& a, const double& b) noexcept {
+  static constexpr double function(const double a, const double b) noexcept {
     return a * b;
   }
 
@@ -2283,7 +2261,6 @@ struct MyTag1 {
 };
 
 struct TupleTag : db::SimpleTag {
-  static std::string name() noexcept { return "TupleTag"; }
   using type = tuples::TaggedTuple<MyTag0, MyTag1>;
 };
 }  // namespace
@@ -2890,12 +2867,10 @@ struct PureBaseTag : db::BaseTag {};
 
 struct SimpleTag : PureBaseTag, db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "SimpleTag"; }
 };
 
 struct DummyTag : db::SimpleTag {
   using type = int;
-  static std::string name() noexcept { return "DummyTag"; }
 };
 }  // namespace tags_types
 

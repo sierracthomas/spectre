@@ -4,6 +4,7 @@
 set(LIBRARY "Test_DataStructures")
 
 set(LIBRARY_SOURCES
+  Test_CachedTempBuffer.cpp
   Test_ComplexDataVector.cpp
   Test_ComplexDataVectorBinaryOperations.cpp
   Test_ComplexDiagonalModalOperator.cpp
@@ -25,6 +26,8 @@ set(LIBRARY_SOURCES
   Test_MoreComplexDiagonalModalOperatorMath.cpp
   Test_MoreDiagonalModalOperatorMath.cpp
   Test_SliceIterator.cpp
+  Test_SliceTensorToVariables.cpp
+  Test_SliceVariables.cpp
   Test_SpinWeighted.cpp
   Test_StripeIterator.cpp
   Test_Tags.cpp
@@ -41,14 +44,16 @@ add_test_library(
   ${LIBRARY}
   "DataStructures"
   "${LIBRARY_SOURCES}"
-  "DataStructures;Utilities"
+  "DataStructures;Options;Utilities"
   )
 
-spectre_add_python_test(
+# [example_add_pybindings_test]
+spectre_add_python_bindings_test(
   "Unit.DataStructures.Python.DataVector"
   Test_DataVector.py
-  "unit;datastructures;python")
-spectre_add_python_test(
+  "Unit;DataStructures;Python")
+# [example_add_pybindings_test]
+spectre_add_python_bindings_test(
   "Unit.DataStructures.Python.Matrix"
   Test_Matrix.py
-  "unit;datastructures;python")
+  "Unit;DataStructures;Python")

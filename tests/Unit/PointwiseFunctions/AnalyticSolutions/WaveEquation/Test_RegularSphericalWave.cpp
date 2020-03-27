@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <memory>
@@ -10,12 +10,12 @@
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/Systems/ScalarWave/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/TestCreation.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/WaveEquation/RegularSphericalWave.hpp"
 #include "PointwiseFunctions/MathFunctions/Gaussian.hpp"
 #include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 SPECTRE_TEST_CASE("Unit.AnalyticSolutions.WaveEquation.RegularSphericalWave",
                   "[PointwiseFunctions][Unit]") {
@@ -64,12 +64,12 @@ SPECTRE_TEST_CASE("Unit.AnalyticSolutions.WaveEquation.RegularSphericalWave",
                         DataVector({{0., 0., 0., 0.}}));
 
   const auto created_solution =
-      test_creation<ScalarWave::Solutions::RegularSphericalWave>(
-          "  Profile:\n"
-          "    Gaussian:\n"
-          "      Amplitude: 1.\n"
-          "      Width: 1.\n"
-          "      Center: 0.\n");
+      TestHelpers::test_creation<ScalarWave::Solutions::RegularSphericalWave>(
+          "Profile:\n"
+          "  Gaussian:\n"
+          "    Amplitude: 1.\n"
+          "    Width: 1.\n"
+          "    Center: 0.\n");
   CHECK(
       created_solution.variables(
           x, 1.,

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Serialize.hpp"
 
@@ -28,17 +29,20 @@ struct AnalyticData {
 }  // namespace OptionTags
 
 namespace Tags {
+struct AnalyticSolutionOrData : db::BaseTag {};
+
 /// Can be used to retrieve the analytic solution from the cache without having
 /// to know the template parameters of AnalyticData.
-struct AnalyticDataBase : db::BaseTag {};
+struct AnalyticDataBase : AnalyticSolutionOrData {};
 
 /// The analytic data, with the type of the analytic data set as the
 /// template parameter
 template <typename DataType>
 struct AnalyticData : AnalyticDataBase, db::SimpleTag {
-  static std::string name() noexcept { return "AnalyticData"; }
   using type = DataType;
   using option_tags = tmpl::list<::OptionTags::AnalyticData<DataType>>;
+
+  static constexpr bool pass_metavariables = false;
   static DataType create_from_options(
       const DataType& analytic_solution) noexcept {
     return deserialize<type>(serialize<type>(analytic_solution).data());

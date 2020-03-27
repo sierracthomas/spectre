@@ -13,9 +13,23 @@
 #include "Options/Options.hpp"
 #include "Utilities/TMPL.hpp"
 
+/// \cond
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+template <size_t VolumeDim>
+class DiscreteRotation;
+template <typename Map1, typename Map2, typename Map3>
+class ProductOf3Maps;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
+/// \endcond
+
 namespace domain {
 namespace creators {
-
 /// Create a 3D Domain consisting of eight rotated Blocks.
 ///
 /// \image html eightcubes_rotated_exploded.png
@@ -71,9 +85,19 @@ namespace creators {
 ///
 /// This DomainCreator is useful for testing code that deals with
 /// unaligned blocks.
-template <typename TargetFrame>
-class RotatedBricks : public DomainCreator<3, TargetFrame> {
+class RotatedBricks : public DomainCreator<3> {
  public:
+  using maps_list = tmpl::list<
+      domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                            CoordinateMaps::ProductOf3Maps<
+                                CoordinateMaps::Affine, CoordinateMaps::Affine,
+                                CoordinateMaps::Affine>>,
+      domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                            CoordinateMaps::DiscreteRotation<3>,
+                            CoordinateMaps::ProductOf3Maps<
+                                CoordinateMaps::Affine, CoordinateMaps::Affine,
+                                CoordinateMaps::Affine>>>;
+
   struct LowerBound {
     using type = std::array<double, 3>;
     static constexpr OptionString help = {
@@ -136,7 +160,7 @@ class RotatedBricks : public DomainCreator<3, TargetFrame> {
   RotatedBricks& operator=(RotatedBricks&&) noexcept = default;
   ~RotatedBricks() override = default;
 
-  Domain<3, TargetFrame> create_domain() const noexcept override;
+  Domain<3> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, 3>> initial_extents() const noexcept override;
 

@@ -1,44 +1,40 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/DotProduct.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/Systems/NewtonianEuler/Sources.hpp"
 #include "Evolution/Systems/NewtonianEuler/Tags.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 namespace {
 
 struct FirstArg : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "FirstArg"; }
 };
 
 template <size_t Dim>
 struct SecondArg : db::SimpleTag {
   using type = tnsr::I<DataVector, Dim>;
-  static std::string name() noexcept { return "SecondArg"; }
 };
 
 struct ThirdArg : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "ThirdArg"; }
 };
 
 template <size_t Dim>
 struct FourthArg : db::SimpleTag {
   using type = tnsr::i<DataVector, Dim>;
-  static std::string name() noexcept { return "FourthArg"; }
 };
 
 // Some source term where all three conservative quantities are sourced.
@@ -46,9 +42,9 @@ template <size_t Dim>
 struct SomeSourceType {
   static constexpr size_t volume_dim = Dim;
   using sourced_variables =
-      tmpl::list<NewtonianEuler::Tags::MassDensityCons<DataVector>,
-                 NewtonianEuler::Tags::MomentumDensity<DataVector, Dim>,
-                 NewtonianEuler::Tags::EnergyDensity<DataVector>>;
+      tmpl::list<NewtonianEuler::Tags::MassDensityCons,
+                 NewtonianEuler::Tags::MomentumDensity<Dim>,
+                 NewtonianEuler::Tags::EnergyDensity>;
 
   using argument_tags =
       tmpl::list<FirstArg, SecondArg<Dim>, ThirdArg, FourthArg<Dim>>;
@@ -77,8 +73,8 @@ template <size_t Dim>
 struct SomeOtherSourceType {
   static constexpr size_t volume_dim = Dim;
   using sourced_variables =
-      tmpl::list<NewtonianEuler::Tags::MomentumDensity<DataVector, Dim>,
-                 NewtonianEuler::Tags::EnergyDensity<DataVector>>;
+      tmpl::list<NewtonianEuler::Tags::MomentumDensity<Dim>,
+                 NewtonianEuler::Tags::EnergyDensity>;
 
   using argument_tags =
       tmpl::list<FirstArg, SecondArg<Dim>, ThirdArg, FourthArg<Dim>>;

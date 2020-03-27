@@ -1,10 +1,14 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
+add_subdirectory(Python)
+add_subdirectory(TimeDependence)
+
 set(LIBRARY DomainCreators)
 
 set(LIBRARY_SOURCES
   AlignedLattice.cpp
+  BinaryCompactObject.cpp
   Brick.cpp
   Cylinder.cpp
   Disk.cpp
@@ -24,7 +28,9 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 target_link_libraries(
   ${LIBRARY}
   INTERFACE CoordinateMaps
-  INTERFACE DataStructures
+  PUBLIC DataStructures
   INTERFACE Domain
+  INTERFACE DomainTimeDependence
   INTERFACE ErrorHandling
+  INTERFACE Options
   )

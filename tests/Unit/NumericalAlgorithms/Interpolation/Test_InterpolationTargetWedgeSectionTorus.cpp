@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,13 +14,13 @@
 #include "Domain/BlockLogicalCoordinates.hpp"
 #include "Domain/Creators/Shell.hpp"
 #include "Domain/Domain.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Helpers/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTargetWedgeSectionTorus.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Time/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace {
 struct MockMetavariables {
@@ -53,11 +53,11 @@ void test_r_theta_lgl() noexcept {
       false);
 
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
 
   const size_t num_total = num_radial * num_theta * num_phi;
-  const auto expected_block_coord_holders =
-      [&domain_creator, &num_total ]() noexcept {
+  const auto expected_block_coord_holders = [&domain_creator,
+                                             &num_total]() noexcept {
     tnsr::I<DataVector, 3, Frame::Inertial> points(num_total);
     for (size_t r = 0; r < num_radial; ++r) {
       const double radius =
@@ -82,8 +82,7 @@ void test_r_theta_lgl() noexcept {
       }
     }
     return block_logical_coordinates(domain_creator.create_domain(), points);
-  }
-  ();
+  }();
 
   InterpTargetTestHelpers::test_interpolation_target<
       MockMetavariables,
@@ -102,11 +101,11 @@ void test_r_theta_uniform() noexcept {
       true);
 
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
 
   const size_t num_total = num_radial * num_theta * num_phi;
-  const auto expected_block_coord_holders =
-      [&domain_creator, &num_total ]() noexcept {
+  const auto expected_block_coord_holders = [&domain_creator,
+                                             &num_total]() noexcept {
     tnsr::I<DataVector, 3, Frame::Inertial> points(num_total);
     for (size_t r = 0; r < num_radial; ++r) {
       const double radius = 1.8 + 1.8 * r / (num_radial - 1.0);
@@ -122,8 +121,7 @@ void test_r_theta_uniform() noexcept {
       }
     }
     return block_logical_coordinates(domain_creator.create_domain(), points);
-  }
-  ();
+  }();
 
   InterpTargetTestHelpers::test_interpolation_target<
       MockMetavariables,
@@ -138,15 +136,15 @@ SPECTRE_TEST_CASE(
     "[Unit]") {
   // Check creating the options
   const auto created_torus =
-      test_creation<intrp::OptionHolders::WedgeSectionTorus>(
-          "  MinRadius: 1.8\n"
-          "  MaxRadius: 20.\n"
-          "  MinTheta: 0.785\n"
-          "  MaxTheta: 2.356\n"
-          "  NumberRadialPoints: 20\n"
-          "  NumberThetaPoints: 10\n"
-          "  NumberPhiPoints: 20\n"
-          "  UniformThetaGrid: true\n");
+      TestHelpers::test_creation<intrp::OptionHolders::WedgeSectionTorus>(
+          "MinRadius: 1.8\n"
+          "MaxRadius: 20.\n"
+          "MinTheta: 0.785\n"
+          "MaxTheta: 2.356\n"
+          "NumberRadialPoints: 20\n"
+          "NumberThetaPoints: 10\n"
+          "NumberPhiPoints: 20\n"
+          "UniformThetaGrid: true\n");
   CHECK(created_torus == intrp::OptionHolders::WedgeSectionTorus(
                              1.8, 20., 0.785, 2.356, 20, 10, 20, false, true));
 

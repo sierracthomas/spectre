@@ -1,10 +1,11 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Informer/Tags.hpp"
 #include "Informer/Verbosity.hpp"
 #include "Options/ParseOptions.hpp"
@@ -37,6 +38,7 @@ void test_ostream() noexcept {
 SPECTRE_TEST_CASE("Unit.Informer.Verbosity", "[Informer][Unit]") {
   test_construct_from_options();
   test_ostream();
+  TestHelpers::db::test_simple_tag<Tags::Verbosity>("Verbosity");
 }
 
 // [[OutputRegex, Failed to convert "Braggadocious" to Verbosity]]

@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include <string>
+
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Options/Options.hpp"
-#include "Utilities/PrettyType.hpp"
 
 namespace OptionTags {
 /*!
@@ -26,7 +28,7 @@ struct VariableFixer {
   static constexpr OptionString help = "Options for the variable fixer";
   using type = VariableFixerType;
   static std::string name() noexcept {
-    return pretty_type::short_name<VariableFixerType>();
+    return option_name<VariableFixerType>();
   }
   using group = VariableFixingGroup;
 };
@@ -42,6 +44,8 @@ struct VariableFixer : db::SimpleTag {
   using type = VariableFixerType;
   using option_tags =
       tmpl::list<::OptionTags::VariableFixer<VariableFixerType>>;
+
+  static constexpr bool pass_metavariables = false;
   static VariableFixerType create_from_options(
       const VariableFixerType& variable_fixer) noexcept {
     return variable_fixer;

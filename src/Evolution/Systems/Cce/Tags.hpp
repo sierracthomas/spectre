@@ -3,12 +3,22 @@
 
 #pragma once
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/SpinWeighted.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "NumericalAlgorithms/Spectral/SwshTags.hpp"
+#include "Time/TimeStepId.hpp"
 
 namespace Cce {
+
+/// \cond
+struct WorldtubeDataManager;
+template <typename ToInterpolate, typename Tag>
+struct ScriPlusInterpolationManager;
+/// \endcond
 
 /// Tags for Cauchy Characteristic Extraction routines
 namespace Tags {
@@ -18,19 +28,6 @@ namespace Tags {
 /// Bondi parameter \f$\beta\f$
 struct BondiBeta : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "BondiBeta"; }
-};
-
-/// \brief Bondi parameter \f$H = \partial_u J\f$.
-/// \note The notation in the literature is not consistent regarding this
-/// quantity, or whether it is denoted by an \f$H\f$ at all. The SpECTRE CCE
-/// module consistently uses it to describe the (retarded) partial time
-/// derivative of \f$J\f$ at fixed compactified radius \f$y\f$ (to be contrasted
-/// with the physical Bondi radius, which is not directly used for numerical
-/// grids).
-struct BondiH : db::SimpleTag {
-  using type = Scalar<SpinWeighted<ComplexDataVector, 2>>;
-  static std::string name() noexcept { return "H"; }
 };
 
 /// Bondi parameter \f$J\f$
@@ -38,6 +35,31 @@ struct BondiJ : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 2>>;
   static std::string name() noexcept { return "J"; }
 };
+
+}  // namespace Tags
+}  // namespace Cce
+
+namespace Tags {
+/// \cond
+template <>
+struct dt<Cce::Tags::BondiJ> : db::PrefixTag, db::SimpleTag {
+  static std::string name() noexcept { return "H"; }
+  using type = Scalar<::SpinWeighted<ComplexDataVector, 2>>;
+  using tag = Cce::Tags::BondiJ;
+};
+/// \endcond
+}  // namespace Tags
+
+namespace Cce {
+namespace Tags {
+/// \brief Bondi parameter \f$H = \partial_u J\f$.
+/// \note The notation in the literature is not consistent regarding this
+/// quantity, or whether it is denoted by an \f$H\f$ at all. The SpECTRE CCE
+/// module consistently uses it to describe the (retarded) partial time
+/// derivative of \f$J\f$ at fixed compactified radius \f$y\f$ (to be contrasted
+/// with the physical Bondi radius, which is not directly used for numerical
+/// grids).
+using BondiH = ::Tags::dt<BondiJ>;
 
 /// Bondi parameter \f$\bar{J}\f$
 struct BondiJbar : db::SimpleTag {
@@ -69,6 +91,12 @@ struct BondiU : db::SimpleTag {
   static std::string name() noexcept { return "U"; }
 };
 
+/// The surface quantity of Bondi \f$U\f$ evaluated at the null spacetime
+/// boundary \f$\mathcal I^+\f$
+struct BondiUAtScri : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 1>>;
+};
+
 /// Bondi parameter \f$\bar{U}\f$
 struct BondiUbar : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, -1>>;
@@ -88,8 +116,72 @@ struct Dy : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
   using tag = Tag;
   static const size_t dimension_to_differentiate = 2;
-  static const size_t dim = 3;
-  static std::string name() noexcept { return "Dy(" + Tag::name() + ")"; }
+  static std::string name() noexcept {
+    return "Dy(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// The derivative with respect to Bondi \f$r\f$
+template <typename Tag>
+struct Dr : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "Dr(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// The derivative with respect to Bondi retarded time \f$u\f$
+template <typename Tag>
+struct Du : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "Du(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// The spin-weight 2 angular Jacobian factor
+struct GaugeC : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 2>>;
+};
+
+/// The spin-weight 0 angular Jacobian factor
+struct GaugeD : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
+};
+
+/// The conformal factor associated with an angular transformation
+struct GaugeOmega : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
+};
+
+struct News : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, -2>>;
+};
+
+// For expressing the Cauchy angular coordinates for the worldtube data in terms
+// of the evolution angular coordinates.
+struct CauchyAngularCoords : db::SimpleTag {
+  using type = tnsr::i<DataVector, 2, ::Frame::Spherical<::Frame::Inertial>>;
+};
+
+// For expressing the Cauchy Cartesian coordinates for the worldtube data in
+// terms of the evolution angular coordinates.
+struct CauchyCartesianCoords : db::SimpleTag {
+  using type = tnsr::i<DataVector, 3>;
+};
+
+/// The asymptotically inertial retarded time in terms of the evolution time
+/// variable
+struct InertialRetardedTime : db::SimpleTag {
+  using type = Scalar<DataVector>;
+};
+
+/// Complex storage form for the asymptotically inertial retarded time, for
+/// taking spin-weighted derivatives
+struct ComplexInertialRetardedTime : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
 };
 
 // prefix tags associated with the integrands which are used as input to solvers
@@ -102,7 +194,7 @@ struct Integrand : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "Integrand(" + Tag::name() + ")";
+    return "Integrand(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -113,7 +205,18 @@ struct BoundaryValue : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "BoundaryValue(" + Tag::name() + ")";
+    return "BoundaryValue(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// A prefix tag representing the gauge-transformed boundary data for a quantity
+/// on the extraction surface.
+template <typename Tag>
+struct EvolutionGaugeBoundaryValue : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "EvolutionGaugeBoundaryValue(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -124,7 +227,7 @@ struct PoleOfIntegrand : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "PoleOfIntegrand(" + Tag::name() + ")";
+    return "PoleOfIntegrand(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -135,7 +238,7 @@ struct RegularIntegrand : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "RegularIntegrand(" + Tag::name() + ")";
+    return "RegularIntegrand(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -148,7 +251,7 @@ struct LinearFactor : db::PrefixTag, db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "LinearFactor(" + Tag::name() + ")";
+    return "LinearFactor(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -162,7 +265,7 @@ struct LinearFactorForConjugate : db::PrefixTag, db::SimpleTag {
       Scalar<SpinWeighted<ComplexDataVector, 2 * Tag::type::type::spin>>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "LinearFactorForConjugate(" + Tag::name() + ")";
+    return "LinearFactorForConjugate(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -173,7 +276,6 @@ struct LinearFactorForConjugate : db::PrefixTag, db::SimpleTag {
 /// implementing functions
 struct OneMinusY : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "OneMinusY"; }
 };
 
 /// A tag for the first time derivative of the worldtube parameter
@@ -181,53 +283,126 @@ struct OneMinusY : db::SimpleTag {
 /// radius of the worldtube.
 struct DuR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "DuR"; }
 };
 
 /// The value \f$\partial_u R / R\f$, where \f$R(u, \theta, \phi)\f$ is Bondi
 /// radius of the worldtube.
 struct DuRDividedByR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "DuRDividedByR"; }
 };
 
 /// The value \f$\eth R / R\f$, where \f$R(u, \theta, \phi)\f$ is Bondi
 /// radius of the worldtube.
 struct EthRDividedByR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 1>>;
-  static std::string name() noexcept { return "EthRDividedByR"; }
+  using derivative_kind = Spectral::Swsh::Tags::Eth;
+  static constexpr int spin = 1;
 };
 
 /// The value \f$\eth \eth R / R\f$, where \f$R(u, \theta, \phi)\f$ is Bondi
 /// radius of the worldtube.
 struct EthEthRDividedByR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 2>>;
-  static std::string name() noexcept { return "EthEthRDividedByR"; }
+  using derivative_kind = Spectral::Swsh::Tags::EthEth;
+  static constexpr int spin = 2;
 };
 
 /// The value \f$\eth \bar{\eth} R / R\f$, where \f$R(u, \theta, \phi)\f$ is
 /// Bondi radius of the worldtube.
 struct EthEthbarRDividedByR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "EthEthbarRDividedByR"; }
+  using derivative_kind = Spectral::Swsh::Tags::EthEthbar;
+  static constexpr int spin = 0;
 };
 
 /// The value \f$\exp(2\beta)\f$.
 struct Exp2Beta : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
-  static std::string name() noexcept { return "Exp2Beta"; }
 };
 
 /// The value \f$ \bar{J} (Q - 2 \eth \beta ) \f$.
 struct JbarQMinus2EthBeta : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, -1>>;
-  static std::string name() noexcept { return "JbarQMinus2EthBeta"; }
 };
 
 /// The Bondi radius \f$R(u, \theta, \phi)\f$ is of the worldtube.
 struct BondiR : db::SimpleTag {
   using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
   static std::string name() noexcept { return "R"; }
+};
+
+/// A simple tag for the `WorldtubeDataManager`
+struct H5WorldtubeBoundaryDataManager : db::SimpleTag {
+  using type = WorldtubeDataManager;
+};
+
+/// The Weyl scalar \f$\Psi_0\f$
+struct Psi0 : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 2>>;
+};
+
+/// The Weyl scalar \f$\Psi_1\f$
+struct Psi1 : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 1>>;
+};
+
+/// The Weyl scalar \f$\Psi_2\f$
+struct Psi2 : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
+};
+
+/// The Weyl scalar \f$\Psi_3\f$
+struct Psi3 : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, -1>>;
+};
+
+/// The Weyl scalar \f$\Psi_4\f$
+struct Psi4 : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, -2>>;
+};
+
+/// The gravitational wave strain \f$h\f$
+struct Strain : db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, -2>>;
+};
+
+/// A prefix tag representing the time integral of the value it prefixes
+template <typename Tag>
+struct TimeIntegral : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "TimeIntegral(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// A prefix tag representing the value at \f$\mathcal I^+\f$
+template <typename Tag>
+struct ScriPlus : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, Tag::type::type::spin>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "ScriPlus(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+/// A prefix tag representing an additional correction factor necessary to
+/// compute the quantity at \f$\mathcal I^+\f$
+template <typename Tag>
+struct ScriPlusFactor : db::PrefixTag, db::SimpleTag {
+  using type = Scalar<SpinWeighted<ComplexDataVector, 0>>;
+  using tag = Tag;
+  static std::string name() noexcept {
+    return "ScriPlusFactor(" + db::tag_name<Tag>() + ")";
+  }
+};
+
+template <typename ToInterpolate, typename ObservationTag>
+struct InterpolationManager : db::SimpleTag {
+  using type = ScriPlusInterpolationManager<ToInterpolate, ObservationTag>;
+  static std::string name() noexcept {
+    return "InterpolationManager(" + db::tag_name<ObservationTag>() + ")";
+  }
 };
 }  // namespace Tags
 }  // namespace Cce

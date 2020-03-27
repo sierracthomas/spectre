@@ -11,9 +11,11 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "Domain/Direction.hpp"  // IWYU pragma: keep
 #include "Domain/ElementId.hpp"  // IWYU pragma: keep
-#include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleBoundaryData.hpp"
+#include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleMortarData.hpp"
 #include "NumericalAlgorithms/Spectral/Projection.hpp"
 #include "Options/Options.hpp"
 
@@ -22,9 +24,8 @@ namespace Tags {
 /// \ingroup DiscontinuousGalerkinGroup
 /// \brief Simple boundary communication data
 template <typename TemporalId, typename LocalData, typename RemoteData>
-struct SimpleBoundaryData : db::SimpleTag {
-  static std::string name() noexcept { return "SimpleBoundaryData"; }
-  using type = dg::SimpleBoundaryData<TemporalId, LocalData, RemoteData>;
+struct SimpleMortarData : db::SimpleTag {
+  using type = dg::SimpleMortarData<TemporalId, LocalData, RemoteData>;
 };
 
 /// \ingroup DataBoxTagsGroup
@@ -46,7 +47,6 @@ struct Mortars : db::PrefixTag, db::SimpleTag {
 /// of the face that it covers.
 template <size_t Dim>
 struct MortarSize : db::SimpleTag {
-  static std::string name() noexcept { return "MortarSize"; }
   using type = std::array<Spectral::MortarSize, Dim>;
 };
 }  // namespace Tags
@@ -83,10 +83,11 @@ namespace Tags {
  */
 template <typename NumericalFluxType>
 struct NumericalFlux : db::SimpleTag {
-  static std::string name() noexcept { return "NumericalFlux"; }
   using type = NumericalFluxType;
   using option_tags =
       tmpl::list<::OptionTags::NumericalFlux<NumericalFluxType>>;
+
+  static constexpr bool pass_metavariables = false;
   static NumericalFluxType create_from_options(
       const NumericalFluxType& numerical_flux) noexcept {
     return numerical_flux;

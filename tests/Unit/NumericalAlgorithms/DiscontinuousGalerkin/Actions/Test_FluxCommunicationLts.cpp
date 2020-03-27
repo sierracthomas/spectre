@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -18,11 +18,13 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/Identity.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/DirectionMap.hpp"
@@ -36,6 +38,7 @@
 #include "Domain/Neighbors.hpp"
 #include "Domain/OrientationMapHelpers.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/FluxCommunicationTypes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
@@ -45,13 +48,12 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/StdHelpers.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <boost/functional/hash/extensions.hpp>
 // IWYU pragma: no_include <boost/variant/get.hpp>
 
 // IWYU pragma: no_include "DataStructures/VariablesHelpers.hpp"  // for Variables
-// IWYU pragma: no_include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleBoundaryData.hpp"
+// IWYU pragma: no_include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleMortarData.hpp"
 // IWYU pragma: no_include "Parallel/PupStlCpp11.hpp"
 
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
@@ -60,17 +62,14 @@
 
 namespace {
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; }
   using type = int;
 };
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
 struct OtherData : db::SimpleTag {
-  static std::string name() noexcept { return "OtherData"; }
   using type = Scalar<DataVector>;
 };
 
@@ -78,7 +77,6 @@ template <size_t Dim>
 class NumericalFlux {
  public:
   struct ExtraData : db::SimpleTag {
-    static std::string name() noexcept { return "ExtraTag"; }
     using type = tnsr::I<DataVector, 1>;
   };
 
@@ -88,7 +86,7 @@ class NumericalFlux {
   // things.
   using argument_tags =
       tmpl::list<Tags::NormalDotFlux<Var>, OtherData,
-                 Tags::Normalized<Tags::UnnormalizedFaceNormal<Dim>>>;
+                 Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<Dim>>>;
   void package_data(const gsl::not_null<Variables<package_tags>*> packaged_data,
                     const Scalar<DataVector>& var_flux,
                     const Scalar<DataVector>& other_data,
@@ -121,10 +119,11 @@ struct System {
 };
 
 template <size_t Dim, typename Tag>
-using interface_tag = Tags::Interface<Tags::InternalDirections<Dim>, Tag>;
+using interface_tag =
+    domain::Tags::Interface<domain::Tags::InternalDirections<Dim>, Tag>;
 template <size_t Dim, typename Tag>
 using interface_compute_tag =
-    Tags::InterfaceCompute<Tags::InternalDirections<Dim>, Tag>;
+    domain::Tags::InterfaceCompute<domain::Tags::InternalDirections<Dim>, Tag>;
 
 template <typename FluxCommTypes>
 using LocalData = typename FluxCommTypes::LocalData;
@@ -140,18 +139,17 @@ using other_data_tag =
 template <size_t Dim>
 using mortar_next_temporal_ids_tag = Tags::Mortars<Tags::Next<TemporalId>, Dim>;
 template <size_t Dim>
-using mortar_meshes_tag = Tags::Mortars<Tags::Mesh<Dim - 1>, Dim>;
+using mortar_meshes_tag = Tags::Mortars<domain::Tags::Mesh<Dim - 1>, Dim>;
 template <size_t Dim>
 using mortar_sizes_tag = Tags::Mortars<Tags::MortarSize<Dim - 1>, Dim>;
 
 struct DataRecorder;
 
 struct DataRecorderTag : db::SimpleTag {
-  static std::string name() { return "DataRecorderTag"; }
   using type = DataRecorder;
 };
 
-struct MortarRecorderTag : Tags::VariablesBoundaryData,
+struct MortarRecorderTag : domain::Tags::VariablesBoundaryData,
                            Tags::Mortars<DataRecorderTag, 2> {};
 
 template <size_t Dim, typename MV>
@@ -163,20 +161,24 @@ struct lts_component {
   using flux_comm_types = dg::FluxCommunicationTypes<MV>;
 
   using simple_tags = db::AddSimpleTags<
-      TemporalId, Tags::Next<TemporalId>, Tags::Mesh<2>, Tags::Element<2>,
-      Tags::ElementMap<2>, normal_dot_fluxes_tag<2, flux_comm_types>,
-      other_data_tag<2>, mortar_meshes_tag<2>, mortar_sizes_tag<2>,
-      MortarRecorderTag, mortar_next_temporal_ids_tag<2>>;
+      TemporalId, Tags::Next<TemporalId>, domain::Tags::Mesh<2>,
+      domain::Tags::Element<2>, domain::Tags::ElementMap<2>,
+      normal_dot_fluxes_tag<2, flux_comm_types>, other_data_tag<2>,
+      mortar_meshes_tag<2>, mortar_sizes_tag<2>, MortarRecorderTag,
+      mortar_next_temporal_ids_tag<2>>;
 
   using compute_tags = db::AddComputeTags<
-      Tags::InternalDirections<Dim>,
-      interface_compute_tag<Dim, Tags::Direction<Dim>>,
-      interface_compute_tag<Dim, Tags::InterfaceMesh<Dim>>,
-      interface_compute_tag<Dim, Tags::UnnormalizedFaceNormalCompute<Dim>>,
+      domain::Tags::InternalDirections<Dim>,
+      interface_compute_tag<Dim, domain::Tags::Direction<Dim>>,
+      interface_compute_tag<Dim, domain::Tags::InterfaceMesh<Dim>>,
+      interface_compute_tag<Dim,
+                            domain::Tags::UnnormalizedFaceNormalCompute<Dim>>,
       interface_compute_tag<
-          Dim, Tags::EuclideanMagnitude<Tags::UnnormalizedFaceNormal<Dim>>>,
+          Dim,
+          Tags::EuclideanMagnitude<domain::Tags::UnnormalizedFaceNormal<Dim>>>,
       interface_compute_tag<
-          Dim, Tags::NormalizedCompute<Tags::UnnormalizedFaceNormal<Dim>>>>;
+          Dim,
+          Tags::NormalizedCompute<domain::Tags::UnnormalizedFaceNormal<Dim>>>>;
 
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<typename MV::Phase, MV::Phase::Initialization,
@@ -347,7 +349,8 @@ void run_lts_case(const int self_step_end, const std::vector<int>& left_steps,
 
   insert_neighbor(make_not_null(&runner), left_element, 0, 1, 0.0);
   insert_neighbor(make_not_null(&runner), right_element, 0, 1, 0.0);
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   runner.next_action<my_component>(self_id);  // SendDataForFluxes
 

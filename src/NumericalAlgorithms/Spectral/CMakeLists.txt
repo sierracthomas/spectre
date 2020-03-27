@@ -14,6 +14,7 @@ set(LIBRARY_SOURCES
     SwshCollocation.cpp
     SwshDerivatives.cpp
     SwshFiltering.cpp
+    SwshInterpolation.cpp
     SwshTags.cpp
     SwshTransform.cpp
     )
@@ -22,6 +23,17 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
+  PUBLIC
+  DataStructures
+  ErrorHandling
+  Libsharp
+
+  INTERFACE
+  # LinearOperators should be PUBLIC but there is a cyclic dependency
+  LinearOperators
+
+  PRIVATE
+  Blas
+  Boost::boost
+  Lapack
   )

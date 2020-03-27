@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -13,12 +13,12 @@
 #include "Domain/BlockLogicalCoordinates.hpp"
 #include "Domain/Creators/Shell.hpp"
 #include "Domain/Domain.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Helpers/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTargetLineSegment.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Time/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace {
 struct MockMetavariables {
@@ -49,14 +49,15 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.InterpolationTarget.LineSegment",
                                                          {{2.4, 2.4, 2.4}}, 15);
 
   // Test creation of options
-  const auto created_opts = test_creation<intrp::OptionHolders::LineSegment<3>>(
-      "  Begin: [1.0, 1.0, 1.0]\n"
-      "  End: [2.4, 2.4, 2.4]\n"
-      "  NumberOfPoints: 15");
+  const auto created_opts =
+      TestHelpers::test_creation<intrp::OptionHolders::LineSegment<3>>(
+          "Begin: [1.0, 1.0, 1.0]\n"
+          "End: [2.4, 2.4, 2.4]\n"
+          "NumberOfPoints: 15");
   CHECK(created_opts == line_segment_opts);
 
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
 
   const auto expected_block_coord_holders = [&domain_creator]() noexcept {
     const size_t n_pts = 15;

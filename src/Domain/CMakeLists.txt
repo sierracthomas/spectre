@@ -4,6 +4,8 @@
 add_subdirectory(Amr)
 add_subdirectory(CoordinateMaps)
 add_subdirectory(Creators)
+add_subdirectory(FunctionsOfTime)
+add_subdirectory(Python)
 
 set(LIBRARY Domain)
 
@@ -32,15 +34,21 @@ set(LIBRARY_SOURCES
   SegmentId.cpp
   Side.cpp
   SizeOfElement.cpp
+  Tags.cpp
+  TagsTimeDependent.cpp
   )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE CoordinateMaps
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
-  INTERFACE LinearOperators
-  INTERFACE Spectral
+  PUBLIC
+  Boost::boost
+  CoordinateMaps
+  DataStructures
+  ErrorHandling
+  FunctionsOfTime
+  Options
+  Spectral
+  Utilities
   )

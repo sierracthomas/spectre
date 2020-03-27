@@ -5,12 +5,14 @@
 
 #include <vector>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/FloatingPointExceptions.hpp"
 #include "Evolution/Actions/ComputeTimeDerivative.hpp"  // IWYU pragma: keep
 #include "Evolution/Actions/ComputeVolumeFluxes.hpp"    // IWYU pragma: keep
 #include "Evolution/ComputeTags.hpp"
+#include "Evolution/Conservative/ConservativeDuDt.hpp"
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/Limiters/LimiterActions.hpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/Minmod.hpp"
@@ -28,6 +30,7 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"  // IWYU pragma: keep
+#include "NumericalAlgorithms/DiscontinuousGalerkin/Formulation.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/LocalLaxFriedrichs.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "Options/Options.hpp"
@@ -48,15 +51,18 @@
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Burgers/Step.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
-#include "Time/Actions/AdvanceTime.hpp"            // IWYU pragma: keep
-#include "Time/Actions/ChangeStepSize.hpp"         // IWYU pragma: keep
-#include "Time/Actions/RecordTimeStepperData.hpp"  // IWYU pragma: keep
-#include "Time/Actions/SelfStartActions.hpp"       // IWYU pragma: keep
-#include "Time/Actions/UpdateU.hpp"                // IWYU pragma: keep
-#include "Time/StepChoosers/Cfl.hpp"               // IWYU pragma: keep
-#include "Time/StepChoosers/Constant.hpp"          // IWYU pragma: keep
-#include "Time/StepChoosers/Increase.hpp"          // IWYU pragma: keep
+#include "Time/Actions/AdvanceTime.hpp"                // IWYU pragma: keep
+#include "Time/Actions/ChangeSlabSize.hpp"             // IWYU pragma: keep
+#include "Time/Actions/ChangeStepSize.hpp"             // IWYU pragma: keep
+#include "Time/Actions/RecordTimeStepperData.hpp"      // IWYU pragma: keep
+#include "Time/Actions/SelfStartActions.hpp"           // IWYU pragma: keep
+#include "Time/Actions/UpdateU.hpp"                    // IWYU pragma: keep
+#include "Time/StepChoosers/Cfl.hpp"                   // IWYU pragma: keep
+#include "Time/StepChoosers/Constant.hpp"              // IWYU pragma: keep
+#include "Time/StepChoosers/Increase.hpp"              // IWYU pragma: keep
+#include "Time/StepChoosers/PreventRapidIncrease.hpp"  // IWYU pragma: keep
 #include "Time/StepChoosers/StepChooser.hpp"
+#include "Time/StepChoosers/StepToTimes.hpp"
 #include "Time/StepControllers/StepController.hpp"
 #include "Time/Tags.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
@@ -78,6 +84,8 @@ class CProxy_ConstGlobalCache;
 struct EvolutionMetavars {
   static constexpr size_t volume_dim = 1;
   using system = Burgers::System;
+  static constexpr dg::Formulation dg_formulation =
+      dg::Formulation::StrongInertial;
   using temporal_id = Tags::TimeStepId;
   static constexpr bool local_time_stepping = false;
   using initial_data_tag = Tags::AnalyticSolution<Burgers::Solutions::Step>;
@@ -87,6 +95,24 @@ struct EvolutionMetavars {
   using limiter =
       Tags::Limiter<Limiters::Minmod<1, system::variables_tag::tags_list>>;
 
+  using step_choosers_common =
+      tmpl::list<StepChoosers::Registrars::Cfl<volume_dim, Frame::Inertial>,
+                 StepChoosers::Registrars::Constant,
+                 StepChoosers::Registrars::Increase>;
+  using step_choosers_for_step_only =
+      tmpl::list<StepChoosers::Registrars::PreventRapidIncrease>;
+  using step_choosers_for_slab_only =
+      tmpl::list<StepChoosers::Registrars::StepToTimes>;
+  using step_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only>,
+      tmpl::list<>>;
+  using slab_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_slab_only>,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only,
+                   step_choosers_for_slab_only>>;
+
   // public for use by the Charm++ registration code
   using observe_fields =
       db::get_variables_tags_list<typename system::variables_tag>;
@@ -95,7 +121,8 @@ struct EvolutionMetavars {
       tmpl::list<dg::Events::Registrars::ObserveFields<
                      1, Tags::Time, observe_fields, analytic_solution_fields>,
                  dg::Events::Registrars::ObserveErrorNorms<
-                     Tags::Time, analytic_solution_fields>>;
+                     Tags::Time, analytic_solution_fields>,
+                 Events::Registrars::ChangeSlabSize<slab_choosers>>;
   using triggers = Triggers::time_triggers;
 
   using const_global_cache_tags =
@@ -110,24 +137,20 @@ struct EvolutionMetavars {
   using observed_reduction_data_tags =
       observers::collect_reduction_data_tags<Event<events>::creatable_classes>;
 
-  using step_choosers =
-      tmpl::list<StepChoosers::Registrars::Cfl<1, Frame::Inertial>,
-                 StepChoosers::Registrars::Constant,
-                 StepChoosers::Registrars::Increase>;
-
   using step_actions = tmpl::flatten<tmpl::list<
       Actions::ComputeVolumeFluxes,
       dg::Actions::SendDataForFluxes<EvolutionMetavars>,
-      Actions::ComputeTimeDerivative,
+      Actions::ComputeTimeDerivative<
+          evolution::dg::ConservativeDuDt<Burgers::System, dg_formulation>>,
       dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
-      Actions::RecordTimeStepperData,
+      Actions::RecordTimeStepperData<>,
       tmpl::conditional_t<local_time_stepping,
                           dg::Actions::ApplyBoundaryFluxesLocalTimeStepping,
                           tmpl::list<>>,
-      Actions::UpdateU, Limiters::Actions::SendData<EvolutionMetavars>,
+      Actions::UpdateU<>, Limiters::Actions::SendData<EvolutionMetavars>,
       Limiters::Actions::Limit<EvolutionMetavars>>>;
 
   enum class Phase {
@@ -139,14 +162,15 @@ struct EvolutionMetavars {
   };
 
   using initialization_actions = tmpl::list<
+      Initialization::Actions::TimeAndTimeStep<EvolutionMetavars>,
       dg::Actions::InitializeDomain<1>,
       Initialization::Actions::ConservativeSystem,
+      Initialization::Actions::TimeStepperHistory<EvolutionMetavars>,
       dg::Actions::InitializeInterfaces<
           system,
           dg::Initialization::slice_tags_to_face<
               typename system::variables_tag>,
           dg::Initialization::slice_tags_to_exterior<>>,
-      Initialization::Actions::Evolution<EvolutionMetavars>,
       Initialization::Actions::AddComputeTags<
           tmpl::list<evolution::Tags::AnalyticCompute<
               1, initial_data_tag, analytic_solution_fields>>>,
@@ -177,12 +201,13 @@ struct EvolutionMetavars {
 
               Parallel::PhaseActions<
                   Phase, Phase::Evolve,
-                  tmpl::flatten<tmpl::list<
+                  tmpl::list<
                       Actions::RunEventsAndTriggers,
+                      Actions::ChangeSlabSize,
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      step_actions, Actions::AdvanceTime>>>>>>;
+                      step_actions, Actions::AdvanceTime>>>>>;
 
   static constexpr OptionString help{
       "Evolve the Burgers equation.\n\n"
@@ -218,6 +243,11 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &setup_error_handling, &domain::creators::register_derived_with_charm,
     &Parallel::register_derived_classes_with_charm<
         Event<metavariables::events>>,
+    &Parallel::register_derived_classes_with_charm<
+        StepChooser<metavariables::slab_choosers>>,
+    &Parallel::register_derived_classes_with_charm<
+        StepChooser<metavariables::step_choosers>>,
+    &Parallel::register_derived_classes_with_charm<StepController>,
     &Parallel::register_derived_classes_with_charm<TimeStepper>,
     &Parallel::register_derived_classes_with_charm<
         Trigger<metavariables::triggers>>};

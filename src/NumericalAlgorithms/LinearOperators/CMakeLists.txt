@@ -7,6 +7,7 @@ set(LIBRARY_SOURCES
   ApplyMatrices.cpp
   CoefficientTransforms.cpp
   DefiniteIntegral.cpp
+  Divergence.cpp
   ExponentialFilter.cpp
   IndefiniteIntegral.cpp
   Linearize.cpp
@@ -17,8 +18,13 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE Domain
-  INTERFACE ErrorHandling
-  INTERFACE Spectral
+  PUBLIC
+  Blas
+  DataStructures
+  ErrorHandling
+  Options
+  Spectral
+
+  INTERFACE
+  Domain # Domain should be PUBLIC but then there's a cyclic dependency
   )

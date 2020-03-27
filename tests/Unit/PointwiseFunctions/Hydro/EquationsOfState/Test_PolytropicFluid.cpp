@@ -1,18 +1,18 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <limits>
 #include <pup.h>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Helpers/PointwiseFunctions/Hydro/EquationsOfState/TestHelpers.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
-#include "tests/Unit/PointwiseFunctions/Hydro/EquationsOfState/TestHelpers.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 // IWYU pragma: no_forward_declare EquationsOfState::EquationOfState
 
@@ -37,28 +37,28 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.EquationsOfState.PolytropicFluid",
                                        "polytropic", dv_for_size, 117.0, 1.12);
 
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<true, 1>>(
-          {"  PolytropicFluid:\n"
-           "    PolytropicConstant: 100.0\n"
-           "    PolytropicExponent: 2.0\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<true, 1>>(
+          {"PolytropicFluid:\n"
+           "  PolytropicConstant: 100.0\n"
+           "  PolytropicExponent: 2.0\n"}),
       "polytropic", d_for_size, 100.0, 2.0);
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<true, 1>>(
-          {"  PolytropicFluid:\n"
-           "    PolytropicConstant: 134.0\n"
-           "    PolytropicExponent: 1.5\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<true, 1>>(
+          {"PolytropicFluid:\n"
+           "  PolytropicConstant: 134.0\n"
+           "  PolytropicExponent: 1.5\n"}),
       "polytropic", dv_for_size, 134.0, 1.5);
 
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<false, 1>>(
-          {"  PolytropicFluid:\n"
-           "    PolytropicConstant: 121.0\n"
-           "    PolytropicExponent: 1.2\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<false, 1>>(
+          {"PolytropicFluid:\n"
+           "  PolytropicConstant: 121.0\n"
+           "  PolytropicExponent: 1.2\n"}),
       "polytropic", d_for_size, 121.0, 1.2);
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<false, 1>>(
-          {"  PolytropicFluid:\n"
-           "    PolytropicConstant: 117.0\n"
-           "    PolytropicExponent: 1.12\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<false, 1>>(
+          {"PolytropicFluid:\n"
+           "  PolytropicConstant: 117.0\n"
+           "  PolytropicExponent: 1.12\n"}),
       "polytropic", dv_for_size, 117.0, 1.12);
 }

@@ -89,6 +89,9 @@ namespace Solutions {
  */
 template <size_t Dim>
 class IsentropicVortex : public MarkAsAnalyticSolution {
+  static_assert(Dim == 2 or Dim == 3,
+                "IsentropicVortex solution works in 2 and 3 dimensions");
+
   template <typename DataType>
   struct IntermediateVariables;
 
@@ -162,8 +165,8 @@ class IsentropicVortex : public MarkAsAnalyticSolution {
     static_assert(sizeof...(Tags) > 1,
                   "The generic template will recurse infinitely if only one "
                   "tag is being retrieved.");
-    IntermediateVariables<DataType> vars(x, t, center_, mean_velocity_,
-                                         strength_);
+    const IntermediateVariables<DataType> vars(x, t, center_, mean_velocity_,
+                                               strength_);
     return {tuples::get<Tags>(variables(tmpl::list<Tags>{}, vars))...};
   }
 

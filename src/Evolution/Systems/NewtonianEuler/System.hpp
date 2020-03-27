@@ -6,8 +6,7 @@
 #include <cstddef>
 
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
-#include "DataStructures/Variables.hpp"
-#include "Evolution/Conservative/ConservativeDuDt.hpp"
+#include "DataStructures/VariablesTag.hpp"
 #include "Evolution/Systems/NewtonianEuler/Characteristics.hpp"
 #include "Evolution/Systems/NewtonianEuler/ConservativeFromPrimitive.hpp"
 #include "Evolution/Systems/NewtonianEuler/Fluxes.hpp"
@@ -16,13 +15,6 @@
 #include "Evolution/Systems/NewtonianEuler/Tags.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-
-/// \cond
-namespace Tags {
-template <class>
-class Variables;
-}  // namespace Tags
-/// \endcond
 
 /// \ingroup EvolutionSystemsGroup
 /// \brief Items related to evolving the Newtonian Euler system
@@ -42,10 +34,8 @@ struct System {
       Tags::MassDensity<DataVector>, Tags::Velocity<DataVector, Dim>,
       Tags::SpecificInternalEnergy<DataVector>, Tags::Pressure<DataVector>>>;
 
-  using variables_tag =
-      ::Tags::Variables<tmpl::list<Tags::MassDensityCons<DataVector>,
-                                   Tags::MomentumDensity<DataVector, Dim>,
-                                   Tags::EnergyDensity<DataVector>>>;
+  using variables_tag = ::Tags::Variables<tmpl::list<
+      Tags::MassDensityCons, Tags::MomentumDensity<Dim>, Tags::EnergyDensity>>;
 
   template <typename Tag>
   using magnitude_tag = ::Tags::EuclideanMagnitude<Tag>;
@@ -61,8 +51,6 @@ struct System {
   using volume_fluxes = ComputeFluxes<Dim>;
 
   using volume_sources = ComputeSources<InitialDataType>;
-
-  using compute_time_derivative = ConservativeDuDt<System>;
 
   using sourced_variables =
       typename InitialDataType::source_term_type::sourced_variables;

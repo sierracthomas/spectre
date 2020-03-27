@@ -14,8 +14,10 @@
 #include <pup.h>
 #include <string>
 
-#include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/IndexType.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
@@ -29,6 +31,7 @@
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
 #include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 // IWYU pragma: no_forward_declare MakeWithValueImpl
 // IWYU pragma: no_forward_declare Variables
@@ -41,28 +44,6 @@ template <typename TagsList>
 class Variables;
 /// \endcond
 
-namespace Tags {
-template <typename TagsList>
-struct Variables : db::SimpleTag {
-  static_assert(tt::is_a<tmpl::list, TagsList>::value,
-                "The TagsList passed to Tags::Variables is not a typelist");
-  using tags_list = TagsList;
-  using type = ::Variables<TagsList>;
-  static std::string name() noexcept {
-    std::string tag_name{"Variables("};
-    size_t iter = 0;
-    tmpl::for_each<TagsList>([&tag_name, &iter ](auto tag) noexcept {
-      tag_name += db::tag_name<tmpl::type_from<decltype(tag)>>();
-      if (iter + 1 != tmpl::size<TagsList>::value) {
-        tag_name += ",";
-      }
-      iter++;
-    });
-    return tag_name + ")";
-  }
-};
-}  // namespace Tags
-
 /*!
  * \ingroup DataStructuresGroup
  * \brief A Variables holds a contiguous memory block with Tensors pointing
@@ -74,11 +55,11 @@ struct Variables : db::SimpleTag {
  * `db::SimpleTag`. In general, they should be DataBoxTags that are not compute
  * items. For example,
  *
- * \snippet Test_Variables.cpp simple_variables_tag
+ * \snippet TestTags.hpp simple_variables_tag
  *
  * Prefix tags can also be stored and their format is:
  *
- * \snippet Test_Variables.cpp prefix_variables_tag
+ * \snippet TestTags.hpp prefix_variables_tag
  *
  * #### Design Decisions
  *
@@ -396,6 +377,15 @@ class Variables<tmpl::list<Tags...>> {
     return lhs.variable_data_ / rhs;
   }
 
+  friend SPECTRE_ALWAYS_INLINE decltype(auto) operator-(
+      const Variables& lhs) noexcept {
+    return -lhs.variable_data_;
+  }
+  friend SPECTRE_ALWAYS_INLINE decltype(auto) operator+(
+      const Variables& lhs) noexcept {
+    return lhs.variable_data_;
+  }
+
  private:
   //{@
   /*!
@@ -443,6 +433,43 @@ class Variables<tmpl::list<Tags...>> {
   pointer_type variable_data_;
   tuples::TaggedTuple<Tags...> reference_variable_data_;
 };
+
+// The above Variables implementation doesn't work for an empty parameter pack,
+// so specialize here.
+template<>
+class Variables<tmpl::list<>> {
+ public:
+  Variables() noexcept = default;
+  explicit Variables(const size_t /*number_of_grid_points*/) noexcept {};
+  static constexpr size_t size() noexcept { return 0; }
+};
+
+// gcc8 screams when the empty Variables has pup as a member function, so we
+// declare pup as a free function here.
+// clang-tidy: runtime-references
+SPECTRE_ALWAYS_INLINE void pup(
+    PUP::er& /*p*/,                                    // NOLINT
+    Variables<tmpl::list<>>& /* unused */) noexcept {  // NOLINT
+}
+SPECTRE_ALWAYS_INLINE void operator|(
+    PUP::er& /*p*/, Variables<tmpl::list<>>& /* unused */) noexcept {  // NOLINT
+}
+
+SPECTRE_ALWAYS_INLINE bool operator==(
+    const Variables<tmpl::list<>>& /*lhs*/,
+    const Variables<tmpl::list<>>& /*rhs*/) noexcept {
+  return true;
+}
+SPECTRE_ALWAYS_INLINE bool operator!=(
+    const Variables<tmpl::list<>>& /*lhs*/,
+    const Variables<tmpl::list<>>& /*rhs*/) noexcept {
+  return false;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const Variables<tmpl::list<>>& /*d*/) noexcept {
+  return os << "{}";
+}
 
 template <typename... Tags>
 Variables<tmpl::list<Tags...>>::Variables() noexcept {

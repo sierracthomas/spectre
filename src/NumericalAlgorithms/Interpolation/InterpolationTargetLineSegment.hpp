@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "NumericalAlgorithms/Interpolation/SendPointsToInterpolator.hpp"
 #include "Options/Options.hpp"
@@ -26,7 +27,7 @@ class DataBox;
 }  // namespace db
 namespace intrp {
 namespace Tags {
-template <typename Metavariables>
+template <typename TemporalId>
 struct TemporalIds;
 }  // namespace Tags
 }  // namespace intrp
@@ -107,6 +108,8 @@ struct LineSegment : db::SimpleTag {
   using type = OptionHolders::LineSegment<VolumeDim>;
   using option_tags =
       tmpl::list<OptionTags::LineSegment<InterpolationTargetTag, VolumeDim>>;
+
+  static constexpr bool pass_metavariables = false;
   static type create_from_options(const type& option) noexcept {
     return option;
   }
@@ -119,7 +122,7 @@ namespace Actions {
 ///
 /// Uses:
 /// - DataBox:
-///   - `::Tags::Domain<3, Frame>`
+///   - `domain::Tags::Domain<3>`
 ///   - `::Tags::Variables<typename
 ///                   InterpolationTargetTag::vars_to_interpolate_to_target>`
 ///
@@ -136,15 +139,16 @@ template <typename InterpolationTargetTag, size_t VolumeDim>
 struct LineSegment {
   using const_global_cache_tags =
       tmpl::list<Tags::LineSegment<InterpolationTargetTag, VolumeDim>>;
-  template <typename ParallelComponent, typename DbTags, typename Metavariables,
-            typename ArrayIndex,
-            Requires<tmpl::list_contains_v<
-                DbTags, Tags::TemporalIds<Metavariables>>> = nullptr>
-  static void apply(
-      db::DataBox<DbTags>& box,
-      Parallel::ConstGlobalCache<Metavariables>& cache,
-      const ArrayIndex& /*array_index*/,
-      const typename Metavariables::temporal_id::type& temporal_id) noexcept {
+  using is_sequential = std::false_type;
+  template <
+      typename ParallelComponent, typename DbTags, typename Metavariables,
+      typename ArrayIndex, typename TemporalId,
+      Requires<tmpl::list_contains_v<DbTags, Tags::TemporalIds<TemporalId>>> =
+          nullptr>
+  static void apply(db::DataBox<DbTags>& box,
+                    Parallel::ConstGlobalCache<Metavariables>& cache,
+                    const ArrayIndex& /*array_index*/,
+                    const TemporalId& temporal_id) noexcept {
     const auto& options =
         Parallel::get<Tags::LineSegment<InterpolationTargetTag, VolumeDim>>(
             cache);

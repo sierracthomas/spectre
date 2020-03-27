@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/FloatingPointExceptions.hpp"
@@ -13,6 +14,7 @@
 #include "Evolution/Actions/ComputeVolumeFluxes.hpp"
 #include "Evolution/Actions/ComputeVolumeSources.hpp"
 #include "Evolution/ComputeTags.hpp"
+#include "Evolution/Conservative/ConservativeDuDt.hpp"
 #include "Evolution/Conservative/UpdateConservatives.hpp"
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/LimiterActions.hpp"
@@ -34,6 +36,7 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"
+#include "NumericalAlgorithms/DiscontinuousGalerkin/Formulation.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/Hll.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "Options/Options.hpp"
@@ -53,10 +56,13 @@
 #include "ParallelAlgorithms/EventsAndTriggers/Tags.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/AddComputeTags.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/IsentropicVortex.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/LaneEmdenStar.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/RiemannProblem.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
+#include "Time/Actions/ChangeSlabSize.hpp"
 #include "Time/Actions/ChangeStepSize.hpp"
 #include "Time/Actions/RecordTimeStepperData.hpp"
 #include "Time/Actions/SelfStartActions.hpp"
@@ -64,7 +70,9 @@
 #include "Time/StepChoosers/Cfl.hpp"
 #include "Time/StepChoosers/Constant.hpp"
 #include "Time/StepChoosers/Increase.hpp"
+#include "Time/StepChoosers/PreventRapidIncrease.hpp"
 #include "Time/StepChoosers/StepChooser.hpp"
+#include "Time/StepChoosers/StepToTimes.hpp"
 #include "Time/StepControllers/StepController.hpp"
 #include "Time/Tags.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
@@ -82,10 +90,17 @@ class CProxy_ConstGlobalCache;
 }  // namespace Parallel
 /// \endcond
 
-template <size_t Dim>
+template <size_t Dim, typename InitialData>
 struct EvolutionMetavars {
   static constexpr size_t volume_dim = Dim;
-  using initial_data = NewtonianEuler::Solutions::RiemannProblem<Dim>;
+  static constexpr dg::Formulation dg_formulation =
+      dg::Formulation::StrongInertial;
+
+  using initial_data = InitialData;
+  static_assert(
+      evolution::is_analytic_data_v<initial_data> xor
+          evolution::is_analytic_solution_v<initial_data>,
+      "initial_data must be either an analytic_data or an analytic_solution");
 
   using equation_of_state_type = typename initial_data::equation_of_state_type;
 
@@ -97,7 +112,10 @@ struct EvolutionMetavars {
   using temporal_id = Tags::TimeStepId;
   static constexpr bool local_time_stepping = false;
 
-  using initial_data_tag = Tags::AnalyticSolution<initial_data>;
+  using initial_data_tag =
+      tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
+                          Tags::AnalyticSolution<initial_data>,
+                          Tags::AnalyticData<initial_data>>;
 
   using boundary_condition_tag = initial_data_tag;
   using analytic_variables_tags =
@@ -114,27 +132,44 @@ struct EvolutionMetavars {
       Tags::NumericalFlux<dg::NumericalFluxes::Hll<system>>;
 
   using limiter = Tags::Limiter<Limiters::Minmod<
-      Dim, tmpl::list<NewtonianEuler::Tags::MassDensityCons<DataVector>,
-                      NewtonianEuler::Tags::MomentumDensity<DataVector, Dim,
-                                                            Frame::Inertial>,
-                      NewtonianEuler::Tags::EnergyDensity<DataVector>>>>;
+      Dim,
+      tmpl::list<NewtonianEuler::Tags::MassDensityCons,
+                 NewtonianEuler::Tags::MomentumDensity<Dim, Frame::Inertial>,
+                 NewtonianEuler::Tags::EnergyDensity>>>;
 
-  using events = tmpl::list<
-      dg::Events::Registrars::ObserveErrorNorms<Tags::Time,
-                                                analytic_variables_tags>,
+  using step_choosers_common =
+      tmpl::list<StepChoosers::Registrars::Cfl<volume_dim, Frame::Inertial>,
+                 StepChoosers::Registrars::Constant,
+                 StepChoosers::Registrars::Increase>;
+  using step_choosers_for_step_only =
+      tmpl::list<StepChoosers::Registrars::PreventRapidIncrease>;
+  using step_choosers_for_slab_only =
+      tmpl::list<StepChoosers::Registrars::StepToTimes>;
+  using step_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only>,
+      tmpl::list<>>;
+  using slab_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_slab_only>,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only,
+                   step_choosers_for_slab_only>>;
+
+  using events = tmpl::flatten<tmpl::list<
+      tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
+                          dg::Events::Registrars::ObserveErrorNorms<
+                              Tags::Time, analytic_variables_tags>,
+                          tmpl::list<>>,
       dg::Events::Registrars::ObserveFields<
           Dim, Tags::Time,
           tmpl::append<
               db::get_variables_tags_list<typename system::variables_tag>,
               db::get_variables_tags_list<
                   typename system::primitive_variables_tag>>,
-          analytic_variables_tags>>;
+          tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
+                              analytic_variables_tags, tmpl::list<>>>,
+      Events::Registrars::ChangeSlabSize<slab_choosers>>>;
   using triggers = Triggers::time_triggers;
-
-  using step_choosers =
-      tmpl::list<StepChoosers::Registrars::Cfl<Dim, Frame::Inertial>,
-                 StepChoosers::Registrars::Constant,
-                 StepChoosers::Registrars::Increase>;
 
   struct ObservationType {};
   using element_observation_type = ObservationType;
@@ -147,16 +182,20 @@ struct EvolutionMetavars {
       dg::Actions::SendDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<has_source_terms, Actions::ComputeVolumeSources,
                           tmpl::list<>>,
-      Actions::ComputeTimeDerivative,
-      dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
+      Actions::ComputeTimeDerivative<
+          evolution::dg::ConservativeDuDt<system, dg_formulation>>,
+      tmpl::conditional_t<
+          evolution::is_analytic_solution_v<initial_data>,
+          dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
+          tmpl::list<>>,
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
-      Actions::RecordTimeStepperData,
+      Actions::RecordTimeStepperData<>,
       tmpl::conditional_t<local_time_stepping,
                           dg::Actions::ApplyBoundaryFluxesLocalTimeStepping,
                           tmpl::list<>>,
-      Actions::UpdateU, Limiters::Actions::SendData<EvolutionMetavars>,
+      Actions::UpdateU<>, Limiters::Actions::SendData<EvolutionMetavars>,
       Limiters::Actions::Limit<EvolutionMetavars>,
       // Conservative `UpdatePrimitives` expects system to possess
       // list of recovery schemes so we use `MutateApply` instead.
@@ -171,8 +210,10 @@ struct EvolutionMetavars {
   };
 
   using initialization_actions = tmpl::list<
+      Initialization::Actions::TimeAndTimeStep<EvolutionMetavars>,
       dg::Actions::InitializeDomain<Dim>,
       Initialization::Actions::ConservativeSystem,
+      Initialization::Actions::TimeStepperHistory<EvolutionMetavars>,
       Initialization::Actions::AddComputeTags<
           tmpl::list<NewtonianEuler::Tags::SoundSpeedSquaredCompute<DataVector>,
                      NewtonianEuler::Tags::SoundSpeedCompute<DataVector>>>,
@@ -186,7 +227,6 @@ struct EvolutionMetavars {
           dg::Initialization::slice_tags_to_exterior<
               typename system::primitive_variables_tag,
               NewtonianEuler::Tags::SoundSpeed<DataVector>>>,
-      Initialization::Actions::Evolution<EvolutionMetavars>,
       tmpl::conditional_t<
           evolution::is_analytic_solution_v<initial_data>,
           Initialization::Actions::AddComputeTags<
@@ -209,8 +249,7 @@ struct EvolutionMetavars {
 
               Parallel::PhaseActions<
                   Phase, Phase::InitializeTimeStepperHistory,
-                  tmpl::flatten<tmpl::list<
-                      SelfStart::self_start_procedure<step_actions>>>>,
+                  SelfStart::self_start_procedure<step_actions>>,
 
               Parallel::PhaseActions<
                   Phase, Phase::RegisterWithObserver,
@@ -221,13 +260,14 @@ struct EvolutionMetavars {
 
               Parallel::PhaseActions<
                   Phase, Phase::Evolve,
-                  tmpl::flatten<tmpl::list<
+                  tmpl::list<
                       Actions::UpdateConservatives,
                       Actions::RunEventsAndTriggers,
+                      Actions::ChangeSlabSize,
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      step_actions, Actions::AdvanceTime>>>>>>;
+                      step_actions, Actions::AdvanceTime>>>>>;
 
   using const_global_cache_tags = tmpl::list<
       initial_data_tag,
@@ -269,6 +309,8 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &domain::creators::register_derived_with_charm,
     &Parallel::register_derived_classes_with_charm<
         Event<metavariables::events>>,
+    &Parallel::register_derived_classes_with_charm<
+        StepChooser<metavariables::slab_choosers>>,
     &Parallel::register_derived_classes_with_charm<
         StepChooser<metavariables::step_choosers>>,
     &Parallel::register_derived_classes_with_charm<StepController>,

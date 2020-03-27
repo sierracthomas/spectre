@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <limits>
 #include <random>
@@ -11,13 +11,14 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/Systems/NewtonianEuler/SoundSpeedSquared.hpp"
 #include "Evolution/Systems/NewtonianEuler/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/IdealFluid.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/Hydro/EquationsOfState/PolytropicFluid.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/Hydro/Tags.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 // IWYU pragma: no_forward_declare NewtonianEuler::Tags::MassDensity
 // IWYU pragma: no_forward_declare NewtonianEuler::Tags::SoundSpeedSquared
@@ -32,10 +33,11 @@ void test_compute_item_in_databox(
     const Scalar<DataType>& mass_density,
     const Scalar<DataType>& specific_internal_energy,
     const EquationOfStateType& equation_of_state) noexcept {
-  CHECK(NewtonianEuler::Tags::SoundSpeedSquaredCompute<DataType>::name() ==
-        "SoundSpeedSquared");
-  CHECK(NewtonianEuler::Tags::SoundSpeedCompute<DataType>::name() ==
-        "SoundSpeed");
+  TestHelpers::db::test_compute_tag<
+      NewtonianEuler::Tags::SoundSpeedSquaredCompute<DataType>>(
+      "SoundSpeedSquared");
+  TestHelpers::db::test_compute_tag<
+      NewtonianEuler::Tags::SoundSpeedCompute<DataType>>("SoundSpeed");
   const auto box = db::create<
       db::AddSimpleTags<NewtonianEuler::Tags::MassDensity<DataType>,
                         NewtonianEuler::Tags::SpecificInternalEnergy<DataType>,

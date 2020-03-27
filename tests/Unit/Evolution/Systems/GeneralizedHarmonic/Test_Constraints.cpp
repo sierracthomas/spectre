@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -18,12 +18,17 @@
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
 #include "Evolution/Systems/GeneralizedHarmonic/Constraints.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/KerrSchild.hpp"
@@ -37,8 +42,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 // IWYU pragma: no_forward_declare Variables
@@ -53,7 +56,7 @@ void test_three_index_constraint(const DataType& used_for_size) noexcept {
           const tnsr::iaa<DataType, SpatialDim, Frame>&)>(
           &GeneralizedHarmonic::three_index_constraint<SpatialDim, Frame,
                                                        DataType>),
-      "numpy", "subtract", {{{-10.0, 10.0}}}, used_for_size);
+      "numpy", "subtract", {{{-1.0, 1.0}}}, used_for_size);
 }
 
 // Test the return-by-value gauge constraint function using random values
@@ -69,8 +72,7 @@ void test_gauge_constraint_random(const DataType& used_for_size) noexcept {
           const tnsr::aa<DataType, SpatialDim, Frame>&,
           const tnsr::iaa<DataType, SpatialDim, Frame>&)>(
           &GeneralizedHarmonic::gauge_constraint<SpatialDim, Frame, DataType>),
-      "TestFunctions", "gauge_constraint", {{{-10.0, 10.0}}}, used_for_size,
-      1.0e-11);
+      "TestFunctions", "gauge_constraint", {{{-1.0, 1.0}}}, used_for_size);
 }
 
 // Test the return-by-reference gauge constraint by comparing to Kerr-Schild
@@ -167,11 +169,8 @@ void test_two_index_constraint_random(const DataType& used_for_size) noexcept {
           const tnsr::iaa<DataType, SpatialDim, Frame>&)>(
           &GeneralizedHarmonic::two_index_constraint<SpatialDim, Frame,
                                                      DataType>),
-      "TestFunctions", "two_index_constraint", {{{-10.0, 10.0}}}, used_for_size,
-      1.0e-10);  // last argument loosens tolerance from
-                 // default of 1.0e-12 to avoid occasional
-                 // failures of this test, suspected from
-                 // accumulated roundoff error
+      "TestFunctions", "two_index_constraint", {{{-1.0, 1.0}}},
+      used_for_size);
 }
 
 // Test the return-by-reference two-index constraint
@@ -302,7 +301,7 @@ void test_four_index_constraint_random(const DataType& used_for_size) noexcept {
           const tnsr::ijaa<DataType, SpatialDim, Frame>&)>(
           &GeneralizedHarmonic::four_index_constraint<SpatialDim, Frame,
                                                       DataType>),
-      "TestFunctions", "four_index_constraint", {{{-10.0, 10.0}}},
+      "TestFunctions", "four_index_constraint", {{{-1.0, 1.0}}},
       used_for_size);
 }
 
@@ -398,9 +397,7 @@ void test_f_constraint_random(const DataType& used_for_size) noexcept {
           const Scalar<DataType>&,
           const tnsr::iaa<DataType, SpatialDim, Frame>&)>(
           &GeneralizedHarmonic::f_constraint<SpatialDim, Frame, DataType>),
-      "TestFunctions", "f_constraint", {{{-10.0, 10.0}}}, used_for_size,
-      1.0e-9);  // Loosen tolerance to avoid occasional failures of this test
-                // (suspected accumulated roundoff error)
+      "TestFunctions", "f_constraint", {{{-1.0, 1.0}}}, used_for_size);
 }
 
 // Test the return-by-reference F constraint
@@ -535,11 +532,8 @@ void test_constraint_energy_random(const DataType& used_for_size) noexcept {
           const tnsr::II<DataType, SpatialDim, Frame>&, const Scalar<DataType>&,
           double, double, double, double)>(
           &GeneralizedHarmonic::constraint_energy<SpatialDim, Frame, DataType>),
-      "TestFunctions", "constraint_energy", {{{-10.0, 10.0}}}, used_for_size,
-      1.0e-10);  // last argument loosens tolerance from
-                 // default of 1.0e-12 to avoid occasional
-                 // failures of this test, suspected from
-                 // accumulated roundoff error
+      "TestFunctions", "constraint_energy", {{{-1.0, 1.0}}},
+      used_for_size);
 }
 
 // Test the return-by-reference constraint energy
@@ -683,28 +677,42 @@ void test_constraint_compute_items(
     const std::array<double, 3>& lower_bound,
     const std::array<double, 3>& upper_bound) noexcept {
   // Check that compute items are named correctly
-  CHECK(GeneralizedHarmonic::Tags::ConstraintGamma0Compute<
-            3, Frame::Inertial>::name() == "ConstraintGamma0");
-  CHECK(GeneralizedHarmonic::Tags::ConstraintGamma1Compute<
-            3, Frame::Inertial>::name() == "ConstraintGamma1");
-  CHECK(GeneralizedHarmonic::Tags::ConstraintGamma2Compute<
-            3, Frame::Inertial>::name() == "ConstraintGamma2");
-  CHECK(GeneralizedHarmonic::Tags::GaugeHImplicitFrom3p1QuantitiesCompute<
-            3, Frame::Inertial>::name() == "GaugeH");
-  CHECK(GeneralizedHarmonic::Tags::SpacetimeDerivGaugeHCompute<
-            3, Frame::Inertial>::name() == "SpacetimeDerivGaugeH");
-  CHECK(GeneralizedHarmonic::Tags::GaugeConstraintCompute<
-            3, Frame::Inertial>::name() == "GaugeConstraint");
-  CHECK(GeneralizedHarmonic::Tags::FConstraintCompute<
-            3, Frame::Inertial>::name() == "FConstraint");
-  CHECK(GeneralizedHarmonic::Tags::TwoIndexConstraintCompute<
-            3, Frame::Inertial>::name() == "TwoIndexConstraint");
-  CHECK(GeneralizedHarmonic::Tags::ThreeIndexConstraintCompute<
-            3, Frame::Inertial>::name() == "ThreeIndexConstraint");
-  CHECK(GeneralizedHarmonic::Tags::FourIndexConstraintCompute<
-            3, Frame::Inertial>::name() == "FourIndexConstraint");
-  CHECK(GeneralizedHarmonic::Tags::ConstraintEnergyCompute<
-            3, Frame::Inertial>::name() == "ConstraintEnergy");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ConstraintGamma0Compute<3, Frame::Inertial>>(
+      "ConstraintGamma0");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ConstraintGamma1Compute<3, Frame::Inertial>>(
+      "ConstraintGamma1");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ConstraintGamma2Compute<3, Frame::Inertial>>(
+      "ConstraintGamma2");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::GaugeHImplicitFrom3p1QuantitiesCompute<
+          3, Frame::Inertial>>("GaugeH");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::SpacetimeDerivGaugeHCompute<3,
+                                                             Frame::Inertial>>(
+      "SpacetimeDerivGaugeH");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::GaugeConstraintCompute<3, Frame::Inertial>>(
+      "GaugeConstraint");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::FConstraintCompute<3, Frame::Inertial>>(
+      "FConstraint");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::TwoIndexConstraintCompute<3, Frame::Inertial>>(
+      "TwoIndexConstraint");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ThreeIndexConstraintCompute<3,
+                                                             Frame::Inertial>>(
+      "ThreeIndexConstraint");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::FourIndexConstraintCompute<3,
+                                                            Frame::Inertial>>(
+      "FourIndexConstraint");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ConstraintEnergyCompute<3, Frame::Inertial>>(
+      "ConstraintEnergy");
 
   // Check vs. time-independent analytic solution
   // Set up grid
@@ -803,9 +811,9 @@ void test_constraint_compute_items(
           lapse, time_deriv_lapse, deriv_lapse, shift, time_deriv_shift,
           deriv_shift, spatial_metric, time_deriv_spatial_metric,
           deriv_spatial_metric);
-  const auto deriv_spacetime_metric =
-      gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>::function(
-          derivatives_of_spacetime_metric);
+  tnsr::iaa<DataVector, 3, Frame::Inertial> deriv_spacetime_metric{};
+  gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>::function(
+      make_not_null(&deriv_spacetime_metric), derivatives_of_spacetime_metric);
 
   auto time_deriv_gauge_source =
       make_with_value<tnsr::a<DataVector, 3, Frame::Inertial>>(x, 0.);
@@ -814,15 +822,16 @@ void test_constraint_compute_items(
   get<2>(time_deriv_gauge_source) = 0.07;
   get<3>(time_deriv_gauge_source) = -0.05;
 
-  const auto derivatives_of_gauge_source =
-      GeneralizedHarmonic::Tags::SpacetimeDerivGaugeHCompute<
-          3, Frame::Inertial>::function(time_deriv_gauge_source,
-                                        deriv_gauge_source);
+  tnsr::ab<DataVector, 3, Frame::Inertial> derivatives_of_gauge_source{};
+  GeneralizedHarmonic::Tags::SpacetimeDerivGaugeHCompute<
+      3, Frame::Inertial>::function(make_not_null(&derivatives_of_gauge_source),
+                                    time_deriv_gauge_source,
+                                    deriv_gauge_source);
 
   // Insert into databox
   const auto box = db::create<
       db::AddSimpleTags<
-          ::Tags::Coordinates<3, Frame::Inertial>,
+          domain::Tags::Coordinates<3, Frame::Inertial>,
           gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
           gr::Tags::Lapse<DataVector>,
           gr::Tags::Shift<3, Frame::Inertial, DataVector>,
@@ -889,12 +898,15 @@ void test_constraint_compute_items(
       deriv_pi);
 
   // Compute tested quantities locally
-  const auto gamma0 = GeneralizedHarmonic::Tags::ConstraintGamma0Compute<
-      3, Frame::Inertial>::function(x);
-  const auto gamma1 = GeneralizedHarmonic::Tags::ConstraintGamma1Compute<
-      3, Frame::Inertial>::function(x);
-  const auto gamma2 = GeneralizedHarmonic::Tags::ConstraintGamma2Compute<
-      3, Frame::Inertial>::function(x);
+  Scalar<DataVector> gamma0{};
+  GeneralizedHarmonic::Tags::ConstraintGamma0Compute<
+      3, Frame::Inertial>::function(make_not_null(&gamma0), x);
+  Scalar<DataVector> gamma1{};
+  GeneralizedHarmonic::Tags::ConstraintGamma1Compute<
+      3, Frame::Inertial>::function(make_not_null(&gamma1), x);
+  Scalar<DataVector> gamma2{};
+  GeneralizedHarmonic::Tags::ConstraintGamma2Compute<
+      3, Frame::Inertial>::function(make_not_null(&gamma2), x);
 
   const auto four_index_constraint =
       GeneralizedHarmonic::four_index_constraint(deriv_phi);

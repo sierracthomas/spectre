@@ -38,6 +38,7 @@ installation_on_clusters "Installation on clusters" page.
 * [SciPy](https://www.scipy.org)
 
 #### Optional:
+* [Pybind11](https://pybind11.readthedocs.io) for SpECTRE Python bindings
 * [Doxygen](http://www.stack.nl/~dimitri/doxygen/index.html) — to generate
   documentation
 * [Python](https://www.python.org/) with
@@ -55,6 +56,7 @@ installation_on_clusters "Installation on clusters" page.
   code in a clear and consistent fashion
 * [Clang-Tidy](http://clang.llvm.org/extra/clang-tidy/) — to "lint" C++ code
 * [Cppcheck](http://cppcheck.sourceforge.net/) — to analyze C++ code
+* [yapf](https://github.com/google/yapf) 0.29.0 - to format python code
 
 ## Using Docker to obtain a SpECTRE environment
 
@@ -85,16 +87,25 @@ To build with the docker image:
    docker run -v SPECTRE_ROOT:SPECTRE_ROOT --name CONTAINER_NAME \
               -i -t sxscollaboration/spectrebuildenv:latest /bin/bash
    ```
-   (The `--name CONTAINER_NAME` is optional, where CONTAINER_NAME is a name
+   - The `--name CONTAINER_NAME` is optional, where CONTAINER_NAME is a name
    of your choice. If you don't name your container, docker will generate an
-   arbitrary name.)
-   You will end up in a shell in a docker container,
+   arbitrary name.
+   - On macOS you can significantly increase the performance of file system
+   operations by appending the flag `:delegated` to `-v`, e.g.
+   `-v SPECTRE_ROOT:SPECTRE_ROOT:delegated` (see
+   https://docs.docker.com/docker-for-mac/osxfs-caching/).
+   - It can be useful to expose a port to the host so you can run servers such
+   as [Jupyter](https://jupyter.org/index.html) for accessing the Python
+   bindings (see \ref spectre_using_python) or a Python web server to view the
+   documentation. To do so, append the `-p` option, e.g. `-p 8000:8000`.
+
+   You will end up in a shell in the docker container,
    as root (you need to be root).
-   Within the container, SPECTRE_ROOT is available and
-   CHARM_DIR is /work/charm. For the following steps, stay inside the docker
-   container as root.
+   Within the container, the files in SPECTRE_ROOT are available and
+   Charm++ is installed in `/work/charm`. For the following steps, stay inside
+   the docker container as root.
 4. Make a build directory somewhere inside the container, e.g.
-   /work/spectre-build-gcc, and cd into it.
+   `/work/spectre-build-gcc`, and cd into it.
 5. Build SpECTRE with
 ```
    cmake -D CMAKE_Fortran_COMPILER=gfortran-8 \
@@ -144,6 +155,15 @@ Notes:
           -D CMAKE_Fortran_COMPILER=gfortran-8 \
           -D CHARM_ROOT=/work/charm/multicore-linux64-clang SPECTRE_ROOT
 ```
+  * To compile the Python bindings, add the option
+    `-D BUILD_PYTHON_BINDINGS=ON` to the `cmake` command (see
+    \ref spectre_writing_python_bindings). You can specify the Python version,
+    interpreter and libraries used for compiling and testing the bindings by
+    setting the `-D PYTHON_EXECUTABLE` to an absolute path such as
+    `/usr/bin/python3`.
+  * When the Docker container gets updated, you can stop it with
+    `docker stop CONTAINER_NAME`, remove it with `docker rm CONTAINER_NAME`
+    and then start at step 2 above to run it again.
 
 ## Using Singularity to obtain a SpECTRE environment
 
@@ -160,8 +180,20 @@ To use Singularity you must:
    Singularity instructions on setting up additional [bind
    points](http://singularity.lbl.gov/docs-mount). Once inside the WORKDIR,
    clone SpECTRE into `WORKDIR/SPECTRE_ROOT`.
-3. Run `singularity build spectre.img
+3. Run `sudo singularity build spectre.img
    docker://sxscollaboration/spectrebuildenv:latest`.
+
+   If you get the error message that `makesquashfs` did not have enough space to
+   create the image you need to set a different `SINGULARITY_TMPDIR`. This can
+   be done by running: `sudo SINGULARITY_TMPDIR=/path/to/new/tmp singularity
+   build spectre.img docker://sxscollaboration/spectrebuildenv:latest`. Normally
+   `SINGULARITY_TMPDIR` is `/tmp`, but building the image will temporarily need
+   almost 8GB of space.
+
+   You can control where Singularity stores the downloaded image files from
+   DockerHub by specifying the `SINGULARITY_CACHEDIR` environment variable. The
+   default is `$HOME/.singularity/`. Note that `$HOME` is `/root` when running
+   using `sudo`.
 4. To start the container run `singularity shell spectre.img` and you
    will be dropped into a bash shell.
 5. Run `cd SPECTRE_HOME && mkdir build && cd build` to set up a build
@@ -227,10 +259,10 @@ To use modules with Spack, enable Spack's shell support by adding
 Once you have Spack installed and configured with OpenSSL and LMod, you can
 install the SpECTRE dependencies using
 ```
-spack install blaze
+spack install blaze@3.2
 spack install brigand@master
 spack install libsharp -openmp -mpi
-spack install catch
+spack install catch2
 spack install gsl
 spack install jemalloc # or from your package manager
 spack install libxsmm

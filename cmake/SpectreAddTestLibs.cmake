@@ -84,17 +84,41 @@ function(add_test_library LIBRARY FOLDER LIBRARY_SOURCES LINK_LIBS)
     endif()
   endforeach()
 
+  # We do not use `add_spectre_library` since that adds libraries
+  # to the `libs` target, which should not include tests.
   add_library(
     ${LIBRARY}
     ${LIBRARY_SOURCES}
     )
 
+  set_target_properties(
+    ${LIBRARY}
+    PROPERTIES
+    RULE_LAUNCH_LINK "${CMAKE_BINARY_DIR}/tmp/WrapLibraryLinker.sh"
+    LINK_DEPENDS "${CMAKE_BINARY_DIR}/tmp/WrapLibraryLinker.sh"
+    )
+
+  # Add PCH to test libs
+  if(TARGET ${SPECTRE_PCH})
+    set_source_files_properties(
+      ${LIBRARY_SOURCES}
+      OBJECT_DEPENDS "${SPECTRE_PCH_PATH}"
+      )
+    add_dependencies(${LIBRARY} ${SPECTRE_PCH})
+    target_compile_options(
+      ${LIBRARY}
+      PRIVATE
+      $<TARGET_PROPERTY:${SPECTRE_PCH},INTERFACE_COMPILE_OPTIONS>
+      )
+  endif(TARGET ${SPECTRE_PCH})
+
+  # Add link dependencies
   target_link_libraries(
     ${LIBRARY}
-    INTERFACE
+    PRIVATE
     ${LINK_LIBS}
-    INTERFACE
     ${PYTHON_LIBRARIES}
+    SpectreFlags
     )
 
   set_target_properties(

@@ -18,7 +18,7 @@
 #include "Parallel/Printf.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Requires.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/CreateIsCallable.hpp"
 
 namespace RootFinder {
 namespace gsl_multiroot_detail {
@@ -124,6 +124,7 @@ int gsl_multirootfunctionfdf_wrapper_fdf(const gsl_vector* const x,
 }
 
 CREATE_IS_CALLABLE(jacobian)
+CREATE_IS_CALLABLE_V(jacobian)
 }  // namespace gsl_multiroot_detail
 
 /*!

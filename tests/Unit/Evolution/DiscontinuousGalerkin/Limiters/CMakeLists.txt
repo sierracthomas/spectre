@@ -4,13 +4,15 @@
 set(LIBRARY "Test_Limiters")
 
 set(LIBRARY_SOURCES
-  Test_HwenoModifiedSolution.cpp
+  Test_HwenoImpl.cpp
   Test_Krivodonova.cpp
   Test_LimiterActions.cpp
   Test_LimiterActionsWithMinmod.cpp
   Test_Minmod.cpp
   Test_MinmodTci.cpp
   Test_MinmodType.cpp
+  Test_SimpleWenoImpl.cpp
+  Test_Tags.cpp
   Test_Weno.cpp
   Test_WenoGridHelpers.cpp
   Test_WenoOscillationIndicator.cpp
@@ -22,7 +24,7 @@ add_test_library(
   ${LIBRARY}
   "Evolution/DiscontinuousGalerkin/Limiters/"
   "${LIBRARY_SOURCES}"
-  "Limiters"
+  "Boost::boost;Limiters"
   )
 
 add_dependencies(

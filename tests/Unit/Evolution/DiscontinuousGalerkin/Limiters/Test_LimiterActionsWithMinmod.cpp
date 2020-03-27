@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <boost/functional/hash.hpp>  // IWYU pragma: keep
 #include <cstddef>
@@ -11,13 +11,15 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Element.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"
@@ -29,11 +31,11 @@
 #include "Evolution/DiscontinuousGalerkin/Limiters/LimiterActions.hpp"  // IWYU pragma: keep
 #include "Evolution/DiscontinuousGalerkin/Limiters/Minmod.tpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/MinmodType.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include "Evolution/DiscontinuousGalerkin/Limiters/Minmod.hpp"
 
@@ -41,12 +43,10 @@
 
 namespace {
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; }
   using type = int;
 };
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
@@ -67,11 +67,12 @@ struct component {
   using array_index = ElementIndex<Dim>;
   using const_global_cache_tags = tmpl::list<LimiterTag>;
   using simple_tags =
-      db::AddSimpleTags<TemporalId, Tags::Mesh<Dim>, Tags::Element<Dim>,
-                        Tags::ElementMap<Dim>,
-                        Tags::Coordinates<Dim, Frame::Logical>,
-                        Tags::Coordinates<Dim, Frame::Inertial>, Var>;
-  using compute_tags = db::AddComputeTags<Tags::SizeOfElement<Dim>>;
+      db::AddSimpleTags<TemporalId, domain::Tags::Mesh<Dim>,
+                        domain::Tags::Element<Dim>,
+                        domain::Tags::ElementMap<Dim>,
+                        domain::Tags::Coordinates<Dim, Frame::Logical>,
+                        domain::Tags::Coordinates<Dim, Frame::Inertial>, Var>;
+  using compute_tags = db::AddComputeTags<domain::Tags::SizeOfElement<Dim>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -130,7 +131,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.Minmod",
       &runner, self_id,
       {0, mesh, element, std::move(map), std::move(logical_coords),
        std::move(inertial_coords), std::move(var)});
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   // SendData
   runner.next_action<my_component>(self_id);

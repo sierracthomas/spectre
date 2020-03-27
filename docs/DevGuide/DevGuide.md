@@ -8,7 +8,12 @@ See LICENSE.txt for details.
 - \ref spectre_build_system "Build system" and how to add dependencies,
   unit tests, and executables.
 - \ref dev_guide_creating_executables "Executables and how to add them"
+- \ref tutorials_parallel - A series of tutorials demonstrating how to
+  write a parallel executable, and explaining some of the
+  metaprogramming that turns user-provided code into a SpECTRE
+  parallel executable
 - \ref dev_guide_option_parsing "Option parsing" to get options from input files
+- \ref dev_guide_importing "Importing" data from files
 - \ref profiling_with_projections "Profiling With Charm++ Projections" and PAPI
   for optimizing performance
 - \ref spectre_writing_python_bindings "Writing Python Bindings" to use
@@ -39,6 +44,7 @@ can be found here.
 Designed to give the reader an introduction to SpECTRE's most recurring
 concepts and patterns.
 - \ref databox_foundations "Towards SpECTRE's DataBox"
+- \ref protocols "Protocols: metaprogramming interfaces"
 
 ### Technical Documentation for Fluent Developers
 Assumes a thorough familiarity and fluency in SpECTRE's usage of TMP.

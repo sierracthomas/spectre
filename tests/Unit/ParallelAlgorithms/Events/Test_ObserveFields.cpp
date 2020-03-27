@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,6 +14,7 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Tensor/TensorData.hpp"
@@ -22,6 +23,9 @@
 #include "Domain/ElementIndex.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "IO/Observer/ArrayComponentId.hpp"
 #include "IO/Observer/ObservationId.hpp"
 #include "IO/Observer/ObserverComponent.hpp"
@@ -40,9 +44,6 @@
 #include "Utilities/StdHelpers.hpp"  // IWYU pragma: keep
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include "DataStructures/DataBox/Prefixes.hpp"  // for Variables
 
@@ -68,7 +69,6 @@ namespace {
 
 struct ObservationTimeTag : db::SimpleTag {
   using type = double;
-  static std::string name() { return "ObservationTimeTag"; };
 };
 
 struct MockContributeVolumeData {
@@ -182,7 +182,7 @@ struct ScalarSystem {
       dg::Events::ObserveFields<volume_dim, ObservationTimeTag,
                                 all_vars_for_test,
                                 solution_for_test::vars_for_test>;
-  static constexpr auto creation_string_for_test = "  ObserveFields";
+  static constexpr auto creation_string_for_test = "ObserveFields";
   static ObserveEvent make_test_object() noexcept { return ObserveEvent{}; }
 };
 
@@ -274,8 +274,8 @@ struct ComplicatedSystem {
                                 all_vars_for_test,
                                 solution_for_test::vars_for_test>;
   static constexpr auto creation_string_for_test =
-      "  ObserveFields:\n"
-      "    VariablesToObserve: [Scalar, Vector, Tensor, Tensor2]";
+      "ObserveFields:\n"
+      "  VariablesToObserve: [Scalar, Vector, Tensor, Tensor2]";
   static ObserveEvent make_test_object() noexcept {
     return ObserveEvent({"Scalar", "Vector", "Tensor", "Tensor2"});
   }
@@ -287,7 +287,8 @@ void test_observe(const std::unique_ptr<ObserveEvent> observe) noexcept {
   constexpr size_t volume_dim = System::volume_dim;
   using element_component = ElementComponent<metavariables>;
   using observer_component = MockObserverComponent<metavariables>;
-  using coordinates_tag = Tags::Coordinates<volume_dim, Frame::Inertial>;
+  using coordinates_tag =
+      domain::Tags::Coordinates<volume_dim, Frame::Inertial>;
 
   const ElementId<volume_dim> element_id(2);
   const typename element_component::array_index array_index(element_id);
@@ -323,7 +324,7 @@ void test_observe(const std::unique_ptr<ObserveEvent> observe) noexcept {
   ActionTesting::emplace_component<observer_component>(&runner, 0);
 
   const auto box = db::create<db::AddSimpleTags<
-      ObservationTimeTag, Tags::Mesh<volume_dim>,
+      ObservationTimeTag, domain::Tags::Mesh<volume_dim>,
       Tags::Variables<typename decltype(vars)::tags_list>,
       db::add_tag_prefix<Tags::Analytic, Tags::Variables<solution_variables>>>>(
       observation_time, mesh, vars, solutions);
@@ -395,8 +396,8 @@ void test_system() noexcept {
       typename System::all_vars_for_test,
       typename System::solution_for_test::vars_for_test>>>;
   Parallel::register_derived_classes_with_charm<EventType>();
-  const auto factory_event =
-      test_factory_creation<EventType>(System::creation_string_for_test);
+  const auto factory_event = TestHelpers::test_factory_creation<EventType>(
+      System::creation_string_for_test);
   auto serialized_event = serialize_and_deserialize(factory_event);
   test_observe<System>(std::move(serialized_event));
 }
@@ -411,13 +412,14 @@ SPECTRE_TEST_CASE("Unit.Evolution.dG.ObserveFields", "[Unit][Evolution]") {
 SPECTRE_TEST_CASE("Unit.Evolution.dG.ObserveFields.bad_field",
                   "[Unit][Evolution]") {
   ERROR_TEST();
-  test_creation<ScalarSystem::ObserveEvent>("  VariablesToObserve: [NotAVar]");
+  TestHelpers::test_creation<ScalarSystem::ObserveEvent>(
+      "VariablesToObserve: [NotAVar]");
 }
 
 // [[OutputRegex, Scalar specified multiple times]]
 SPECTRE_TEST_CASE("Unit.Evolution.dG.ObserveFields.repeated_field",
                   "[Unit][Evolution]") {
   ERROR_TEST();
-  test_creation<ScalarSystem::ObserveEvent>(
-      "  VariablesToObserve: [Scalar, Scalar]");
+  TestHelpers::test_creation<ScalarSystem::ObserveEvent>(
+      "VariablesToObserve: [Scalar, Scalar]");
 }

@@ -5,13 +5,17 @@ set(LIBRARY Interpolation)
 
 set(LIBRARY_SOURCES
   BarycentricRational.cpp
+  BarycentricRationalSpanInterpolator.cpp
+  CubicSpanInterpolator.cpp
   CubicSpline.cpp
   InterpolationTargetApparentHorizon.cpp
   InterpolationTargetKerrHorizon.cpp
   InterpolationTargetLineSegment.cpp
   InterpolationTargetWedgeSectionTorus.cpp
   IrregularInterpolant.cpp
+  LinearSpanInterpolator.cpp
   RegularGridInterpolant.cpp
+  SpanInterpolator.cpp
   )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
@@ -23,8 +27,13 @@ add_dependencies(
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE ApparentHorizons
-  INTERFACE Domain
-  INTERFACE ErrorHandling
-  INTERFACE Spectral
+  PUBLIC
+  ApparentHorizons
+  Blas
+  Boost::boost
+  Domain
+  ErrorHandling
+  GSL::gsl
+  Options
+  Spectral
   )

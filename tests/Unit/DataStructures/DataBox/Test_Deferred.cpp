@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -22,7 +22,7 @@ struct func {
 double dummy() { return 6.7; }
 
 struct func2 {
-  double operator()(const double& t) const { return t; }
+  double operator()(const double t) const { return t; }
 };
 
 double lazy_function(const double t) { return 10.0 * t; }

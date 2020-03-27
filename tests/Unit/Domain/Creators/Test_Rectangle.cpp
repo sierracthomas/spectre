@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -15,26 +15,41 @@
 #include "Domain/BlockNeighbor.hpp"  // IWYU pragma: keep
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
+#include "Domain/CoordinateMaps/ProductMapsTimeDep.hpp"
+#include "Domain/CoordinateMaps/ProductMapsTimeDep.tpp"
+#include "Domain/CoordinateMaps/Translation.hpp"
 #include "Domain/Creators/DomainCreator.hpp"
 #include "Domain/Creators/Rectangle.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
+#include "Domain/Creators/TimeDependence/None.hpp"
+#include "Domain/Creators/TimeDependence/RegisterDerivedWithCharm.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/DirectionMap.hpp"
 #include "Domain/Domain.hpp"
+#include "Domain/FunctionsOfTime/PiecewisePolynomial.hpp"
 #include "Domain/OrientationMap.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/Creators/TestHelpers.hpp"
+#include "Helpers/Domain/DomainTestHelpers.hpp"
 #include "Parallel/PupStlCpp11.hpp"
+#include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "Utilities/MakeVector.hpp"
-#include "tests/Unit/Domain/DomainTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace domain {
 namespace {
 using Affine = CoordinateMaps::Affine;
 using Affine2D = CoordinateMaps::ProductOf2Maps<Affine, Affine>;
+using Translation = CoordMapsTimeDependent::Translation;
+using Translation2D =
+    CoordMapsTimeDependent::ProductOf2Maps<Translation, Translation>;
+
+template <typename... FuncsOfTime>
 void test_rectangle_construction(
-    const creators::Rectangle<Frame::Inertial>& rectangle,
+    const creators::Rectangle& rectangle,
     const std::array<double, 2>& lower_bound,
     const std::array<double, 2>& upper_bound,
     const std::vector<std::array<size_t, 2>>& expected_extents,
@@ -42,7 +57,12 @@ void test_rectangle_construction(
     const std::vector<DirectionMap<2, BlockNeighbor<2>>>&
         expected_block_neighbors,
     const std::vector<std::unordered_set<Direction<2>>>&
-        expected_external_boundaries) {
+        expected_external_boundaries,
+    const std::tuple<std::pair<std::string, FuncsOfTime>...>&
+        expected_functions_of_time = {},
+    const std::vector<std::unique_ptr<
+        domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, 2>>>&
+        expected_grid_to_inertial_maps = {}) {
   const auto domain = rectangle.create_domain();
 
   CHECK(rectangle.initial_extents() == expected_extents);
@@ -50,10 +70,20 @@ void test_rectangle_construction(
 
   test_domain_construction(
       domain, expected_block_neighbors, expected_external_boundaries,
-      make_vector(make_coordinate_map_base<Frame::Logical, Frame::Inertial>(
+      make_vector(make_coordinate_map_base<
+                  Frame::Logical,
+                  tmpl::conditional_t<sizeof...(FuncsOfTime) == 0,
+                                      Frame::Inertial, Frame::Grid>>(
           Affine2D{Affine{-1., 1., lower_bound[0], upper_bound[0]},
-                   Affine{-1., 1., lower_bound[1], upper_bound[1]}})));
+                   Affine{-1., 1., lower_bound[1], upper_bound[1]}})),
+      10.0, rectangle.functions_of_time(), expected_grid_to_inertial_maps);
   test_initial_domain(domain, rectangle.initial_refinement_levels());
+  TestHelpers::domain::creators::test_functions_of_time(
+      rectangle, expected_functions_of_time);
+
+  domain::creators::register_derived_with_charm();
+  domain::creators::time_dependence::register_derived_with_charm();
+  test_serialization(domain);
 }
 
 void test_rectangle() {
@@ -64,9 +94,9 @@ void test_rectangle() {
   // default OrientationMap is aligned
   const OrientationMap<2> aligned_orientation{};
 
-  const creators::Rectangle<Frame::Inertial> rectangle{
-      lower_bound, upper_bound, std::array<bool, 2>{{false, false}},
-      refinement_level[0], grid_points[0]};
+  const creators::Rectangle rectangle{lower_bound, upper_bound,
+                                      std::array<bool, 2>{{false, false}},
+                                      refinement_level[0], grid_points[0]};
   test_rectangle_construction(
       rectangle, lower_bound, upper_bound, grid_points, refinement_level,
       std::vector<DirectionMap<2, BlockNeighbor<2>>>{{}},
@@ -76,7 +106,7 @@ void test_rectangle() {
            {Direction<2>::lower_eta()},
            {Direction<2>::upper_eta()}}});
 
-  const creators::Rectangle<Frame::Inertial> periodic_x_rectangle{
+  const creators::Rectangle periodic_x_rectangle{
       lower_bound, upper_bound, std::array<bool, 2>{{true, false}},
       refinement_level[0], grid_points[0]};
   test_rectangle_construction(
@@ -88,7 +118,7 @@ void test_rectangle() {
       std::vector<std::unordered_set<Direction<2>>>{
           {{Direction<2>::lower_eta()}, {Direction<2>::upper_eta()}}});
 
-  const creators::Rectangle<Frame::Inertial> periodic_y_rectangle{
+  const creators::Rectangle periodic_y_rectangle{
       lower_bound, upper_bound, std::array<bool, 2>{{false, true}},
       refinement_level[0], grid_points[0]};
   test_rectangle_construction(
@@ -100,7 +130,7 @@ void test_rectangle() {
       std::vector<std::unordered_set<Direction<2>>>{
           {{Direction<2>::lower_xi()}, {Direction<2>::upper_xi()}}});
 
-  const creators::Rectangle<Frame::Inertial> periodic_xy_rectangle{
+  const creators::Rectangle periodic_xy_rectangle{
       lower_bound, upper_bound, std::array<bool, 2>{{true, true}},
       refinement_level[0], grid_points[0]};
   test_rectangle_construction(
@@ -112,44 +142,66 @@ void test_rectangle() {
            {Direction<2>::lower_eta(), {0, aligned_orientation}},
            {Direction<2>::upper_eta(), {0, aligned_orientation}}}},
       std::vector<std::unordered_set<Direction<2>>>{{}});
-
-  // Test serialization of the map
-  creators::register_derived_with_charm();
-
-  const auto base_map =
-      make_coordinate_map_base<Frame::Logical, Frame::Inertial>(
-          Affine2D{Affine{-1., 1., lower_bound[0], upper_bound[0]},
-                   Affine{-1., 1., lower_bound[1], upper_bound[1]}});
-  const auto base_map_deserialized = serialize_and_deserialize(base_map);
-  using MapType =
-      const CoordinateMap<Frame::Logical, Frame::Inertial, Affine2D>*;
-  REQUIRE(dynamic_cast<MapType>(base_map.get()) != nullptr);
-  const auto coord_map = make_coordinate_map<Frame::Logical, Frame::Inertial>(
-      Affine2D{Affine{-1., 1., lower_bound[0], upper_bound[0]},
-               Affine{-1., 1., lower_bound[1], upper_bound[1]}});
-  CHECK(*dynamic_cast<MapType>(base_map.get()) == coord_map);
 }
 
 void test_rectangle_factory() {
-  INFO("Rectangle factory");
-  const auto domain_creator =
-      test_factory_creation<DomainCreator<2, Frame::Inertial>>(
-          "  Rectangle:\n"
-          "    LowerBound: [0,0]\n"
-          "    UpperBound: [1,2]\n"
-          "    IsPeriodicIn: [True,False]\n"
-          "    InitialGridPoints: [3,4]\n"
-          "    InitialRefinement: [2,3]\n");
-  const auto* rectangle_creator =
-      dynamic_cast<const creators::Rectangle<Frame::Inertial>*>(
-          domain_creator.get());
-  test_rectangle_construction(
-      *rectangle_creator, {{0., 0.}}, {{1., 2.}}, {{{3, 4}}}, {{{2, 3}}},
-      std::vector<DirectionMap<2, BlockNeighbor<2>>>{
-          {{Direction<2>::lower_xi(), {0, {}}},
-           {Direction<2>::upper_xi(), {0, {}}}}},
-      std::vector<std::unordered_set<Direction<2>>>{
-          {{Direction<2>::lower_eta()}, {Direction<2>::upper_eta()}}});
+  {
+    INFO("Rectangle factory time independent");
+    const auto domain_creator =
+        TestHelpers::test_factory_creation<DomainCreator<2>>(
+            "Rectangle:\n"
+            "  LowerBound: [0,0]\n"
+            "  UpperBound: [1,2]\n"
+            "  IsPeriodicIn: [True,False]\n"
+            "  InitialGridPoints: [3,4]\n"
+            "  InitialRefinement: [2,3]\n");
+    const auto* rectangle_creator =
+        dynamic_cast<const creators::Rectangle*>(domain_creator.get());
+    test_rectangle_construction(
+        *rectangle_creator, {{0., 0.}}, {{1., 2.}}, {{{3, 4}}}, {{{2, 3}}},
+        std::vector<DirectionMap<2, BlockNeighbor<2>>>{
+            {{Direction<2>::lower_xi(), {0, {}}},
+             {Direction<2>::upper_xi(), {0, {}}}}},
+        std::vector<std::unordered_set<Direction<2>>>{
+            {{Direction<2>::lower_eta()}, {Direction<2>::upper_eta()}}});
+  }
+  {
+    INFO("Rectangle factory time dependent");
+    const auto domain_creator =
+        TestHelpers::test_factory_creation<DomainCreator<2>>(
+            "Rectangle:\n"
+            "  LowerBound: [0,0]\n"
+            "  UpperBound: [1,2]\n"
+            "  IsPeriodicIn: [True,False]\n"
+            "  InitialGridPoints: [3,4]\n"
+            "  InitialRefinement: [2,3]\n"
+            "  TimeDependence:\n"
+            "    UniformTranslation:\n"
+            "      InitialTime: 1.0\n"
+            "      Velocity: [2.3, -0.3]\n"
+            "      FunctionOfTimeNames: [TranslationX, TranslationY]");
+    const auto* rectangle_creator =
+        dynamic_cast<const creators::Rectangle*>(domain_creator.get());
+    test_rectangle_construction(
+        *rectangle_creator, {{0., 0.}}, {{1., 2.}}, {{{3, 4}}}, {{{2, 3}}},
+        std::vector<DirectionMap<2, BlockNeighbor<2>>>{
+            {{Direction<2>::lower_xi(), {0, {}}},
+             {Direction<2>::upper_xi(), {0, {}}}}},
+        std::vector<std::unordered_set<Direction<2>>>{
+            {{Direction<2>::lower_eta()}, {Direction<2>::upper_eta()}}},
+        std::make_tuple(
+            std::pair<std::string,
+                      domain::FunctionsOfTime::PiecewisePolynomial<2>>{
+                "TranslationX",
+                {1.0, std::array<DataVector, 3>{{{0.0}, {2.3}, {0.0}}}}},
+            std::pair<std::string,
+                      domain::FunctionsOfTime::PiecewisePolynomial<2>>{
+                "TranslationY",
+                {1.0, std::array<DataVector, 3>{{{0.0}, {-0.3}, {0.0}}}}}),
+        make_vector_coordinate_map_base<Frame::Grid, Frame::Inertial>(
+            Translation2D{Translation{"TranslationX"},
+                          Translation{"TranslationY"}}));
+  }
 }
 }  // namespace
 

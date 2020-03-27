@@ -5,6 +5,17 @@
 # us to inject dependencies, flags, etc. into the targets.
 function(add_spectre_executable TARGET_NAME)
   add_executable(${TARGET_NAME} ${ARGN})
+  set_target_properties(
+    ${TARGET_NAME}
+    PROPERTIES
+    RULE_LAUNCH_LINK "${CMAKE_BINARY_DIR}/tmp/WrapExecutableLinker.sh"
+    LINK_DEPENDS "${CMAKE_BINARY_DIR}/tmp/WrapExecutableLinker.sh"
+    )
+  target_link_libraries(
+    ${TARGET_NAME}
+    PRIVATE
+    SpectreFlags
+    )
 endfunction()
 
 # A function to add a SpECTRE executable that uses Charm++
@@ -66,6 +77,10 @@ function(
 
   target_link_libraries(
     ${EXECUTABLE_NAME}
+    PUBLIC
+    # Link against Boost::program_options for now until we have proper
+    # dependency handling for header-only libs
+    Boost::program_options
     ${LINK_LIBS}
     ${SPECTRE_LIBRARIES}
     )

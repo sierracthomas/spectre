@@ -7,6 +7,7 @@ set(LIBRARY_SOURCES
   Test_Actions.cpp
   Test_Fluxes.cpp
   Test_M1Closure.cpp
+  Test_M1HydroCoupling.cpp
   Test_Sources.cpp
   Test_Tags.cpp
   )
@@ -16,7 +17,7 @@ add_test_library(
   "Evolution/Systems/RadiationTransport/M1Grey/"
   "${LIBRARY_SOURCES}"
   "M1Grey"
-  "Test_Pypp"
+  "Boost::boost"
   )
 
 add_dependencies(

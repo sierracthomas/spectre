@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <limits>
@@ -10,10 +10,16 @@
 
 #include "DataStructures/ComplexDataVector.hpp"   // IWYU pragma: keep
 #include "DataStructures/ComplexModalVector.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/SpinWeighted.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "DataStructures/Variables.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
+#include "Helpers/NumericalAlgorithms/Spectral/SwshTestHelpers.hpp"
 #include "NumericalAlgorithms/Spectral/ComplexDataView.hpp"
 #include "NumericalAlgorithms/Spectral/SwshCoefficients.hpp"
 #include "NumericalAlgorithms/Spectral/SwshCollocation.hpp"
@@ -22,9 +28,6 @@
 #include "NumericalAlgorithms/Spectral/SwshTransform.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/Spectral/SwshTestHelpers.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 // IWYU pragma: no_forward_declare ComplexDataVector
 // IWYU pragma: no_forward_declare ComplexModalVector
@@ -36,7 +39,6 @@ namespace {
 
 template <size_t Index, int Spin>
 struct TestTag : db::SimpleTag {
-  static std::string name() noexcept { return "TestTag"; }
   using type = Scalar<SpinWeighted<ComplexDataVector, Spin>>;
 };
 

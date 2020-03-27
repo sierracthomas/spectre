@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -19,15 +19,14 @@
 #include "DataStructures/Variables.hpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "NumericalAlgorithms/LinearOperators/ApplyMatrices.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
-#include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/TMPL.hpp"
-#include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
+#include "Utilities/TypeTraits/GetFundamentalType.hpp"
 
 namespace {
 constexpr Spectral::Basis basis = Spectral::Basis::Legendre;
@@ -208,7 +207,7 @@ SPECTRE_TEST_CASE("Unit.Numerical.LinearOperators.ApplyMatrices",
   // make_array contains a workaround.
   const std::array<std::reference_wrapper<const Matrix>, 0> ref_matrices =
       make_array<0, std::reference_wrapper<const Matrix>>(
-          cpp17::as_const(Matrix{}));
+          std::add_const_t<Matrix>{});
 
   CHECK(apply_matrices(matrices, data, extents) == data);
   CHECK(apply_matrices(ref_matrices, data, extents) == data);

@@ -6,8 +6,7 @@
 #include <cstddef>
 
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
-#include "DataStructures/Variables.hpp"
-#include "Evolution/Conservative/ConservativeDuDt.hpp"
+#include "DataStructures/VariablesTag.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Characteristics.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/ConservativeFromPrimitive.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Fluxes.hpp"
@@ -18,11 +17,6 @@
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-
-namespace Tags {
-template <class>
-class Variables;
-}  // namespace Tags
 
 /// \ingroup EvolutionSystemsGroup
 /// \brief Items related to general relativistic magnetohydrodynamics (GRMHD)
@@ -52,19 +46,8 @@ struct System {
       ::Tags::Variables<tmpl::list<Tags::TildeD, Tags::TildeTau, Tags::TildeS<>,
                                    Tags::TildeB<>, Tags::TildePhi>>;
 
-  using spacetime_variables_tag = ::Tags::Variables<tmpl::list<
-      gr::Tags::Lapse<DataVector>,
-      gr::Tags::Shift<3, Frame::Inertial, DataVector>,
-      gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
-      gr::Tags::InverseSpatialMetric<3, Frame::Inertial, DataVector>,
-      gr::Tags::SqrtDetSpatialMetric<DataVector>,
-      ::Tags::deriv<gr::Tags::Lapse<DataVector>, tmpl::size_t<3>,
-                    Frame::Inertial>,
-      ::Tags::deriv<gr::Tags::Shift<3, Frame::Inertial, DataVector>,
-                    tmpl::size_t<3>, Frame::Inertial>,
-      ::Tags::deriv<gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
-                    tmpl::size_t<3>, Frame::Inertial>,
-      gr::Tags::ExtrinsicCurvature<3, Frame::Inertial, DataVector>>>;
+  using spacetime_variables_tag =
+      ::Tags::Variables<gr::tags_for_hydro<volume_dim, DataVector>>;
 
   template <typename Tag>
   using magnitude_tag = ::Tags::NonEuclideanMagnitude<
@@ -85,8 +68,6 @@ struct System {
   using volume_fluxes = ComputeFluxes;
 
   using volume_sources = ComputeSources;
-
-  using compute_time_derivative = ConservativeDuDt<System>;
 
   // skip TildeD as its source is zero.
   using sourced_variables = tmpl::list<Tags::TildeTau, Tags::TildeS<>,

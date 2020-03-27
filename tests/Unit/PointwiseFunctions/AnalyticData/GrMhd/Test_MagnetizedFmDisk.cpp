@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -13,6 +13,10 @@
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "ErrorHandling/Error.hpp"
 #include "Evolution/TypeTraits.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Options/Options.hpp"
 #include "Options/ParseOptions.hpp"
 #include "PointwiseFunctions/AnalyticData/GrMhd/MagnetizedFmDisk.hpp"
@@ -22,10 +26,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
@@ -68,16 +68,17 @@ struct MagnetizedFmDiskProxy : grmhd::AnalyticData::MagnetizedFmDisk {
 };
 
 void test_create_from_options() noexcept {
-  const auto disk = test_creation<grmhd::AnalyticData::MagnetizedFmDisk>(
-      "  BhMass: 1.3\n"
-      "  BhDimlessSpin: 0.345\n"
-      "  InnerEdgeRadius: 6.123\n"
-      "  MaxPressureRadius: 14.2\n"
-      "  PolytropicConstant: 0.065\n"
-      "  PolytropicExponent: 1.654\n"
-      "  ThresholdDensity: 0.42\n"
-      "  InversePlasmaBeta: 85.0\n"
-      "  BFieldNormGridRes: 6");
+  const auto disk =
+      TestHelpers::test_creation<grmhd::AnalyticData::MagnetizedFmDisk>(
+          "BhMass: 1.3\n"
+          "BhDimlessSpin: 0.345\n"
+          "InnerEdgeRadius: 6.123\n"
+          "MaxPressureRadius: 14.2\n"
+          "PolytropicConstant: 0.065\n"
+          "PolytropicExponent: 1.654\n"
+          "ThresholdDensity: 0.42\n"
+          "InversePlasmaBeta: 85.0\n"
+          "BFieldNormGridRes: 6");
   CHECK(disk == grmhd::AnalyticData::MagnetizedFmDisk(
                     1.3, 0.345, 6.123, 14.2, 0.065, 1.654, 0.42, 85.0, 6));
 }

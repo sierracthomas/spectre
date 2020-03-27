@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,6 +29,8 @@
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Informer/Tags.hpp"  // IWYU pragma: keep
 #include "Informer/Verbosity.hpp"
 #include "NumericalAlgorithms/Interpolation/AddTemporalIdsToInterpolationTarget.hpp"  // IWYU pragma: keep
@@ -60,8 +62,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 /// \cond
@@ -216,8 +216,7 @@ struct MockMetavariables {
   using component_list =
       tmpl::list<mock_interpolation_target<MockMetavariables, AhA>,
                  mock_interpolator<MockMetavariables>>;
-  using const_global_cache_tags =
-      tmpl::list<::Tags::Domain<3, Frame::Inertial>>;
+  using const_global_cache_tags = tmpl::list<domain::Tags::Domain<3>>;
 
   enum class Phase { Initialization, Registration, Testing, Exit };
 };
@@ -249,11 +248,11 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
   // inside the domain, and it gives a narrow domain so that we don't
   // need a large number of grid points to resolve the horizon (which
   // would make the test slower).
-  const auto domain_creator = domain::creators::Shell<Frame::Inertial>(
+  const auto domain_creator = domain::creators::Shell(
       1.9, 2.9, 1, {{grid_points_each_dimension, grid_points_each_dimension}},
       false);
 
-  tuples::TaggedTuple<::Tags::Domain<3, Frame::Inertial>,
+  tuples::TaggedTuple<domain::Tags::Domain<3>,
                       typename ::intrp::Tags::ApparentHorizon<
                           typename metavars::AhA, Frame::Inertial>>
       tuple_of_opts{std::move(domain_creator.create_domain()),
@@ -261,19 +260,21 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
 
   ActionTesting::MockRuntimeSystem<metavars> runner{std::move(tuple_of_opts)};
 
-  runner.set_phase(metavars::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Initialization);
   ActionTesting::emplace_component<interp_component>(&runner, 0);
   ActionTesting::next_action<interp_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<target_component>(&runner, 0);
   ActionTesting::next_action<target_component>(make_not_null(&runner), 0);
-  runner.set_phase(metavars::Phase::Registration);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Registration);
 
   Slab slab(0.0, 1.0);
   TimeStepId temporal_id(true, 0, Time(slab, 0));
 
   // Create element_ids.
   std::vector<ElementId<3>> element_ids{};
-  Domain<3, Frame::Inertial> domain = domain_creator.create_domain();
+  Domain<3> domain = domain_creator.create_domain();
   for (const auto& block : domain.blocks()) {
     const auto initial_ref_levs =
         domain_creator.initial_refinement_levels()[block.id()];
@@ -288,7 +289,7 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
                                  intrp::Actions::RegisterElement>(
         make_not_null(&runner), fake_array_index);
   }
-  runner.set_phase(metavars::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner), metavars::Phase::Testing);
 
   // Tell the InterpolationTargets that we want to interpolate at
   // temporal_id.
@@ -304,7 +305,7 @@ void test_apparent_horizon(const gsl::not_null<size_t*> test_horizon_called,
                    Spectral::Basis::Legendre,
                    Spectral::Quadrature::GaussLobatto};
     ElementMap<3, Frame::Inertial> map{element_id,
-                                       block.coordinate_map().get_clone()};
+                                       block.stationary_map().get_clone()};
     const auto inertial_coords = map(logical_coordinates(mesh));
 
     // Compute psi, pi, phi for KerrSchild.

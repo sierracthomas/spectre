@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <string>
@@ -12,14 +12,14 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Elliptic/Systems/Elasticity/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Elasticity/BentBeam.hpp"
 #include "PointwiseFunctions/Elasticity/ConstitutiveRelations/IsotropicHomogeneous.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -55,13 +55,13 @@ SPECTRE_TEST_CASE(
       Elasticity::ConstitutiveRelations::IsotropicHomogeneous<2>{
           79.36507936507935, 38.75968992248062}};
   const Elasticity::Solutions::BentBeam created_solution =
-      test_creation<Elasticity::Solutions::BentBeam>(
-          "  Length: 5.\n"
-          "  Height: 1.\n"
-          "  BendingMoment: 0.5\n"
-          "  Material:\n"
-          "    BulkModulus: 79.36507936507935\n"
-          "    ShearModulus: 38.75968992248062\n");
+      TestHelpers::test_creation<Elasticity::Solutions::BentBeam>(
+          "Length: 5.\n"
+          "Height: 1.\n"
+          "BendingMoment: 0.5\n"
+          "Material:\n"
+          "  BulkModulus: 79.36507936507935\n"
+          "  ShearModulus: 38.75968992248062\n");
   CHECK(created_solution == check_solution);
   test_serialization(check_solution);
 

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -15,23 +15,31 @@
 #include "Domain/BlockNeighbor.hpp"  // IWYU pragma: keep
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
+#include "Domain/CoordinateMaps/Translation.hpp"
 #include "Domain/Creators/DomainCreator.hpp"
 #include "Domain/Creators/Interval.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
+#include "Domain/Creators/TimeDependence/None.hpp"
+#include "Domain/Creators/TimeDependence/RegisterDerivedWithCharm.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/DirectionMap.hpp"
 #include "Domain/Domain.hpp"
+#include "Domain/FunctionsOfTime/PiecewisePolynomial.hpp"
 #include "Domain/OrientationMap.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/Creators/TestHelpers.hpp"
+#include "Helpers/Domain/DomainTestHelpers.hpp"
 #include "Parallel/PupStlCpp11.hpp"
+#include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "Utilities/MakeVector.hpp"
-#include "tests/Unit/Domain/DomainTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace domain {
 namespace {
+template <typename... FuncsOfTime>
 void test_interval_construction(
-    const creators::Interval<Frame::Inertial>& interval,
+    const creators::Interval& interval,
     const std::array<double, 1>& lower_bound,
     const std::array<double, 1>& upper_bound,
     const std::vector<std::array<size_t, 1>>& expected_extents,
@@ -39,7 +47,12 @@ void test_interval_construction(
     const std::vector<DirectionMap<1, BlockNeighbor<1>>>&
         expected_block_neighbors,
     const std::vector<std::unordered_set<Direction<1>>>&
-        expected_external_boundaries) noexcept {
+        expected_external_boundaries,
+    const std::tuple<std::pair<std::string, FuncsOfTime>...>&
+        expected_functions_of_time,
+    const std::vector<std::unique_ptr<
+        domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, 1>>>&
+        expected_grid_to_inertial_maps) noexcept {
   const auto domain = interval.create_domain();
 
   CHECK(interval.initial_extents() == expected_extents);
@@ -47,9 +60,19 @@ void test_interval_construction(
 
   test_domain_construction(
       domain, expected_block_neighbors, expected_external_boundaries,
-      make_vector(make_coordinate_map_base<Frame::Logical, Frame::Inertial>(
-          CoordinateMaps::Affine{-1., 1., lower_bound[0], upper_bound[0]})));
+      make_vector(make_coordinate_map_base<
+                  Frame::Logical,
+                  tmpl::conditional_t<sizeof...(FuncsOfTime) == 0,
+                                      Frame::Inertial, Frame::Grid>>(
+          CoordinateMaps::Affine{-1., 1., lower_bound[0], upper_bound[0]})),
+      10.0, interval.functions_of_time(), expected_grid_to_inertial_maps);
   test_initial_domain(domain, interval.initial_refinement_levels());
+  TestHelpers::domain::creators::test_functions_of_time(
+      interval, expected_functions_of_time);
+
+  domain::creators::register_derived_with_charm();
+  domain::creators::time_dependence::register_derived_with_charm();
+  test_serialization(domain);
 }
 
 void test_interval() {
@@ -60,16 +83,17 @@ void test_interval() {
   // default Orientation is aligned
   const OrientationMap<1> aligned_orientation{};
 
-  const creators::Interval<Frame::Inertial> interval{
-      lower_bound, upper_bound, std::array<bool, 1>{{false}},
-      refinement_level[0], grid_points[0]};
+  const creators::Interval interval{lower_bound, upper_bound,
+                                    std::array<bool, 1>{{false}},
+                                    refinement_level[0], grid_points[0]};
   test_interval_construction(
       interval, lower_bound, upper_bound, grid_points, refinement_level,
       std::vector<DirectionMap<1, BlockNeighbor<1>>>{{}},
       std::vector<std::unordered_set<Direction<1>>>{
-          {{Direction<1>::lower_xi()}, {Direction<1>::upper_xi()}}});
+          {{Direction<1>::lower_xi()}, {Direction<1>::upper_xi()}}},
+      std::tuple<>{}, {});
 
-  const creators::Interval<Frame::Inertial> periodic_interval{
+  const creators::Interval periodic_interval{
       lower_bound, upper_bound, std::array<bool, 1>{{true}},
       refinement_level[0], grid_points[0]};
   test_interval_construction(
@@ -78,42 +102,60 @@ void test_interval() {
       std::vector<DirectionMap<1, BlockNeighbor<1>>>{
           {{Direction<1>::lower_xi(), {0, aligned_orientation}},
            {Direction<1>::upper_xi(), {0, aligned_orientation}}}},
-      std::vector<std::unordered_set<Direction<1>>>{{}});
-
-  // Test serialization of the map
-  creators::register_derived_with_charm();
-
-  const auto base_map =
-      make_coordinate_map_base<Frame::Logical, Frame::Inertial>(
-          CoordinateMaps::Affine{-1., 1., lower_bound[0], upper_bound[0]});
-  const auto base_map_deserialized = serialize_and_deserialize(base_map);
-  using MapType = const CoordinateMap<Frame::Logical, Frame::Inertial,
-                                      CoordinateMaps::Affine>*;
-  REQUIRE(dynamic_cast<MapType>(base_map.get()) != nullptr);
-  const auto coord_map = make_coordinate_map<Frame::Logical, Frame::Inertial>(
-      CoordinateMaps::Affine{-1., 1., lower_bound[0], upper_bound[0]});
-  CHECK(*dynamic_cast<MapType>(base_map.get()) == coord_map);
+      std::vector<std::unordered_set<Direction<1>>>{{}}, std::tuple<>{}, {});
 }
 
 void test_interval_factory() {
-  INFO("Interval factory");
-  const auto domain_creator =
-      test_factory_creation<DomainCreator<1, Frame::Inertial>>(
-          "  Interval:\n"
-          "    LowerBound: [0]\n"
-          "    UpperBound: [1]\n"
-          "    IsPeriodicIn: [True]\n"
-          "    InitialGridPoints: [3]\n"
-          "    InitialRefinement: [2]\n");
-  const auto* interval_creator =
-      dynamic_cast<const creators::Interval<Frame::Inertial>*>(
-          domain_creator.get());
-  test_interval_construction(*interval_creator, {{0.}}, {{1.}}, {{{3}}},
-                             {{{2}}},
-                             std::vector<DirectionMap<1, BlockNeighbor<1>>>{
-                                 {{Direction<1>::lower_xi(), {0, {}}},
-                                  {Direction<1>::upper_xi(), {0, {}}}}},
-                             std::vector<std::unordered_set<Direction<1>>>{{}});
+  {
+    INFO("Interval factory time independent");
+    const auto domain_creator =
+        TestHelpers::test_factory_creation<DomainCreator<1>>(
+            "Interval:\n"
+            "  LowerBound: [0]\n"
+            "  UpperBound: [1]\n"
+            "  IsPeriodicIn: [True]\n"
+            "  InitialGridPoints: [3]\n"
+            "  InitialRefinement: [2]\n");
+    const auto* interval_creator =
+        dynamic_cast<const creators::Interval*>(domain_creator.get());
+    test_interval_construction(
+        *interval_creator, {{0.}}, {{1.}}, {{{3}}}, {{{2}}},
+        std::vector<DirectionMap<1, BlockNeighbor<1>>>{
+            {{Direction<1>::lower_xi(), {0, {}}},
+             {Direction<1>::upper_xi(), {0, {}}}}},
+        std::vector<std::unordered_set<Direction<1>>>{{}}, std::tuple<>{}, {});
+  }
+  {
+    INFO("Interval factory time dependent");
+    const auto domain_creator =
+        TestHelpers::test_factory_creation<DomainCreator<1>>(
+            "Interval:\n"
+            "  LowerBound: [0]\n"
+            "  UpperBound: [1]\n"
+            "  IsPeriodicIn: [True]\n"
+            "  InitialGridPoints: [3]\n"
+            "  InitialRefinement: [2]\n"
+            "  TimeDependence:\n"
+            "    UniformTranslation:\n"
+            "      InitialTime: 1.0\n"
+            "      Velocity: [2.3]\n"
+            "      FunctionOfTimeNames: [TranslationX]");
+    const auto* interval_creator =
+        dynamic_cast<const creators::Interval*>(domain_creator.get());
+    test_interval_construction(
+        *interval_creator, {{0.}}, {{1.}}, {{{3}}}, {{{2}}},
+        std::vector<DirectionMap<1, BlockNeighbor<1>>>{
+            {{Direction<1>::lower_xi(), {0, {}}},
+             {Direction<1>::upper_xi(), {0, {}}}}},
+        std::vector<std::unordered_set<Direction<1>>>{{}},
+        std::make_tuple(
+            std::pair<std::string,
+                      domain::FunctionsOfTime::PiecewisePolynomial<2>>{
+                "TranslationX",
+                {1.0, std::array<DataVector, 3>{{{0.0}, {2.3}, {0.0}}}}}),
+        make_vector_coordinate_map_base<Frame::Grid, Frame::Inertial>(
+            CoordMapsTimeDependent::Translation{"TranslationX"}));
+  }
 }
 }  // namespace
 

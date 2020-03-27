@@ -9,10 +9,14 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "Parallel/Actions/Goto.hpp"     // IWYU pragma: keep
 #include "Parallel/Actions/TerminatePhase.hpp"     // IWYU pragma: keep
 #include "Time/Actions/AdvanceTime.hpp"  // IWYU pragma: keep
+#include "Time/Actions/RecordTimeStepperData.hpp"
 #include "Time/Slab.hpp"
 #include "Time/Tags.hpp"  // IWYU pragma: keep // for item_type<Tags::TimeStep>
 #include "Time/Time.hpp"
@@ -20,7 +24,7 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 // IWYU pragma: no_include "DataStructures/Tensor/Tensor.hpp"
 
@@ -100,7 +104,7 @@ namespace Tags {
 template <typename Tag>
 struct InitialValue : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
-    return "InitialValue(" + Tag::name() + ")";
+    return "InitialValue(" + db::tag_name<Tag>() + ")";
   }
   using tag = Tag;
   using type = std::tuple<db::const_item_type<Tag>>;
@@ -197,7 +201,16 @@ struct Initialize {
     // until it reaches zero.
     const auto values_needed =
         -db::get<::Tags::Next<::Tags::TimeStepId>>(box).slab_number();
-    const TimeDelta self_start_step = initial_step / (values_needed + 1);
+    TimeDelta self_start_step = initial_step;
+
+    // Make sure the starting procedure fits in a slab.
+    if (abs(self_start_step * values_needed).fraction() >= 1) {
+      // Decrease the step so that the generated history will be
+      // entirely before the first step.  This ensures we will not
+      // generate any duplicate times in the history as we start the
+      // real evolution.
+      self_start_step /= (values_needed + 1);
+    }
 
     auto new_box = StoreInitialValues<tmpl::push_back<
         detail::vars_to_save<system>, ::Tags::TimeStep>>::apply(std::move(box));
@@ -427,7 +440,7 @@ template <typename StepActions>
 struct self_start_procedure_impl {
   using flat_actions = tmpl::flatten<tmpl::list<StepActions>>;
   static_assert(
-      tmpl::list_contains_v<flat_actions, ::Actions::RecordTimeStepperData>,
+      tmpl::list_contains_v<flat_actions, ::Actions::RecordTimeStepperData<>>,
       "Self-start action loop must call Actions::RecordTimeStepperData to "
       "update the history.");
   // clang-format off
@@ -437,8 +450,8 @@ struct self_start_procedure_impl {
       SelfStart::Actions::CheckForCompletion<detail::PhaseEnd>,
       ::Actions::AdvanceTime,
       SelfStart::Actions::CheckForOrderIncrease,
-      tmpl::replace<flat_actions, ::Actions::RecordTimeStepperData,
-                    tmpl::list<::Actions::RecordTimeStepperData,
+      tmpl::replace<flat_actions, ::Actions::RecordTimeStepperData<>,
+                    tmpl::list<::Actions::RecordTimeStepperData<>,
                                SelfStart::Actions::StartNextOrderIfReady<
                                    detail::PhaseStart>>>,
       ::Actions::Goto<detail::PhaseStart>,

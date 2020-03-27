@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -10,18 +10,20 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
+#include "DataStructures/SliceVariables.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
-#include "DataStructures/VariablesHelpers.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"  // IWYU pragma: keep
 #include "Domain/IndexToSliceAt.hpp"
 #include "Domain/Mesh.hpp"
+#include "Domain/OrientationMap.hpp"
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyBoundaryFluxesLocalTimeStepping.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/FluxCommunicationTypes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/MortarHelpers.hpp"
@@ -37,7 +39,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <unordered_map>
 
@@ -51,7 +52,6 @@ class er;
 
 namespace {
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
@@ -86,12 +86,12 @@ struct Component {
   using array_index = ElementIndex<2>;
   using const_global_cache_tags =
       tmpl::list<Tags::TimeStepper<LtsTimeStepper>, NumericalFluxTag>;
-  using simple_tags =
-      db::AddSimpleTags<Tags::Mesh<2>, Tags::Mortars<Tags::Mesh<1>, 2>,
-                        Tags::Mortars<Tags::MortarSize<1>, 2>, Tags::TimeStep,
-                        System::variables_tag,
-                        typename dg::FluxCommunicationTypes<Metavariables>::
-                            local_time_stepping_mortar_data_tag>;
+  using simple_tags = db::AddSimpleTags<
+      domain::Tags::Mesh<2>, Tags::Mortars<domain::Tags::Mesh<1>, 2>,
+      Tags::Mortars<Tags::MortarSize<1>, 2>, Tags::TimeStep,
+      System::variables_tag,
+      typename dg::FluxCommunicationTypes<
+          Metavariables>::local_time_stepping_mortar_data_tag>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -129,7 +129,7 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyBoundaryFluxesLocalTimeStepping",
   const auto fast_mortar = std::make_pair(Direction<2>::upper_xi(),
                                           ElementId<2>(1, {{{0, 0}, {1, 1}}}));
 
-  typename Tags::Mortars<Tags::Mesh<1>, 2>::type mortar_meshes{
+  typename Tags::Mortars<domain::Tags::Mesh<1>, 2>::type mortar_meshes{
       {slow_mortar, mesh.slice_away(face_dimension)},
       {fast_mortar, mesh.slice_away(face_dimension)}};
   typename Tags::Mortars<Tags::MortarSize<1>, 2>::type mortar_sizes{
@@ -182,7 +182,8 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyBoundaryFluxesLocalTimeStepping",
       &runner, id,
       {mesh, mortar_meshes, mortar_sizes, time_step, variables,
        std::move(mortar_data)});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   runner.next_action<Component<Metavariables>>(id);
 

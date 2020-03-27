@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,17 +14,17 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/BondiMichel.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tags::dt
 
@@ -64,12 +64,12 @@ struct BondiMichelProxy : grmhd::Solutions::BondiMichel {
 };
 
 void test_create_from_options() noexcept {
-  const auto flow = test_creation<grmhd::Solutions::BondiMichel>(
-      "  Mass: 1.2\n"
-      "  SonicRadius: 5.0\n"
-      "  SonicDensity: 0.05\n"
-      "  PolytropicExponent: 1.4\n"
-      "  MagFieldStrength: 2.0");
+  const auto flow = TestHelpers::test_creation<grmhd::Solutions::BondiMichel>(
+      "Mass: 1.2\n"
+      "SonicRadius: 5.0\n"
+      "SonicDensity: 0.05\n"
+      "PolytropicExponent: 1.4\n"
+      "MagFieldStrength: 2.0");
   CHECK(flow == grmhd::Solutions::BondiMichel(1.2, 5.0, 0.05, 1.4, 2.0));
 }
 
@@ -127,8 +127,8 @@ void test_solution() noexcept {
   const std::array<double, 3> x{{4.0, 4.0, 4.0}};
   const std::array<double, 3> dx{{1.e-3, 1.e-3, 1.e-3}};
 
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{4, 4, 4}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{4, 4, 4}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

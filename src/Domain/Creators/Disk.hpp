@@ -7,23 +7,44 @@
 #include <cstddef>
 #include <vector>
 
+#include "Domain/Creators/DomainCreator.hpp"  // IWYU pragma: keep
 #include "Domain/Domain.hpp"
 #include "Options/Options.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
-template <size_t Dim, typename Frame>
-class DomainCreator;  // IWYU pragma: keep
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+class Equiangular;
+template <typename Map1, typename Map2>
+class ProductOf2Maps;
+class Wedge2D;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
 /// \endcond
 
 namespace domain {
 namespace creators {
-
 /// Create a 2D Domain in the shape of a disk from a square surrounded by four
 /// wedges.
-template <typename TargetFrame>
-class Disk : public DomainCreator<2, TargetFrame> {
+class Disk : public DomainCreator<2> {
  public:
+  using maps_list =
+      tmpl::list<domain::CoordinateMap<
+                     Frame::Logical, Frame::Inertial,
+                     CoordinateMaps::ProductOf2Maps<CoordinateMaps::Affine,
+                                                    CoordinateMaps::Affine>>,
+                 domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                                       CoordinateMaps::ProductOf2Maps<
+                                           CoordinateMaps::Equiangular,
+                                           CoordinateMaps::Equiangular>>,
+                 domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                                       CoordinateMaps::Wedge2D>>;
+
   struct InnerRadius {
     using type = double;
     static constexpr OptionString help = {
@@ -79,7 +100,7 @@ class Disk : public DomainCreator<2, TargetFrame> {
   Disk& operator=(Disk&&) noexcept = default;
   ~Disk() noexcept override = default;
 
-  Domain<2, TargetFrame> create_domain() const noexcept override;
+  Domain<2> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, 2>> initial_extents() const noexcept override;
 

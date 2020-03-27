@@ -1,14 +1,16 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementMap.hpp"
 #include "Domain/LogicalCoordinates.hpp"  // IWYU pragma: keep
@@ -39,12 +41,6 @@ void test_coordinates_compute_item(const Mesh<Dim>& mesh, T map) noexcept {
       (db::get<Tags::Coordinates<Dim, Frame::Grid>>(box)),
       (make_coordinate_map<Frame::Logical, Frame::Grid>(map)(
           db::get<Tags::Coordinates<Dim, Frame::Logical>>(box))));
-
-  /// [coordinates_name]
-  CHECK(Tags::Coordinates<Dim, Frame::Logical>::name() == "LogicalCoordinates");
-  CHECK(Tags::Coordinates<Dim, Frame::Inertial>::name() ==
-        "InertialCoordinates");
-  /// [coordinates_name]
 }
 }  // namespace
 

@@ -14,11 +14,9 @@ template <size_t Dim>
 struct CharacteristicSpeeds;
 template <typename DataType>
 struct MassDensity;
-template <typename DataType>
 struct MassDensityCons;
-template <typename DataType, size_t Dim, typename Fr = Frame::Inertial>
+template <size_t Dim, typename Fr = Frame::Inertial>
 struct MomentumDensity;
-template <typename DataType>
 struct EnergyDensity;
 template <typename DataType, size_t Dim, typename Fr = Frame::Inertial>
 struct Velocity;
@@ -29,13 +27,10 @@ struct Pressure;
 template <typename DataType>
 struct SoundSpeed;
 template <typename DataType>
-struct SoundSpeedCompute;
-template <typename DataType>
 struct SoundSpeedSquared;
-template <typename DataType>
-struct SoundSpeedSquaredCompute;
+
 struct SourceTermBase;
-template <typename SourceTermType>
+template <typename InitialDataType>
 struct SourceTerm;
 }  // namespace Tags
 }  // namespace NewtonianEuler

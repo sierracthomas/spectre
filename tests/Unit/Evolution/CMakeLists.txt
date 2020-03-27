@@ -4,6 +4,7 @@
 add_subdirectory(Actions)
 add_subdirectory(Conservative)
 add_subdirectory(DiscontinuousGalerkin)
+add_subdirectory(Initialization)
 add_subdirectory(Systems)
 add_subdirectory(VariableFixing)
 
@@ -11,6 +12,7 @@ set(LIBRARY "Test_Evolution")
 
 set(LIBRARY_SOURCES
   Test_ComputeTags.cpp
+  Test_TagsDomain.cpp
   Test_TypeTraits.cpp
   )
 
@@ -18,5 +20,5 @@ add_test_library(
   ${LIBRARY}
   "Evolution"
   "${LIBRARY_SOURCES}"
-  "Utilities"
+  "Boost::boost;Evolution;Utilities"
   )

@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 
 /// \cond
@@ -27,7 +27,6 @@ namespace Tags {
  */
 struct Field : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Field"; }
 };
 
 }  // namespace Tags

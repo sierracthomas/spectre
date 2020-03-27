@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -16,11 +16,11 @@
 #include <unordered_set>
 #include <vector>
 
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/CharmPupable.hpp"
 #include "Parallel/PupStlCpp11.hpp"
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace Test_Classes {
 struct DerivedInPupStlCpp11;
@@ -135,10 +135,15 @@ SPECTRE_TEST_CASE("Unit.Serialization.PupStlCpp11", "[Serialization][Unit]") {
   /// [example_serialize_derived]
 
   {
-    INFO("unique_ptr.nullptr");
+    INFO("unique_ptr.double.nullptr");
     std::unique_ptr<double> derived_ptr = nullptr;
     auto blah = serialize_and_deserialize(derived_ptr);
     CHECK(nullptr == blah);
+  }
+  {
+    INFO("unique_ptr.abstract_base.nullptr");
+    std::unique_ptr<Test_Classes::Base> base{nullptr};
+    CHECK(serialize_and_deserialize(base) == nullptr);
   }
 }
 

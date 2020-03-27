@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -13,11 +13,15 @@
 #include <vector>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "IO/Observer/ObservationId.hpp"
 #include "IO/Observer/ObserverComponent.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
@@ -34,9 +38,6 @@
 #include "Utilities/PrettyType.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include "DataStructures/DataBox/Prefixes.hpp"  // for Variables
 
@@ -60,7 +61,6 @@ namespace {
 
 struct ObservationTimeTag : db::SimpleTag {
   using type = double;
-  static std::string name() { return "ObservationTimeTag"; };
 };
 
 struct MockContributeReductionData {
@@ -221,7 +221,8 @@ void test_observe(const std::unique_ptr<ObserveEvent> observe) noexcept {
   using metavariables = Metavariables<System>;
   using element_component = ElementComponent<metavariables>;
   using observer_component = MockObserverComponent<metavariables>;
-  using coordinates_tag = Tags::Coordinates<volume_dim, Frame::Inertial>;
+  using coordinates_tag =
+      domain::Tags::Coordinates<volume_dim, Frame::Inertial>;
 
   const typename element_component::array_index array_index(0);
   const size_t num_points = 5;
@@ -319,7 +320,7 @@ void test_system() noexcept {
       ObservationTimeTag, typename System::vars_for_test>>>;
   Parallel::register_derived_classes_with_charm<EventType>();
   const auto factory_event =
-      test_factory_creation<EventType>("  ObserveErrorNorms");
+      TestHelpers::test_factory_creation<EventType>("ObserveErrorNorms");
   auto serialized_event = serialize_and_deserialize(factory_event);
   test_observe<System>(std::move(serialized_event));
 }

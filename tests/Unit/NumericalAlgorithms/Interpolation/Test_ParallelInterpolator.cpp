@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -14,6 +14,7 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
@@ -27,6 +28,8 @@
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "NumericalAlgorithms/Interpolation/AddTemporalIdsToInterpolationTarget.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Interpolation/CleanUpInterpolator.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Interpolation/InitializeInterpolationTarget.hpp"
@@ -51,8 +54,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 /// \cond
 // IWYU pragma: no_forward_declare db::DataBox
@@ -71,34 +72,31 @@ namespace {
 // Simple DataBoxItems for test.
 namespace Tags {
 struct TestSolution : db::SimpleTag {
-  static std::string name() noexcept { return "TestSolution"; }
   using type = Scalar<DataVector>;
 };
 struct Square : db::SimpleTag {
-  static std::string name() noexcept { return "Square"; }
   using type = Scalar<DataVector>;
 };
-struct SquareComputeItem : Square, db::ComputeTag {
-  static std::string name() noexcept { return "Square"; }
+struct SquareCompute : Square, db::ComputeTag {
   static Scalar<DataVector> function(const Scalar<DataVector>& x) noexcept {
     auto result = make_with_value<Scalar<DataVector>>(x, 0.0);
     get(result) = square(get(x));
     return result;
   }
   using argument_tags = tmpl::list<TestSolution>;
+  using base = Square;
 };
 struct Negate : db::SimpleTag {
-  static std::string name() noexcept { return "Negate"; }
   using type = Scalar<DataVector>;
 };
-struct NegateComputeItem : Negate, db::ComputeTag {
-  static std::string name() noexcept { return "Negate"; }
+struct NegateCompute : Negate, db::ComputeTag {
   static Scalar<DataVector> function(const Scalar<DataVector>& x) noexcept {
     auto result = make_with_value<Scalar<DataVector>>(x, 0.0);
     get(result) = -get(x);
     return result;
   }
   using argument_tags = tmpl::list<Square>;
+  using base = Negate;
 };
 }  // namespace Tags
 
@@ -113,13 +111,13 @@ struct TestFunctionHelper;
 template <>
 struct TestFunctionHelper<Tags::Square> {
   static constexpr size_t npts = 15;
-  static double apply(const double& a) noexcept { return square(a); }
+  static double apply(const double a) noexcept { return square(a); }
   static double coords(size_t i) noexcept { return 1.0 + 0.1 * i; }
 };
 template <>
 struct TestFunctionHelper<Tags::Negate> {
   static constexpr size_t npts = 17;
-  static double apply(const double& a) noexcept { return -square(a); }
+  static double apply(const double a) noexcept { return -square(a); }
   static double coords(size_t i) noexcept { return 1.1 + 0.0875 * i; }
 };
 
@@ -180,7 +178,7 @@ struct mock_interpolation_target {
   using const_global_cache_tags = tmpl::flatten<tmpl::append<
       Parallel::get_const_global_cache_tags_from_actions<
           tmpl::list<typename InterpolationTargetTag::compute_target_points>>,
-      tmpl::list<::Tags::Domain<Metavariables::volume_dim, Frame::Inertial>>>>;
+      tmpl::list<domain::Tags::Domain<Metavariables::volume_dim>>>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -214,7 +212,7 @@ struct mock_interpolator {
 
 struct MockMetavariables {
   struct InterpolationTargetA {
-    using compute_items_on_source = tmpl::list<Tags::SquareComputeItem>;
+    using compute_items_on_source = tmpl::list<Tags::SquareCompute>;
     using vars_to_interpolate_to_target = tmpl::list<Tags::Square>;
     using compute_items_on_target = tmpl::list<>;
     using compute_target_points =
@@ -223,9 +221,9 @@ struct MockMetavariables {
         TestFunction<InterpolationTargetA, Tags::Square>;
   };
   struct InterpolationTargetB {
-    using compute_items_on_source = tmpl::list<Tags::SquareComputeItem>;
+    using compute_items_on_source = tmpl::list<Tags::SquareCompute>;
     using vars_to_interpolate_to_target = tmpl::list<Tags::Square>;
-    using compute_items_on_target = tmpl::list<Tags::NegateComputeItem>;
+    using compute_items_on_target = tmpl::list<Tags::NegateCompute>;
     using compute_target_points =
         intrp::Actions::LineSegment<InterpolationTargetB, 3>;
     using post_interpolation_callback =
@@ -234,7 +232,7 @@ struct MockMetavariables {
   struct InterpolationTargetC {
     using compute_items_on_source = tmpl::list<>;
     using vars_to_interpolate_to_target = tmpl::list<Tags::TestSolution>;
-    using compute_items_on_target = tmpl::list<Tags::SquareComputeItem>;
+    using compute_items_on_target = tmpl::list<Tags::SquareCompute>;
     using compute_target_points =
         intrp::Actions::KerrHorizon<InterpolationTargetC, ::Frame::Inertial>;
     using post_interpolation_callback = TestKerrHorizonIntegral;
@@ -275,18 +273,19 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.Integration",
   intrp::OptionHolders::KerrHorizon kerr_horizon_opts_C(10, {{0.0, 0.0, 0.0}},
                                                         1.0, {{0.0, 0.0, 0.0}});
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
   tuples::TaggedTuple<
       intrp::Tags::LineSegment<metavars::InterpolationTargetA, 3>,
-      ::Tags::Domain<3, Frame::Inertial>,
+      domain::Tags::Domain<3>,
       intrp::Tags::LineSegment<metavars::InterpolationTargetB, 3>,
       intrp::Tags::KerrHorizon<metavars::InterpolationTargetC>>
-      tuple_of_opts(
-          std::move(line_segment_opts_A), domain_creator.create_domain(),
-          std::move(line_segment_opts_B), kerr_horizon_opts_C);
+      tuple_of_opts(std::move(line_segment_opts_A),
+                    domain_creator.create_domain(),
+                    std::move(line_segment_opts_B), kerr_horizon_opts_C);
 
   ActionTesting::MockRuntimeSystem<metavars> runner{std::move(tuple_of_opts)};
-  runner.set_phase(metavars::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Initialization);
   ActionTesting::emplace_component<interp_component>(&runner, 0);
   ActionTesting::next_action<interp_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<target_a_component>(&runner, 0);
@@ -295,7 +294,8 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.Integration",
   ActionTesting::next_action<target_b_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<target_c_component>(&runner, 0);
   ActionTesting::next_action<target_c_component>(make_not_null(&runner), 0);
-  runner.set_phase(metavars::Phase::Registration);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Registration);
 
   Slab slab(0.0, 1.0);
   TimeStepId temporal_id(true, 0, Time(slab, 0));
@@ -339,8 +339,11 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.Integration",
     ::Mesh<3> mesh{domain_creator.initial_extents()[element_id.block_id()],
                    Spectral::Basis::Legendre,
                    Spectral::Quadrature::GaussLobatto};
+    if (block.is_time_dependent()) {
+      ERROR("The block must be time-independent");
+    }
     ElementMap<3, Frame::Inertial> map{element_id,
-                                       block.coordinate_map().get_clone()};
+                                       block.stationary_map().get_clone()};
     const auto inertial_coords = map(logical_coordinates(mesh));
     db::item_type<
         ::Tags::Variables<typename metavars::interpolator_source_vars>>

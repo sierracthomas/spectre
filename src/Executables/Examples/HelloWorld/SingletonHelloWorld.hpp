@@ -7,6 +7,7 @@
 /// [executable_example_includes]
 #include "AlgorithmSingleton.hpp"
 #include "DataStructures/DataBox/DataBox.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "ErrorHandling/FloatingPointExceptions.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
@@ -30,8 +31,9 @@ struct Name {
 namespace Tags {
 struct Name : db::SimpleTag {
   using type = std::string;
-  static std::string name() noexcept { return "Name"; }
   using option_tags = tmpl::list<OptionTags::Name>;
+
+  static constexpr bool pass_metavariables = false;
   static std::string create_from_options(const std::string& name) noexcept {
     return name;
   }

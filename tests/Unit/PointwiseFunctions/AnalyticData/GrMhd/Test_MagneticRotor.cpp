@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -12,14 +12,14 @@
 #include "DataStructures/DataVector.hpp"          // IWYU pragma: keep
 #include "DataStructures/Tensor/TypeAliases.hpp"  // IWYU pragma: keep
 #include "ErrorHandling/Error.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/AnalyticData/GrMhd/MagneticRotor.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -59,14 +59,15 @@ struct MagneticRotorProxy : grmhd::AnalyticData::MagneticRotor {
 };
 
 void test_create_from_options() noexcept {
-  const auto magnetic_rotor = test_creation<grmhd::AnalyticData::MagneticRotor>(
-      "  RotorRadius: 0.1\n"
-      "  RotorDensity: 10.0\n"
-      "  BackgroundDensity: 1.0\n"
-      "  Pressure: 1.0\n"
-      "  AngularVelocity: 9.95\n"
-      "  MagneticField: [3.5449077018, 0.0, 0.0]\n"
-      "  AdiabaticIndex: 1.6666666666666666");
+  const auto magnetic_rotor =
+      TestHelpers::test_creation<grmhd::AnalyticData::MagneticRotor>(
+          "RotorRadius: 0.1\n"
+          "RotorDensity: 10.0\n"
+          "BackgroundDensity: 1.0\n"
+          "Pressure: 1.0\n"
+          "AngularVelocity: 9.95\n"
+          "MagneticField: [3.5449077018, 0.0, 0.0]\n"
+          "AdiabaticIndex: 1.6666666666666666");
   CHECK(magnetic_rotor == grmhd::AnalyticData::MagneticRotor(
                               0.1, 10.0, 1.0, 1.0, 9.95,
                               std::array<double, 3>{{3.5449077018, 0.0, 0.0}},
@@ -151,4 +152,3 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.AnalyticData.GrMhd.MagneticRotor",
       std::array<double, 3>{{3.5449077018, 0.0, 0.0}}, 1.6666666666666666);
   ERROR("Failed to trigger PARSE_ERROR in a parse error test");
 }
-

@@ -1,19 +1,19 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <limits>
 #include <memory>
 
 #include "ErrorHandling/Error.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "Time/Slab.hpp"
 #include "Time/StepControllers/BinaryFraction.hpp"
 #include "Time/StepControllers/StepController.hpp"
 #include "Time/Time.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include "Parallel/PupStlCpp11.hpp"
 
@@ -36,7 +36,7 @@ SPECTRE_TEST_CASE("Unit.Time.StepControllers.BinaryFraction", "[Unit][Time]") {
   };
   check(StepControllers::BinaryFraction{});
   check(*serialize_and_deserialize(
-      test_factory_creation<StepController>("  BinaryFraction")));
+      TestHelpers::test_factory_creation<StepController>("BinaryFraction")));
 }
 
 // [[OutputRegex, Not at a binary-fraction time within slab]]

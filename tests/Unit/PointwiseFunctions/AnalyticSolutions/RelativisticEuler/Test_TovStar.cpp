@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,24 +14,24 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Tov.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/TovStar.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/StdArrayHelpers.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
 void test_create_from_options() noexcept {
-  const auto star = test_creation<
+  const auto star = TestHelpers::test_creation<
       RelativisticEuler::Solutions::TovStar<gr::Solutions::TovSolution>>(
-      "  CentralDensity: 1.0e-5\n"
-      "  PolytropicConstant: 0.001\n"
-      "  PolytropicExponent: 1.4");
+      "CentralDensity: 1.0e-5\n"
+      "PolytropicConstant: 0.001\n"
+      "PolytropicExponent: 1.4");
   CHECK(star ==
         RelativisticEuler::Solutions::TovStar<gr::Solutions::TovSolution>(
             0.00001, 0.001, 1.4));
@@ -55,8 +55,8 @@ void verify_solution(const RelativisticEuler::Solutions::TovStar<
                          gr::Solutions::TovSolution>& solution,
                      const std::array<double, 3>& x) noexcept {
   const std::array<double, 3> dx{{1.e-4, 1.e-4, 1.e-4}};
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{5, 5, 5}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{5, 5, 5}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

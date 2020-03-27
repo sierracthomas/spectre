@@ -1,10 +1,12 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
+add_subdirectory(FunctionsOfTime)
+add_subdirectory(Python)
+
 set(LIBRARY "Test_Domain")
 
 set(LIBRARY_SOURCES
-  DomainTestHelpers.cpp
   Test_Block.cpp
   Test_BlockAndElementLogicalCoordinates.cpp
   Test_BlockId.cpp
@@ -34,6 +36,9 @@ set(LIBRARY_SOURCES
   Test_SegmentId.cpp
   Test_Side.cpp
   Test_SizeOfElement.cpp
+  Test_Tags.cpp
+  Test_TagsCharacteristicSpeeds.cpp
+  Test_TagsTimeDependent.cpp
   )
 
 add_subdirectory(Amr)

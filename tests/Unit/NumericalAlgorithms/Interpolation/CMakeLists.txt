@@ -24,13 +24,15 @@ set(LIBRARY_SOURCES
   Test_ObserveTimeSeriesOnSurface.cpp
   Test_ParallelInterpolator.cpp
   Test_RegularGridInterpolant.cpp
+  Test_SpanInterpolators.cpp
+  Test_Tags.cpp
   )
 
 add_test_library(
   ${LIBRARY}
   "NumericalAlgorithms/Interpolation/"
   "${LIBRARY_SOURCES}"
-  "Interpolation;MathFunctions"
+  "Boost::boost;Interpolation;IO;MathFunctions"
   )
 
 add_dependencies(

@@ -29,6 +29,7 @@
 #include "Utilities/StdHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsStreamable.hpp"
 
 /// \cond
 template <typename X, typename Symm = Symmetry<>,
@@ -420,8 +421,14 @@ class Tensor<X, Symm, IndexList<Indices...>> {
   //@}
 
   //@{
-  /// Given a tensor index, get the canonical label associated with the
+  /// \brief Given a tensor index, get the canonical label associated with the
   /// canonical \ref SpacetimeIndex "TensorIndexType"
+  ///
+  /// \param tensor_index The index of the tensor component to label
+  /// \param axis_labels The labels for the indices. Defaults to "t", "x", "y"
+  /// and "z" for spacetime indices and "x", "y" and "z" for spatial indices.
+  /// Note that a tensor can have indices of different types, so we specify
+  /// labels for each index individually.
   template <typename T = int>
   static std::string component_name(
       const std::array<T, rank()>& tensor_index = std::array<T, rank()>{},
@@ -430,6 +437,36 @@ class Tensor<X, Symm, IndexList<Indices...>> {
     return structure::component_name(tensor_index, axis_labels);
   }
   //@}
+
+  ///@{
+  /// \brief Suffix to append to the tensor name that indicates the component
+  ///
+  /// The suffix is empty for scalars, otherwise it is an underscore followed by
+  /// the `Tensor::component_name` of either the `tensor_index` or the canonical
+  /// tensor index obtained from the `storage_index`. Use `axis_labels` to
+  /// overwrite the default labels for each component (see
+  /// `Tensor::component_name`).
+  ///
+  /// An example use case for the suffix is to label tensor components in
+  /// data files.
+  ///
+  /// \see Tensor::component_name
+  template <typename IndexType = int>
+  static std::string component_suffix(
+      const std::array<IndexType, rank()>& tensor_index =
+          std::array<IndexType, rank()>{},
+      const std::array<std::string, rank()>& axis_labels =
+          make_array<rank()>(std::string(""))) noexcept {
+    return rank() == 0 ? "" : "_" + component_name(tensor_index, axis_labels);
+  }
+
+  static std::string component_suffix(
+      const size_t storage_index,
+      const std::array<std::string, rank()>& axis_labels =
+          make_array<rank()>(std::string(""))) noexcept {
+    return component_suffix(get_tensor_index(storage_index), axis_labels);
+  }
+  ///@}
 
   /// Copy tensor data into an `std::vector<X>` along with the
   /// component names into a `std::vector<std::string>`
@@ -545,8 +582,7 @@ std::ostream& operator<<(
                 "operator<< is not defined for the type you are trying to "
                 "stream in Tensor");
   for (size_t i = 0; i < x.size() - 1; ++i) {
-    os << "T" << x.get_tensor_index(i) << "=" << x[i]
-       << "\n";
+    os << "T" << x.get_tensor_index(i) << "=" << x[i] << "\n";
   }
   size_t i = x.size() - 1;
   os << "T" << x.get_tensor_index(i) << "=" << x[i];
@@ -592,8 +628,77 @@ struct MakeWithValueImpl<Tensor<double, Structure...>, double> {
   /// \brief Returns a Tensor whose elements are set equal to `value` (`input`
   /// is ignored).
   static SPECTRE_ALWAYS_INLINE Tensor<double, Structure...> apply(
-      const double& /*input*/, const double value) noexcept {
+      const double /*input*/, const double value) noexcept {
     return Tensor<double, Structure...>(value);
+  }
+};
+
+template <typename... Structure>
+struct MakeWithValueImpl<Tensor<DataVector, Structure...>, size_t> {
+  /// \brief Returns a Tensor whose elements are set equal to `value` of size
+  /// `size`
+  static SPECTRE_ALWAYS_INLINE Tensor<DataVector, Structure...> apply(
+      const size_t size, const double value) noexcept {
+    return Tensor<DataVector, Structure...>(size, value);
+  }
+};
+
+template <typename... Structure>
+struct MakeWithValueImpl<Tensor<ComplexDataVector, Structure...>, DataVector> {
+  /// \brief Returns a Tensor whose `ComplexDataVector`s are the same size as
+  /// `input`, with each element set to `value`.
+  ///
+  /// \details When setting complex from `double`s, the real part is set to
+  /// the `double` and  imaginary part is set to zero.
+  static SPECTRE_ALWAYS_INLINE Tensor<ComplexDataVector, Structure...> apply(
+      const DataVector& input, const double value) noexcept {
+    return Tensor<ComplexDataVector, Structure...>(
+        ComplexDataVector{input.size(), std::complex<double>(value, 0.0)});
+  }
+};
+
+template <int Spin, typename... Structure>
+struct MakeWithValueImpl<
+    Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>, DataVector> {
+  /// \brief Returns a Tensor whose `ComplexDataVector`s are the same size as
+  /// `input`, with each element set to `value`.
+  ///
+  /// \details When setting complex from `double`s, the real part is set to
+  /// the `double` and  imaginary part is set to zero.
+  static SPECTRE_ALWAYS_INLINE
+      Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>
+      apply(const DataVector& input, const double value) noexcept {
+    return Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>(
+        ComplexDataVector{input.size(), std::complex<double>(value, 0.0)});
+  }
+};
+
+template <int Spin, typename... Structure>
+struct MakeWithValueImpl<
+    Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>,
+    ComplexDataVector> {
+  /// \brief Returns a Tensor whose `ComplexDataVector`s are the same size as
+  /// `input`, with each element set to `value`.
+  ///
+  /// \details When setting complex from `double`s, the real part is set to
+  /// the `double` and  imaginary part is set to zero.
+  static SPECTRE_ALWAYS_INLINE
+      Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>
+      apply(const ComplexDataVector& input, const double value) noexcept {
+    return Tensor<SpinWeighted<ComplexDataVector, Spin>, Structure...>(
+        ComplexDataVector{input.size(), std::complex<double>(value, 0.0)});
+  }
+};
+
+template <typename... Structure>
+struct MakeWithValueImpl<Tensor<std::complex<double>, Structure...>,
+                         std::complex<double>> {
+  /// \brief Returns a Tensor whose elements are set equal to `value` (`input`
+  /// is ignored).
+  static SPECTRE_ALWAYS_INLINE Tensor<std::complex<double>, Structure...> apply(
+      const std::complex<double>& /*input*/,
+      const std::complex<double> value) noexcept {
+    return Tensor<std::complex<double>, Structure...>(value);
   }
 };
 

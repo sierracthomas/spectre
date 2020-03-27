@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -14,9 +14,12 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Evolution/Actions/ComputeTimeDerivative.hpp"  // IWYU pragma: keep
 #include "Evolution/Conservative/UpdatePrimitives.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"   // IWYU pragma: keep
 #include "Time/Actions/RecordTimeStepperData.hpp"  // IWYU pragma: keep
 #include "Time/Actions/SelfStartActions.hpp"
@@ -30,7 +33,7 @@
 #include "Utilities/PrettyType.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/ActionTesting.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 // IWYU pragma: no_include <unordered_map>
 
@@ -48,12 +51,10 @@ struct TemporalId {
 };
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = double;
 };
 
 struct PrimitiveVar : db::SimpleTag {
-  static std::string name() noexcept { return "PrimitiveVar"; }
   using type = double;
 };
 
@@ -62,7 +63,10 @@ struct SystemBase {
   static constexpr bool has_primitive_and_conservative_vars = HasPrimitives;
   using variables_tag = Var;
 
-  using compute_time_derivative = struct {
+  using ComputeTimeDerivative = struct {
+    template <template <class> class StepPrefix>
+    using return_tags = tmpl::list<db::add_tag_prefix<StepPrefix, Var>>;
+
     using argument_tags =
         tmpl::list<tmpl::conditional_t<has_primitive_and_conservative_vars,
                                        PrimitiveVar, Var>>;
@@ -98,7 +102,7 @@ struct System<true> : SystemBase<true> {
   };
 };
 
-using history_tag = Tags::HistoryEvolvedVariables<Var, Tags::dt<Var>>;
+using history_tag = Tags::HistoryEvolvedVariables<Var>;
 
 template <typename Metavariables>
 struct Component;  // IWYU pragma: keep
@@ -132,11 +136,13 @@ struct Component {
   static constexpr bool has_primitives = Metavariables::has_primitives;
 
   using step_actions =
-      tmpl::list<Actions::ComputeTimeDerivative, Actions::RecordTimeStepperData,
+      tmpl::list<Actions::ComputeTimeDerivative<
+                     typename metavariables::system::ComputeTimeDerivative>,
+                 Actions::RecordTimeStepperData<>,
                  tmpl::conditional_t<
                      has_primitives,
-                     tmpl::list<Actions::UpdateU, Actions::UpdatePrimitives>,
-                     Actions::UpdateU>>;
+                     tmpl::list<Actions::UpdateU<>, Actions::UpdatePrimitives>,
+                     Actions::UpdateU<>>>;
   using action_list = tmpl::flatten<
       tmpl::list<SelfStart::self_start_procedure<step_actions>, step_actions>>;
   using phase_dependent_action_list = tmpl::list<
@@ -239,10 +245,10 @@ bool run_past(
   }
 }
 
-void test_actions(const size_t order, const bool forward_in_time) noexcept {
+void test_actions(const size_t order, const int step_denominator) noexcept {
+  const bool forward_in_time = step_denominator > 0;
   const Slab slab(1., 3.);
-  const TimeDelta initial_time_step =
-      (forward_in_time ? 1 : -1) * slab.duration() / 2;
+  const TimeDelta initial_time_step = slab.duration() / step_denominator;
   const Time initial_time = forward_in_time ? slab.start() : slab.end();
   const double initial_value = -1.;
 
@@ -255,7 +261,8 @@ void test_actions(const size_t order, const bool forward_in_time) noexcept {
                                    initial_time, initial_time_step, order,
                                    initial_value);
 
-  runner.set_phase(Metavariables<>::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables<>::Phase::Testing);
 
   {
     INFO("Initialize");
@@ -298,9 +305,6 @@ void test_actions(const size_t order, const bool forward_in_time) noexcept {
             std::is_same<SelfStart::Actions::CheckForOrderIncrease, tmpl::_1>,
             not_self_start_action>(make_not_null(&runner));
         CHECK(not jumped);
-        CHECK(abs(ActionTesting::get_databox_tag<Component<Metavariables<>>,
-                                                 Tags::SubstepTime>(runner, 0) -
-                  initial_time) < abs(initial_time_step));
         const auto next_time =
             ActionTesting::get_databox_tag<Component<Metavariables<>>,
                                            Tags::Next<Tags::TimeStepId>>(runner,
@@ -375,12 +379,13 @@ double error_in_step(const size_t order, const double step) noexcept {
   emplace_component_and_initialize<TestPrimitives>(
       make_not_null(&runner), forward_in_time, initial_time, initial_time_step,
       order, initial_value);
-  runner.set_phase(Metavariables<TestPrimitives>::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables<TestPrimitives>::Phase::Testing);
 
   run_past<std::is_same<SelfStart::Actions::Cleanup, tmpl::_1>,
            tmpl::bool_<true>>(make_not_null(&runner));
-  run_past<std::is_same<Actions::UpdateU, tmpl::_1>, tmpl::bool_<true>>(
-      make_not_null(&runner));
+  run_past<std::is_same<tmpl::pin<Actions::UpdateU<>>, tmpl::_1>,
+           tmpl::bool_<true>>(make_not_null(&runner));
 
   const double exact = -log(exp(-initial_value) - step);
   return ActionTesting::get_databox_tag<component, Var>(runner, 0) - exact;
@@ -404,9 +409,12 @@ void test_convergence(const size_t order, const bool forward_in_time) noexcept {
 SPECTRE_TEST_CASE("Unit.Time.Actions.SelfStart", "[Unit][Time][Actions]") {
   for (size_t order = 1; order < 5; ++order) {
     CAPTURE(order);
-    for (bool forward_in_time : {true, false}) {
+    for (const int step_denominator : {1, -1, 2, -2, 20, -20}) {
+      CAPTURE(step_denominator);
+      test_actions(order, step_denominator);
+    }
+    for (const bool forward_in_time : {true, false}) {
       CAPTURE(forward_in_time);
-      test_actions(order, forward_in_time);
       test_convergence<false>(order, forward_in_time);
       test_convergence<true>(order, forward_in_time);
     }

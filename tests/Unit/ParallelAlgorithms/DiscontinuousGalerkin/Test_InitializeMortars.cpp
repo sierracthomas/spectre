@@ -1,19 +1,21 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Creators/Interval.hpp"
 #include "Domain/Creators/Rectangle.hpp"
@@ -25,6 +27,7 @@
 #include "Domain/Mesh.hpp"
 #include "Domain/SegmentId.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
@@ -34,17 +37,14 @@
 #include "ParallelAlgorithms/Initialization/Actions/RemoveOptionsAndTerminatePhase.hpp"
 #include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; };
   using type = int;
 };
 
 struct ScalarFieldTag : db::SimpleTag {
-  static std::string name() noexcept { return "ScalarFieldTag"; };
   using type = Scalar<DataVector>;
 };
 
@@ -53,28 +53,29 @@ struct ElementArray {
   using metavariables = Metavariables;
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = ElementIndex<Dim>;
-  using const_global_cache_tags =
-      tmpl::list<::Tags::Domain<Dim, Frame::Inertial>>;
+  using const_global_cache_tags = tmpl::list<domain::Tags::Domain<Dim>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<
               ActionTesting::InitializeDataBox<tmpl::list<
-                  ::Tags::InitialExtents<Dim>, ::Tags::Next<TemporalId>>>,
+                  domain::Tags::InitialExtents<Dim>, ::Tags::Next<TemporalId>>>,
               dg::Actions::InitializeDomain<Dim>,
-              Initialization::Actions::AddComputeTags<tmpl::list<
-                  ::Tags::InternalDirections<Dim>,
-                  ::Tags::BoundaryDirectionsInterior<Dim>,
-                  ::Tags::InterfaceCompute<::Tags::InternalDirections<Dim>,
-                                           ::Tags::Direction<Dim>>,
-                  ::Tags::InterfaceCompute<
-                      ::Tags::BoundaryDirectionsInterior<Dim>,
-                      ::Tags::Direction<Dim>>,
-                  ::Tags::InterfaceCompute<::Tags::InternalDirections<Dim>,
-                                           ::Tags::InterfaceMesh<Dim>>,
-                  ::Tags::InterfaceCompute<
-                      ::Tags::BoundaryDirectionsInterior<Dim>,
-                      ::Tags::InterfaceMesh<Dim>>>>>>,
+              Initialization::Actions::AddComputeTags<
+                  tmpl::list<domain::Tags::InternalDirections<Dim>,
+                             domain::Tags::BoundaryDirectionsInterior<Dim>,
+                             domain::Tags::InterfaceCompute<
+                                 domain::Tags::InternalDirections<Dim>,
+                                 domain::Tags::Direction<Dim>>,
+                             domain::Tags::InterfaceCompute<
+                                 domain::Tags::BoundaryDirectionsInterior<Dim>,
+                                 domain::Tags::Direction<Dim>>,
+                             domain::Tags::InterfaceCompute<
+                                 domain::Tags::InternalDirections<Dim>,
+                                 domain::Tags::InterfaceMesh<Dim>>,
+                             domain::Tags::InterfaceCompute<
+                                 domain::Tags::BoundaryDirectionsInterior<Dim>,
+                                 domain::Tags::InterfaceMesh<Dim>>>>>>,
 
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Testing,
@@ -119,7 +120,7 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     // Reference element:
     // [X| | | ]-> xi
     const ElementId<1> element_id{0, {{{2, 0}}}};
-    const domain::creators::Interval<Frame::Inertial> domain_creator{
+    const domain::creators::Interval domain_creator{
         {{-0.5}}, {{1.5}}, {{false}}, {{2}}, {{4}}};
     // Register the coordinate map for serialization
     PUPable_reg(
@@ -136,7 +137,8 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
                                               element_id);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -154,13 +156,14 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     const auto& mortar_next_temporal_ids =
         get_tag(Tags::Mortars<Tags::Next<TemporalId>, 1>{});
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id) == 0);
-    const auto& mortar_meshes = get_tag(Tags::Mortars<Tags::Mesh<0>, 1>{});
+    const auto& mortar_meshes =
+        get_tag(Tags::Mortars<domain::Tags::Mesh<0>, 1>{});
     CHECK(mortar_meshes.at(boundary_mortar_id) == Mesh<0>());
     CHECK(mortar_meshes.at(interface_mortar_id) == Mesh<0>());
     const auto& mortar_sizes = get_tag(Tags::Mortars<Tags::MortarSize<0>, 1>{});
     CHECK(mortar_sizes.at(boundary_mortar_id).empty());
     CHECK(mortar_sizes.at(interface_mortar_id).empty());
-    const auto& mortar_data = get_tag(Tags::VariablesBoundaryData{});
+    const auto& mortar_data = get_tag(domain::Tags::VariablesBoundaryData{});
     // Just make sure this exists, it is not expected to hold any data
     mortar_data.at(boundary_mortar_id);
     mortar_data.at(interface_mortar_id);
@@ -175,7 +178,7 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     // | | |
     // +-+-+
     const ElementId<2> element_id{0, {{{1, 0}, {1, 1}}}};
-    const domain::creators::Rectangle<Frame::Inertial> domain_creator{
+    const domain::creators::Rectangle domain_creator{
         {{-0.5, 0.}}, {{1.5, 1.}}, {{false, false}}, {{1, 1}}, {{3, 2}}};
     // Register the coordinate map for serialization
     PUPable_reg(
@@ -194,7 +197,8 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
                                               element_id);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -219,7 +223,8 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
         get_tag(Tags::Mortars<Tags::Next<TemporalId>, 2>{});
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id_east) == 0);
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id_south) == 0);
-    const auto& mortar_meshes = get_tag(Tags::Mortars<Tags::Mesh<1>, 2>{});
+    const auto& mortar_meshes =
+        get_tag(Tags::Mortars<domain::Tags::Mesh<1>, 2>{});
     CHECK(mortar_meshes.at(boundary_mortar_id_west) ==
           Mesh<1>(2, Spectral::Basis::Legendre,
                   Spectral::Quadrature::GaussLobatto));
@@ -239,7 +244,7 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     CHECK(mortar_sizes.at(boundary_mortar_id_north) == expected_mortar_sizes);
     CHECK(mortar_sizes.at(interface_mortar_id_east) == expected_mortar_sizes);
     CHECK(mortar_sizes.at(interface_mortar_id_south) == expected_mortar_sizes);
-    const auto& mortar_data = get_tag(Tags::VariablesBoundaryData{});
+    const auto& mortar_data = get_tag(domain::Tags::VariablesBoundaryData{});
     // Just make sure this exists, it is not expected to hold any data
     mortar_data.at(boundary_mortar_id_west);
     mortar_data.at(boundary_mortar_id_north);
@@ -250,12 +255,11 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     INFO("3D");
     const ElementId<3> element_id{
         0, {{SegmentId{1, 0}, SegmentId{1, 1}, SegmentId{1, 0}}}};
-    const domain::creators::Brick<Frame::Inertial> domain_creator{
-        {{-0.5, 0., -1.}},
-        {{1.5, 1., 3.}},
-        {{false, false, false}},
-        {{1, 1, 1}},
-        {{2, 3, 4}}};
+    const domain::creators::Brick domain_creator{{{-0.5, 0., -1.}},
+                                                 {{1.5, 1., 3.}},
+                                                 {{false, false, false}},
+                                                 {{1, 1, 1}},
+                                                 {{2, 3, 4}}};
     // Register the coordinate map for serialization
     PUPable_reg(SINGLE_ARG(
         domain::CoordinateMap<
@@ -274,7 +278,8 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
                                               element_id);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -303,7 +308,8 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id_right) == 0);
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id_front) == 0);
     CHECK(mortar_next_temporal_ids.at(interface_mortar_id_top) == 0);
-    const auto& mortar_meshes = get_tag(Tags::Mortars<Tags::Mesh<2>, 3>{});
+    const auto& mortar_meshes =
+        get_tag(Tags::Mortars<domain::Tags::Mesh<2>, 3>{});
     CHECK(mortar_meshes.at(boundary_mortar_id_left) ==
           Mesh<2>({{3, 4}}, Spectral::Basis::Legendre,
                   Spectral::Quadrature::GaussLobatto));
@@ -331,7 +337,7 @@ SPECTRE_TEST_CASE("Unit.ParallelDG.InitializeMortars", "[Unit][Actions]") {
     CHECK(mortar_sizes.at(interface_mortar_id_right) == expected_mortar_sizes);
     CHECK(mortar_sizes.at(interface_mortar_id_front) == expected_mortar_sizes);
     CHECK(mortar_sizes.at(interface_mortar_id_top) == expected_mortar_sizes);
-    const auto& mortar_data = get_tag(Tags::VariablesBoundaryData{});
+    const auto& mortar_data = get_tag(domain::Tags::VariablesBoundaryData{});
     // Just make sure this exists, it is not expected to hold any data
     mortar_data.at(boundary_mortar_id_left);
     mortar_data.at(boundary_mortar_id_back);

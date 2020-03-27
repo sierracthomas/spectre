@@ -1,10 +1,14 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
+add_subdirectory(Python)
+add_subdirectory(TimeDependence)
+
 set(LIBRARY "Test_DomainCreators")
 
 set(LIBRARY_SOURCES
   Test_AlignedLattice.cpp
+  Test_BinaryCompactObject.cpp
   Test_Brick.cpp
   Test_Cylinder.cpp
   Test_Disk.cpp
@@ -22,5 +26,5 @@ add_test_library(
   ${LIBRARY}
   "Domain/Creators"
   "${LIBRARY_SOURCES}"
-  "DomainCreators;Test_Domain"
+  "DomainCreators;Domain;DomainHelpers;Test_Domain"
   )

@@ -11,6 +11,7 @@
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "Domain/Tags.hpp"
 #include "IO/Observer/Helpers.hpp"
 #include "IO/Observer/ObservationId.hpp"
@@ -159,7 +160,7 @@ class ObserveErrorNorms<ObservationValueTag, tmpl::list<Tensors...>,
         std::string{"/element_data"},
         std::vector<std::string>{db::tag_name<ObservationValueTag>(),
                                  "NumberOfPoints",
-                                 ("Error(" + Tensors::name() + ")")...},
+                                 ("Error(" + db::tag_name<Tensors>() + ")")...},
         ReductionData{
             static_cast<double>(observation_value), num_points,
             std::move(get<LocalSquareError<Tensors>>(local_square_errors))...});

@@ -1,6 +1,8 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
+add_subdirectory(Importers)
+
 set(LIBRARY "Test_IO")
 
 set(LIBRARY_SOURCES
@@ -12,6 +14,7 @@ set(LIBRARY_SOURCES
   Observers/Test_ReductionObserver.cpp
   Observers/Test_TypeOfObservation.cpp
   Observers/Test_VolumeObserver.cpp
+  Observers/Test_WriteSimpleData.cpp
   Test_H5.cpp
   Test_StellarCollapseEos.cpp
   Test_VolumeData.cpp
@@ -21,7 +24,7 @@ add_test_library(
   ${LIBRARY}
   "IO"
   "${LIBRARY_SOURCES}"
-  "IO"
+  "Boost::boost;IO"
   )
 
 add_dependencies(
@@ -29,12 +32,12 @@ add_dependencies(
   module_ConstGlobalCache
   )
 
-spectre_add_python_test(
+spectre_add_python_bindings_test(
   "Unit.IO.H5.Python"
   "Test_H5.py"
   "unit;IO;H5;python")
 
-spectre_add_python_test(
+spectre_add_python_bindings_test(
   "Unit.IO.H5.VolumeData.Python"
   "Test_VolumeData.py"
   "unit;IO;H5;Python"

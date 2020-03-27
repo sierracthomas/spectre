@@ -4,7 +4,6 @@
 set(LIBRARY "Test_Spectral")
 
 set(LIBRARY_SOURCES
-  SwshTestHelpers.cpp
   Test_ChebyshevGauss.cpp
   Test_ChebyshevGaussLobatto.cpp
   Test_ComplexDataView.cpp
@@ -18,6 +17,7 @@ set(LIBRARY_SOURCES
   Test_SwshCollocation.cpp
   Test_SwshDerivatives.cpp
   Test_SwshFiltering.cpp
+  Test_SwshInterpolation.cpp
   Test_SwshTags.cpp
   Test_SwshTestHelpers.cpp
   Test_SwshTransform.cpp
@@ -27,5 +27,5 @@ add_test_library(
   ${LIBRARY}
   "NumericalAlgorithms/Spectral/"
   "${LIBRARY_SOURCES}"
-  "Spectral;Domain"
+  "Boost::boost;Domain;Spectral;SpectralHelpers"
   )

@@ -79,18 +79,17 @@ struct VortexPerturbation {
   // clang-tidy: google-runtime-references
   void pup(PUP::er& /*p*/) noexcept {}  // NOLINT
 
-  using sourced_variables =
-      tmpl::conditional_t<Dim == 3,
-                          tmpl::list<Tags::MassDensityCons<DataVector>,
-                                     Tags::MomentumDensity<DataVector, Dim>,
-                                     Tags::EnergyDensity<DataVector>>,
-                          tmpl::list<>>;
+  using sourced_variables = tmpl::conditional_t<
+      Dim == 3,
+      tmpl::list<Tags::MassDensityCons, Tags::MomentumDensity<Dim>,
+                 Tags::EnergyDensity>,
+      tmpl::list<>>;
 
   using argument_tags = tmpl::conditional_t<
       Dim == 3,
       tmpl::list<::Tags::AnalyticSolution<
                      NewtonianEuler::Solutions::IsentropicVortex<Dim>>,
-                 ::Tags::Coordinates<3, Frame::Inertial>, ::Tags::Time>,
+                 domain::Tags::Coordinates<3, Frame::Inertial>, ::Tags::Time>,
       tmpl::list<>>;
 
   // Overload required for 2d simulations, where no variable is sourced.

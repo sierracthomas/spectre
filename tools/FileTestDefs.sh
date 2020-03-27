@@ -193,8 +193,10 @@ long_lines() {
               'CMakeLists.txt$' \
               'Doxyfile.in$' \
               'containers/Dockerfile.travis$' \
+              'docs/config/MathJax.js' \
               'docs/MainSite/Main.md' \
               'docs/DevGuide/Travis.md' \
+              'docs/Tutorials/ParallelExecutable/Tutorials.md' \
               'tools/Iwyu/boost-all.imp$' && \
         staged_grep '^[^#].\{80,\}' "$1" | long_lines_exclude >/dev/null
 }
@@ -296,15 +298,19 @@ license() {
               'docs/config/footer.html' \
               'docs/config/header.html' \
               'docs/config/layout.xml' \
+              'docs/config/MathJax.js$' \
+              'external/*' \
               'LICENSE' \
               'support/TeXLive/texlive.profile' \
               'tools/Iwyu/boost-all.imp$' \
               '.github/ISSUE_TEMPLATE.md' \
               '.github/PULL_REQUEST_TEMPLATE.md' \
               '.h5' \
+              '.nojekyll' \
               '.png' \
               '.svg' \
-              '.clang-format$' && \
+              '.clang-format$' \
+              '.style.yapf' && \
         ! staged_grep -q "Distributed under the MIT License" "$1"
 }
 license_report() {
@@ -406,7 +412,7 @@ standard_checks+=(pragma_once)
 
 # Check for a newline at end of file
 final_newline() {
-    whitelist "$1" '.h5' '.png' '.svg' &&
+    whitelist "$1" '.h5' '.nojekyll' '.png' '.svg' &&
     # Bash strips trailing newlines from $() output
     [ "$(tail -c 1 "$1" ; echo x)" != $'\n'x ]
 }

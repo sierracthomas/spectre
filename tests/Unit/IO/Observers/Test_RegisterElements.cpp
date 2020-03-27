@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <type_traits>
@@ -9,6 +9,8 @@
 
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Helpers/IO/Observers/ObserverHelpers.hpp"
 #include "IO/Observer/Actions.hpp"  // IWYU pragma: keep
 #include "IO/Observer/ArrayComponentId.hpp"
 #include "IO/Observer/Initialize.hpp"         // IWYU pragma: keep
@@ -18,8 +20,6 @@
 #include "IO/Observer/TypeOfObservation.hpp"
 #include "Parallel/ArrayIndex.hpp"
 #include "Utilities/Gsl.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/IO/Observers/ObserverHelpers.hpp"
 
 namespace {
 // NOLINTNEXTLINE(google-build-using-namespace)
@@ -47,7 +47,8 @@ void check_observer_registration() {
   for (const auto& id : element_ids) {
     ActionTesting::emplace_component<element_comp>(&runner, id);
   }
-  runner.set_phase(metavariables::Phase::RegisterWithObservers);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::RegisterWithObservers);
 
   CHECK(
       ActionTesting::get_databox_tag<obs_component,
@@ -109,7 +110,8 @@ void check_observer_registration() {
           make_not_null(&runner), 0);
     }
   }
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   // Test registration occurred as expected
   CHECK(

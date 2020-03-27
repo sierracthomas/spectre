@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <random>
@@ -9,11 +9,11 @@
 #include "DataStructures/ComplexDataVector.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/ModalVector.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "Utilities/Gsl.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/GetFundamentalType.hpp"
 #include "Utilities/VectorAlgebra.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 template <typename RhsVectorType, typename LhsVectorType>
 void test_outer_product() {
@@ -43,7 +43,7 @@ void test_outer_product() {
 }
 
 template <typename VectorType>
-void test_repeat() {
+void test_n_copies() {
   MAKE_GENERATOR(gen);
   UniformCustomDistribution<size_t> size_distribution{5, 10};
   UniformCustomDistribution<
@@ -53,7 +53,7 @@ void test_repeat() {
       make_not_null(&gen), make_not_null(&element_distribution),
       size_distribution(gen));
   size_t repeats = size_distribution(gen);
-  const auto repeated = repeat(to_repeat, repeats);
+  const auto repeated = create_vector_of_n_copies(to_repeat, repeats);
   for (size_t i = 0; i < repeats; ++i) {
     for (size_t j = 0; j < to_repeat.size(); ++j) {
       CHECK(to_repeat[j] == repeated[j + i * to_repeat.size()]);
@@ -68,7 +68,7 @@ SPECTRE_TEST_CASE("Unit.DataStructures.VectorAlgebra",
   test_outer_product<ComplexDataVector, DataVector>();
   test_outer_product<DataVector, DataVector>();
 
-  test_repeat<DataVector>();
-  test_repeat<ComplexDataVector>();
-  test_repeat<ModalVector>();
+  test_n_copies<DataVector>();
+  test_n_copies<ComplexDataVector>();
+  test_n_copies<ModalVector>();
 }

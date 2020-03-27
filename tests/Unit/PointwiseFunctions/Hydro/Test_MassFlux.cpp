@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <string>
@@ -9,20 +9,25 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/Hydro/MassFlux.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 namespace hydro {
 namespace {
 template <size_t Dim, typename Frame, typename DataType>
 void test_mass_flux(const DataType& used_for_size) {
-  pypp::check_with_random_values<1>(&mass_flux<DataType, Dim, Frame>,
-                                    "TestFunctions", "mass_flux",
-                                    {{{-10.0, 10.0}}}, used_for_size);
+  pypp::check_with_random_values<1>(
+      static_cast<tnsr::I<DataType, Dim, Frame> (*)(
+          const Scalar<DataType>&, const tnsr::I<DataType, Dim, Frame>&,
+          const Scalar<DataType>&, const Scalar<DataType>&,
+          const tnsr::I<DataType, Dim, Frame>&,
+          const Scalar<DataType>&) noexcept>(&mass_flux<DataType, Dim, Frame>),
+      "TestFunctions", "mass_flux", {{{-10.0, 10.0}}}, used_for_size);
 }
 }  // namespace
 
@@ -46,8 +51,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.Hydro.MassFlux",
   test_mass_flux<3, Frame::Grid>(0.0);
 
   // Check compute item works correctly in DataBox
-  CHECK(Tags::MassFluxCompute<DataVector, 2, Frame::Inertial>::name() ==
-        "MassFlux");
+  TestHelpers::db::test_compute_tag<
+      Tags::MassFluxCompute<DataVector, 2, Frame::Inertial>>("MassFlux");
   Scalar<DataVector> rho{{{DataVector{5, 1.0}}}};
   tnsr::I<DataVector, 3> velocity{
       {{DataVector{5, 0.25}, DataVector{5, 0.1}, DataVector{5, 0.35}}}};

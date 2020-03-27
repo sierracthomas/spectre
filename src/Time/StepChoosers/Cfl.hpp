@@ -3,16 +3,16 @@
 
 #pragma once
 
+#include <cstddef>
 #include <limits>
 #include <pup.h>
 
-#include "Domain/MinimumGridSpacing.hpp"
+#include "DataStructures/DataBox/DataBox.hpp"
+#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/CharmPupable.hpp"
-#include "Parallel/ConstGlobalCache.hpp"
 #include "Time/StepChoosers/StepChooser.hpp"  // IWYU pragma: keep
 #include "Time/Tags.hpp"
-#include "Utilities/Registration.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
@@ -20,6 +20,13 @@ namespace Parallel {
 template <typename Metavariables>
 class ConstGlobalCache;
 }  // namespace Parallel
+namespace domain {
+namespace Tags {
+template <size_t Dim, typename Frame>
+struct MinimumGridSpacing;
+}  // namespace Tags
+}  // namespace domain
+// IWYU pragma: no_forward_declare db::DataBox
 /// \endcond
 
 namespace StepChoosers {
@@ -61,18 +68,20 @@ class Cfl : public StepChooser<StepChooserRegistrars> {
   explicit Cfl(const double safety_factor) noexcept
       : safety_factor_(safety_factor) {}
 
-  using argument_tags =
-      tmpl::list<Tags::MinimumGridSpacing<Dim, Frame>, Tags::DataBox>;
+  using argument_tags = tmpl::list<domain::Tags::MinimumGridSpacing<Dim, Frame>,
+                                   Tags::DataBox, Tags::TimeStepper<>>;
 
   template <typename Metavariables, typename DbTags>
   double operator()(
       const double minimum_grid_spacing, const db::DataBox<DbTags>& box,
-      const Parallel::ConstGlobalCache<Metavariables>& cache) const noexcept {
+      const db::const_item_type<Tags::TimeStepper<>, DbTags>& time_stepper,
+      const double /*last_step_magnitude*/,
+      const Parallel::ConstGlobalCache<Metavariables>& /*cache*/) const
+      noexcept {
     using compute_largest_characteristic_speed =
         typename Metavariables::system::compute_largest_characteristic_speed;
     const double speed = db::apply<compute_largest_characteristic_speed>(box);
-    const double time_stepper_stability_factor =
-        Parallel::get<Tags::TimeStepperBase>(cache).stable_step();
+    const double time_stepper_stability_factor = time_stepper.stable_step();
 
     return safety_factor_ * time_stepper_stability_factor *
            minimum_grid_spacing / speed;

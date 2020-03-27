@@ -3,11 +3,7 @@
 
 set(executable RunTests)
 
-set(SPECTRE_TESTS
-  "Test_ActionTesting.cpp"
-  "Test_TestHelpers.cpp"
-  "Test_TestingFramework.cpp"
-  )
+set(SPECTRE_TESTS)
 
 set(SPECTRE_COMPILATION_TESTS "TestCompilationFramework.cpp")
 
@@ -21,6 +17,8 @@ add_subdirectory(Domain)
 add_subdirectory(Elliptic)
 add_subdirectory(ErrorHandling)
 add_subdirectory(Evolution)
+add_subdirectory(Framework)
+add_subdirectory(Helpers)
 add_subdirectory(IO)
 add_subdirectory(Informer)
 add_subdirectory(NumericalAlgorithms)
@@ -28,10 +26,9 @@ add_subdirectory(Options)
 add_subdirectory(Parallel)
 add_subdirectory(ParallelAlgorithms)
 add_subdirectory(PointwiseFunctions)
-add_subdirectory(Pypp)
-add_subdirectory(TestUtilities)
 add_subdirectory(Time)
 add_subdirectory(Utilities)
+add_subdirectory(Visualization)
 
 add_charm_module(${executable})
 
@@ -56,7 +53,17 @@ add_spectre_executable(
 
 target_link_libraries(
   ${executable}
+  PRIVATE
   ${SPECTRE_TESTS_LIBRARIES}
+  Boost::boost
+  # Link against Boost::program_options for now until we have proper
+  # dependency handling for header-only libs
+  Boost::program_options
+  ErrorHandling
+  Framework
+  Informer
+  Options
+  Utilities
   ${SPECTRE_LIBRARIES}
   )
 
@@ -73,7 +80,15 @@ target_include_directories(
   PUBLIC ${PYTHON_INCLUDE_DIRS}
   )
 
-add_dependencies(test-executables ${executable})
+option(
+  RUN_TESTS_IN_TEST_EXECUTABLES
+  "Build RunTests as part of test-executables"
+  ON
+  )
+
+if (RUN_TESTS_IN_TEST_EXECUTABLES)
+  add_dependencies(test-executables ${executable})
+endif (RUN_TESTS_IN_TEST_EXECUTABLES)
 
 spectre_add_catch_tests(${executable} "${SPECTRE_TESTS_LIBRARIES}")
 

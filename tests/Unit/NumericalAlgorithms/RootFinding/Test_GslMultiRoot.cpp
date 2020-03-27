@@ -1,16 +1,16 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <string>
 #include <vector>
 
 #include "ErrorHandling/Exceptions.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "NumericalAlgorithms/RootFinding/GslMultiRoot.hpp"
 #include "Utilities/GetOutput.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
@@ -19,7 +19,7 @@ namespace {
 // f_2 (x0, x1) = b (x1 - x0**2)
 class Rosenbrock {
  public:
-  Rosenbrock(const double& a, const double& b) : a_(a), b_(b) {}
+  Rosenbrock(const double a, const double b) : a_(a), b_(b) {}
   std::array<double, 2> operator()(const std::array<double, 2>& x) const
       noexcept {
     const double y0 = a_ * (1.0 - x[0]);
@@ -38,7 +38,7 @@ class Rosenbrock {
 
 class RosenbrockNoJac {
  public:
-  RosenbrockNoJac(const double& a, const double& b) : a_(a), b_(b) {}
+  RosenbrockNoJac(const double a, const double b) : a_(a), b_(b) {}
   std::array<double, 2> operator()(const std::array<double, 2>& x) const
       noexcept {
     const double y0 = a_ * (1.0 - x[0]);
@@ -55,7 +55,7 @@ class RosenbrockNoJac {
 // f_2 (x0, x1) = a*x0 + b*x1 + c
 class BadFunction {
  public:
-  BadFunction(const double& a, const double& b, const double& c)
+  BadFunction(const double a, const double b, const double c)
       : a_(a), b_(b), c_(c) {}
   std::array<double, 2> operator()(const std::array<double, 2>& x) const
       noexcept {

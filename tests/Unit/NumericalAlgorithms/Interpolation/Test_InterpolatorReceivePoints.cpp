@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <boost/optional/optional_io.hpp>
@@ -20,6 +20,7 @@
 #include "Domain/Creators/Shell.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/Interpolation/InitializeInterpolationTarget.hpp"
 #include "NumericalAlgorithms/Interpolation/InitializeInterpolator.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Interpolation/InterpolatedVars.hpp"
@@ -37,7 +38,6 @@
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <boost/variant/get.hpp>
 
@@ -110,7 +110,7 @@ struct mock_interpolation_target {
   using component_being_mocked =
       intrp::InterpolationTarget<Metavariables, InterpolationTargetTag>;
   using const_global_cache_tags =
-      tmpl::list<::Tags::Domain<Metavariables::volume_dim, Frame::Inertial>>;
+      tmpl::list<domain::Tags::Domain<Metavariables::volume_dim>>;
 
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
@@ -168,16 +168,17 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.ReceivePoints",
                                 typename metavars::InterpolationTargetA>;
   using interp_component = mock_interpolator<metavars>;
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{7, 7}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{7, 7}}, false);
 
   ActionTesting::MockRuntimeSystem<metavars> runner{
       {domain_creator.create_domain()}};
-  runner.set_phase(metavars::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Initialization);
   ActionTesting::emplace_component<interp_component>(&runner, 0);
   ActionTesting::next_action<interp_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<target_component>(&runner, 0);
   ActionTesting::next_action<target_component>(make_not_null(&runner), 0);
-  runner.set_phase(metavars::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner), metavars::Phase::Testing);
 
   // Make sure that we have one Element registered,
   // or else ReceivePoints will (correctly) do nothing because it

@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <array>
-#include <blaze/math/typetraits/IsVector.h>  // IWYU pragma: keep
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -21,6 +20,9 @@
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/GetFundamentalType.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
+#include "Utilities/TypeTraits/IsInteger.hpp"
 
 // IWYU pragma: no_include "DataStructures/DataVector.hpp"
 
@@ -405,7 +407,10 @@ namespace cpp17 {
 /// \ingroup ConstantExpressionsGroup
 /// \brief Returns a const reference to its argument.
 template <typename T>
-constexpr const T& as_const(const T& t) noexcept {
+constexpr std::add_const_t<T>& as_const(T& t) noexcept {
   return t;
 }
+
+template <typename T>
+void as_const(const T&& t) noexcept = delete;
 }  // namespace cpp17

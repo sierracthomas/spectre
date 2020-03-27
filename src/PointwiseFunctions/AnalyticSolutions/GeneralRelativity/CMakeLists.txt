@@ -4,6 +4,7 @@
 set(LIBRARY GeneralRelativitySolutions)
 
 set(LIBRARY_SOURCES
+    GaugeWave.cpp
     KerrHorizon.cpp
     KerrSchild.cpp
     Minkowski.cpp
@@ -15,9 +16,12 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
-  INTERFACE GeneralRelativity
-  INTERFACE Interpolation
-  INTERFACE RelativisticEulerSolutions
+  PUBLIC
+  Boost::boost
+  DataStructures
+  ErrorHandling
+  GeneralRelativity
+  Interpolation
   )
+
+add_subdirectory(Python)

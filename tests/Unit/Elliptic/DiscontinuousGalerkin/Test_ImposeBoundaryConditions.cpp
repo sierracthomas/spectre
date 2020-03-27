@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -15,13 +15,16 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Direction.hpp"
 #include "Domain/Element.hpp"
 #include "Domain/ElementId.hpp"
@@ -32,22 +35,21 @@
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
 #include "Elliptic/DiscontinuousGalerkin/ImposeBoundaryConditions.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/FluxCommunicationTypes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "NumericalAlgorithms/Spectral/Projection.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
-#include "ParallelAlgorithms/LinearSolver/Tags.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/StdHelpers.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <boost/functional/hash/extensions.hpp>
 
-// IWYU pragma: no_include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleBoundaryData.hpp"
+// IWYU pragma: no_include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleMortarData.hpp"
 // IWYU pragma: no_include "Parallel/PupStlCpp11.hpp"
 
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
@@ -65,35 +67,31 @@ namespace {
 constexpr size_t Dim = 2;
 
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; }
   using type = int;
   template <typename Tag>
   using step_prefix = Tags::dt<Tag>;
 };
 
 struct ScalarField : db::SimpleTag {
-  static std::string name() noexcept { return "ScalarField"; }
   using type = Scalar<DataVector>;
 };
 
-using field_tag = LinearSolver::Tags::Operand<ScalarField>;
+using field_tag = ScalarField;
 using vars_tag = Tags::Variables<tmpl::list<field_tag>>;
 
 struct OtherData : db::SimpleTag {
-  static std::string name() noexcept { return "OtherData"; }
   using type = Scalar<DataVector>;
 };
 
 class NumericalFlux {
  public:
   struct ExtraData : db::SimpleTag {
-    static std::string name() noexcept { return "ExtraTag"; }
     using type = tnsr::I<DataVector, 1>;
   };
 
   using argument_tags =
       tmpl::list<Tags::NormalDotFlux<field_tag>, OtherData,
-                 Tags::Normalized<Tags::UnnormalizedFaceNormal<Dim>>>;
+                 Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<Dim>>>;
 
   using package_tags = tmpl::list<ExtraData, field_tag>;
 
@@ -121,31 +119,32 @@ struct NumericalFluxTag {
 struct System {
   static constexpr const size_t volume_dim = Dim;
   using variables_tag = vars_tag;
-  using primal_fields = tmpl::list<ScalarField>;
+  using primal_variables = tmpl::list<ScalarField>;
 
   template <typename Tag>
   using magnitude_tag = Tags::EuclideanMagnitude<Tag>;
 };
 
 template <typename Tag>
-using interface_tag = Tags::Interface<Tags::InternalDirections<Dim>, Tag>;
+using interface_tag =
+    domain::Tags::Interface<domain::Tags::InternalDirections<Dim>, Tag>;
 template <typename Tag>
 using interface_compute_tag =
-    Tags::InterfaceCompute<Tags::InternalDirections<Dim>, Tag>;
+    domain::Tags::InterfaceCompute<domain::Tags::InternalDirections<Dim>, Tag>;
 
 template <typename Tag>
 using boundary_tag =
-    Tags::Interface<Tags::BoundaryDirectionsInterior<Dim>, Tag>;
+    domain::Tags::Interface<domain::Tags::BoundaryDirectionsInterior<Dim>, Tag>;
 template <typename Tag>
-using boundary_compute_tag =
-    Tags::InterfaceCompute<Tags::BoundaryDirectionsInterior<Dim>, Tag>;
+using boundary_compute_tag = domain::Tags::InterfaceCompute<
+    domain::Tags::BoundaryDirectionsInterior<Dim>, Tag>;
 
 template <typename Tag>
 using exterior_boundary_tag =
-    Tags::Interface<Tags::BoundaryDirectionsExterior<Dim>, Tag>;
+    domain::Tags::Interface<domain::Tags::BoundaryDirectionsExterior<Dim>, Tag>;
 template <typename Tag>
-using exterior_boundary_compute_tag =
-    Tags::InterfaceCompute<Tags::BoundaryDirectionsExterior<Dim>, Tag>;
+using exterior_boundary_compute_tag = domain::Tags::InterfaceCompute<
+    domain::Tags::BoundaryDirectionsExterior<Dim>, Tag>;
 
 template <typename FluxCommTypes>
 using mortar_data_tag = typename FluxCommTypes::simple_mortar_data_tag;
@@ -175,7 +174,7 @@ using bdry_other_data_tag =
 using exterior_bdry_other_data_tag =
     exterior_boundary_tag<Tags::Variables<tmpl::list<OtherData>>>;
 using mortar_next_temporal_ids_tag = Tags::Mortars<Tags::Next<TemporalId>, Dim>;
-using mortar_meshes_tag = Tags::Mortars<Tags::Mesh<Dim - 1>, Dim>;
+using mortar_meshes_tag = Tags::Mortars<domain::Tags::Mesh<Dim - 1>, Dim>;
 using mortar_sizes_tag = Tags::Mortars<Tags::MortarSize<Dim - 1>, Dim>;
 
 template <typename Metavariables>
@@ -187,8 +186,8 @@ struct ElementArray {
 
   using flux_comm_types = dg::FluxCommunicationTypes<Metavariables>;
   using simple_tags = db::AddSimpleTags<
-      TemporalId, Tags::Next<TemporalId>, Tags::Mesh<Dim>, Tags::Element<Dim>,
-      Tags::ElementMap<Dim>, bdry_vars_tag,
+      TemporalId, Tags::Next<TemporalId>, domain::Tags::Mesh<Dim>,
+      domain::Tags::Element<Dim>, domain::Tags::ElementMap<Dim>, bdry_vars_tag,
       bdry_normal_dot_fluxes_tag<flux_comm_types>, bdry_other_data_tag,
       exterior_bdry_normal_dot_fluxes_tag<flux_comm_types>,
       exterior_bdry_other_data_tag, exterior_bdry_vars_tag,
@@ -196,23 +195,24 @@ struct ElementArray {
       mortar_meshes_tag, mortar_sizes_tag>;
 
   using compute_tags = db::AddComputeTags<
-      Tags::BoundaryDirectionsInterior<Dim>,
-      boundary_compute_tag<Tags::Direction<Dim>>,
-      boundary_compute_tag<Tags::InterfaceMesh<Dim>>,
-      boundary_compute_tag<Tags::UnnormalizedFaceNormalCompute<Dim>>,
+      domain::Tags::BoundaryDirectionsInterior<Dim>,
+      boundary_compute_tag<domain::Tags::Direction<Dim>>,
+      boundary_compute_tag<domain::Tags::InterfaceMesh<Dim>>,
+      boundary_compute_tag<domain::Tags::UnnormalizedFaceNormalCompute<Dim>>,
       boundary_compute_tag<
-          Tags::EuclideanMagnitude<Tags::UnnormalizedFaceNormal<Dim>>>,
+          Tags::EuclideanMagnitude<domain::Tags::UnnormalizedFaceNormal<Dim>>>,
       boundary_compute_tag<
-          Tags::NormalizedCompute<Tags::UnnormalizedFaceNormal<Dim>>>,
-      Tags::BoundaryDirectionsExterior<Dim>,
-      exterior_boundary_compute_tag<Tags::Direction<Dim>>,
-      exterior_boundary_compute_tag<Tags::InterfaceMesh<Dim>>,
-      exterior_boundary_compute_tag<Tags::BoundaryCoordinates<Dim>>,
-      exterior_boundary_compute_tag<Tags::UnnormalizedFaceNormalCompute<Dim>>,
+          Tags::NormalizedCompute<domain::Tags::UnnormalizedFaceNormal<Dim>>>,
+      domain::Tags::BoundaryDirectionsExterior<Dim>,
+      exterior_boundary_compute_tag<domain::Tags::Direction<Dim>>,
+      exterior_boundary_compute_tag<domain::Tags::InterfaceMesh<Dim>>,
+      exterior_boundary_compute_tag<domain::Tags::BoundaryCoordinates<Dim>>,
       exterior_boundary_compute_tag<
-          Tags::EuclideanMagnitude<Tags::UnnormalizedFaceNormal<Dim>>>,
+          domain::Tags::UnnormalizedFaceNormalCompute<Dim>>,
       exterior_boundary_compute_tag<
-          Tags::NormalizedCompute<Tags::UnnormalizedFaceNormal<Dim>>>>;
+          Tags::EuclideanMagnitude<domain::Tags::UnnormalizedFaceNormal<Dim>>>,
+      exterior_boundary_compute_tag<
+          Tags::NormalizedCompute<domain::Tags::UnnormalizedFaceNormal<Dim>>>>;
 
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
@@ -383,7 +383,8 @@ SPECTRE_TEST_CASE("Unit.Elliptic.DG.Actions.BoundaryConditions",
          std::move(mortar_history), std::move(mortar_next_temporal_ids),
          std::move(mortar_meshes), std::move(mortar_sizes)});
   }
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   using additional_tags = tmpl::append<typename my_component::simple_tags,
                                        typename my_component::compute_tags>;

@@ -13,9 +13,23 @@
 #include "Options/Options.hpp"
 #include "Utilities/TMPL.hpp"
 
+/// \cond
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+template <size_t VolumeDim>
+class DiscreteRotation;
+template <typename Map1, typename Map2>
+class ProductOf2Maps;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
+/// \endcond
+
 namespace domain {
 namespace creators {
-
 /// Create a 2D Domain consisting of four rotated Blocks.
 /// - The lower left block has its logical \f$\xi\f$-axis aligned with
 /// the grid x-axis.
@@ -31,9 +45,18 @@ namespace creators {
 ///
 /// This DomainCreator is useful for testing code that deals with
 /// unaligned blocks.
-template <typename TargetFrame>
-class RotatedRectangles : public DomainCreator<2, TargetFrame> {
+class RotatedRectangles : public DomainCreator<2> {
  public:
+  using maps_list = tmpl::list<
+      domain::CoordinateMap<
+          Frame::Logical, Frame::Inertial,
+          CoordinateMaps::ProductOf2Maps<CoordinateMaps::Affine,
+                                         CoordinateMaps::Affine>>,
+      domain::CoordinateMap<
+          Frame::Logical, Frame::Inertial, CoordinateMaps::DiscreteRotation<2>,
+          CoordinateMaps::ProductOf2Maps<CoordinateMaps::Affine,
+                                         CoordinateMaps::Affine>>>;
+
   struct LowerBound {
     using type = std::array<double, 2>;
     static constexpr OptionString help = {
@@ -96,7 +119,7 @@ class RotatedRectangles : public DomainCreator<2, TargetFrame> {
   RotatedRectangles& operator=(RotatedRectangles&&) noexcept = default;
   ~RotatedRectangles() override = default;
 
-  Domain<2, TargetFrame> create_domain() const noexcept override;
+  Domain<2> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, 2>> initial_extents() const noexcept override;
 

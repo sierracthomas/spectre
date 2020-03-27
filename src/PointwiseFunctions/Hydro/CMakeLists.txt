@@ -9,6 +9,7 @@ set(LIBRARY_SOURCES
   EquationsOfState/PolytropicFluid.cpp
   LorentzFactor.cpp
   MassFlux.cpp
+  SoundSpeedSquared.cpp
   SpecificEnthalpy.cpp
   )
 
@@ -16,6 +17,13 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
+  PUBLIC
+  Boost::boost
+  DataStructures
+  ErrorHandling
+  Options
   )
+
+if(BUILD_PYTHON_BINDINGS)
+  add_subdirectory(EquationsOfState/Python)
+endif()

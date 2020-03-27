@@ -13,11 +13,12 @@ set(LIBRARY_SOURCES
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
-add_subdirectory(Sources)
-
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
+  PUBLIC DataStructures
   INTERFACE ErrorHandling
   INTERFACE Hydro
   )
+
+add_subdirectory(NumericalFluxes)
+add_subdirectory(Sources)

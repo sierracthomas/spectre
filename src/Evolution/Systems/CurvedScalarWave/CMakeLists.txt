@@ -4,13 +4,15 @@
 set(LIBRARY CurvedScalarWave)
 
 set(LIBRARY_SOURCES
-    Equations.cpp
-    )
+  Characteristics.cpp
+  Constraints.cpp
+  Equations.cpp
+  )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
+  PUBLIC DataStructures
   INTERFACE ErrorHandling
   )

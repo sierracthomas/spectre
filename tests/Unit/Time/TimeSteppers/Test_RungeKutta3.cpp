@@ -1,14 +1,14 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Time/TimeSteppers/TimeStepperTestUtils.hpp"
 #include "Parallel/PupStlCpp11.hpp"
 #include "Time/TimeSteppers/RungeKutta3.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Unit/Time/TimeSteppers/TimeStepperTestUtils.hpp"
 
 SPECTRE_TEST_CASE("Unit.Time.TimeSteppers.RungeKutta3", "[Unit][Time]") {
   const TimeSteppers::RungeKutta3 stepper{};
@@ -20,7 +20,7 @@ SPECTRE_TEST_CASE("Unit.Time.TimeSteppers.RungeKutta3", "[Unit][Time]") {
   TimeStepperTestUtils::check_convergence_order(stepper, 3);
   TimeStepperTestUtils::check_dense_output(stepper, 3);
 
-  test_factory_creation<TimeStepper>("  RungeKutta3");
+  TestHelpers::test_factory_creation<TimeStepper>("RungeKutta3");
   test_serialization(stepper);
   test_serialization_via_base<TimeStepper, TimeSteppers::RungeKutta3>();
   // test operator !=

@@ -4,13 +4,17 @@
 set(LIBRARY ScalarWave)
 
 set(LIBRARY_SOURCES
-    Equations.cpp
-    )
+  Characteristics.cpp
+  Constraints.cpp
+  Equations.cpp
+  )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
+  PUBLIC
+  DataStructures
+  ErrorHandling
+  Options
   )

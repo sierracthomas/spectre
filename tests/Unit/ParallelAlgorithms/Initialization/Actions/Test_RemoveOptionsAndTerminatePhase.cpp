@@ -1,14 +1,15 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 #include <tuple>
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/Actions/TerminatePhase.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "Parallel/ParallelComponentHelpers.hpp"
@@ -18,19 +19,16 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 struct TemporalId {};
 
 struct InitialTime : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "InitialTime"; }
 };
 
 struct InitialMass : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "InitialMass"; }
 };
 
 struct DummyTimeTag : db::SimpleTag {
@@ -41,7 +39,7 @@ struct DummyTimeTag : db::SimpleTag {
 template <typename Tag>
 struct TagMultiplyByTwo : db::ComputeTag {
   static std::string name() noexcept { return "MultiplyByTwo"; }
-  static double function(const double& t) noexcept { return t * 2.0; }
+  static double function(const double t) noexcept { return t * 2.0; }
   using argument_tags = tmpl::list<Tag>;
 };
 
@@ -134,7 +132,8 @@ SPECTRE_TEST_CASE(
   const double initial_mass = 2.1;
   ActionTesting::emplace_component<component>(&runner, 0, initial_time,
                                               initial_mass);
-  runner.set_phase(Metavariables::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Initialization);
   CHECK(ActionTesting::tag_is_retrievable<component, InitialTime>(runner, 0));
   CHECK(ActionTesting::tag_is_retrievable<component, InitialMass>(runner, 0));
   CHECK(not ActionTesting::tag_is_retrievable<component, DummyTimeTag>(runner,

@@ -7,7 +7,8 @@
 
 #include "DataStructures/ComplexDataVector.hpp"  // IWYU pragma: keep
 #include "DataStructures/ComplexModalVector.hpp"  // IWYU pragma: keep
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/SpinWeighted.hpp"  // IWYU pragma: keep
 #include "DataStructures/Tensor/Tensor.hpp"  // IWYU pragma: keep
 #include "DataStructures/Tensor/TypeAliases.hpp"  // IWYU pragma: keep
@@ -18,6 +19,10 @@
 
 namespace Spectral {
 namespace Swsh {
+/// \cond
+class SwshInterpolator;
+/// \endcond
+
 namespace Tags {
 
 /// \ingroup SwshGroup
@@ -103,6 +108,11 @@ std::string compose_spin_weighted_derivative_name(
 
 }  // namespace detail
 
+/// Convenience metafunction for accessing the tag from which a `Derivative` was
+/// derived.
+template <typename Tag>
+using derived_from = typename Tag::derived_from;
+
 /// \ingroup SwshGroup
 /// \brief Prefix tag representing the spin-weighted derivative of a
 /// spin-weighted scalar.
@@ -137,7 +147,7 @@ struct Derivative : db::PrefixTag, db::SimpleTag {
   const static int spin = type::type::spin;
   static std::string name() noexcept {
     return detail::compose_spin_weighted_derivative_name<DerivativeKind>(
-        Tag::name());
+        db::tag_name<Tag>());
   }
 };
 
@@ -168,25 +178,51 @@ struct SwshTransform : db::PrefixTag, db::SimpleTag {
   using transform_of = Tag;
   const static int spin = type::type::spin;
   static std::string name() noexcept {
-    return "SwshTransform(" + Tag::name() + ")";
+    return "SwshTransform(" + db::tag_name<Tag>() + ")";
   }
 };
 
 /// \ingroup SwshGroup
+/// \brief Base Tag for the maximum spin-weighted spherical harmonic l; sets
+/// angular resolution.
+struct LMaxBase : db::BaseTag {};
+
+/// \ingroup SwshGroup
 /// \brief Tag for the maximum spin-weighted spherical harmonic l; sets angular
 /// resolution.
-struct LMax : db::SimpleTag {
+struct LMax : db::SimpleTag, LMaxBase {
   using type = size_t;
-  static std::string name() noexcept { return "LMax"; }
 };
+
+/// \ingroup SwshGroup
+/// \brief Base Tag for the number of radial grid points in the
+/// three-dimensional representation of radially concentric spherical shells.
+struct NumberOfRadialPointsBase : db::BaseTag {};
 
 /// \ingroup SwshGroup
 /// \brief Tag for the number of radial grid points in the three-dimensional
 /// representation of radially concentric spherical shells
-struct NumberOfRadialPoints : db::SimpleTag {
+struct NumberOfRadialPoints : db::SimpleTag, NumberOfRadialPointsBase {
   using type = size_t;
-  static std::string name() noexcept { return "NumberOfRadialPoints"; }
 };
+
+/// \ingroup SwshGroup
+/// \brief Tag for a SwshInterpolator associated with a particular set
+/// of angular coordinates.
+///
+/// \details It is recommended to use this to store a `SwshInterpolator` in the
+/// \ref DataBoxGroup of a parallel component, as interpolations can be
+/// significantly faster if they don't have to re-construct the
+/// `SwhsInterpolator` as frequently.
+template <typename Tag>
+struct SwshInterpolator : db::SimpleTag, db::PrefixTag {
+  using tag = Tag;
+  using type = ::Spectral::Swsh::SwshInterpolator;
+  static std::string name() noexcept {
+    return "SwshInterpolator(" + db::tag_name<Tag>() + ")";
+  }
+};
+
 }  // namespace Tags
 
 namespace detail {

@@ -1,14 +1,15 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
-#include "DataStructures/Variables.hpp"
+#include "DataStructures/VariablesTag.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 
 class DataVector;
@@ -27,40 +28,36 @@ struct TensorTag : db::SimpleTag {
 SPECTRE_TEST_CASE("Unit.DataStructures.DataBox.Prefixes",
                   "[Unit][DataStructures]") {
   /// [dt_name]
-  CHECK(db::tag_name<Tags::dt<Tag>>() == "dt(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::dt<Tag>>("dt(Tag)");
   /// [dt_name]
   /// [analytic_name]
-  CHECK(db::tag_name<Tags::Analytic<Tag>>() ==
-        "Analytic(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::Analytic<Tag>>("Analytic(Tag)");
   /// [analytic_name]
   using Dim = tmpl::size_t<2>;
   using Frame = Frame::Inertial;
   using VariablesTag = Tags::Variables<tmpl::list<TensorTag>>;
   /// [flux_name]
-  CHECK(db::tag_name<Tags::Flux<TensorTag, Dim, Frame>>() ==
-        "Flux(" + db::tag_name<TensorTag>() + ")");
-  CHECK(db::tag_name<Tags::Flux<VariablesTag, Dim, Frame>>() ==
-        "Flux(" + db::tag_name<VariablesTag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::Flux<TensorTag, Dim, Frame>>(
+      "Flux(TensorTag)");
+  TestHelpers::db::test_prefix_tag<Tags::Flux<VariablesTag, Dim, Frame>>(
+      "Flux(Variables(TensorTag))");
   /// [flux_name]
   /// [source_name]
-  CHECK(db::tag_name<Tags::Source<Tag>>() ==
-        "Source(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::Source<Tag>>("Source(Tag)");
   /// [source_name]
-  CHECK(db::tag_name<Tags::FixedSource<Tag>>() ==
-        "FixedSource(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::FixedSource<Tag>>("FixedSource(Tag)");
   /// [initial_name]
-  CHECK(db::tag_name<Tags::Initial<Tag>>() ==
-        "Initial(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::Initial<Tag>>("Initial(Tag)");
   /// [initial_name]
   /// [normal_dot_flux_name]
-  CHECK(db::tag_name<Tags::NormalDotFlux<Tag>>() ==
-        "NormalDotFlux(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::NormalDotFlux<Tag>>(
+      "NormalDotFlux(Tag)");
   /// [normal_dot_flux_name]
   /// [normal_dot_numerical_flux_name]
-  CHECK(db::tag_name<Tags::NormalDotNumericalFlux<Tag>>() ==
-        "NormalDotNumericalFlux(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::NormalDotNumericalFlux<Tag>>(
+      "NormalDotNumericalFlux(Tag)");
   /// [normal_dot_numerical_flux_name]
   /// [next_name]
-  CHECK(db::tag_name<Tags::Next<Tag>>() == "Next(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_prefix_tag<Tags::Next<Tag>>("Next(Tag)");
   /// [next_name]
 }

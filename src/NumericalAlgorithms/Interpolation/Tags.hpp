@@ -10,10 +10,12 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/Mesh.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolatedVars.hpp"
+#include "Options/Options.hpp"
 #include "Utilities/TaggedTuple.hpp"
 
 /// \cond
@@ -39,9 +41,9 @@ struct InterpolationTargets {
 namespace Tags {
 
 /// Keeps track of which points have been filled with interpolated data.
+template <typename TemporalId>
 struct IndicesOfFilledInterpPoints : db::SimpleTag {
-  static std::string name() noexcept { return "IndicesOfFilledInterpPoints"; }
-  using type = std::unordered_set<size_t>;
+  using type = std::unordered_map<TemporalId, std::unordered_set<size_t>>;
 };
 
 /// Keeps track of points that cannot be filled with interpolated data.
@@ -50,25 +52,32 @@ struct IndicesOfFilledInterpPoints : db::SimpleTag {
 /// In most cases the correct action is to throw an error, but in other
 /// cases one might wish to fill these points with a default value or
 /// take some other action.
+template <typename TemporalId>
 struct IndicesOfInvalidInterpPoints : db::SimpleTag {
-  static std::string name() noexcept { return "IndicesOfInvalidInterpPoints"; }
-  using type = std::unordered_set<size_t>;
+  using type = std::unordered_map<TemporalId, std::unordered_set<size_t>>;
 };
 
 /// `temporal_id`s on which to interpolate.
-template <typename Metavariables>
+template <typename TemporalId>
 struct TemporalIds : db::SimpleTag {
-  using type = std::deque<typename Metavariables::temporal_id::type>;
-  static std::string name() noexcept { return "TemporalIds"; }
+  using type = std::deque<TemporalId>;
 };
 
 /// `temporal_id`s that we have already interpolated onto.
 ///  This is used to prevent problems with multiple late calls to
 ///  AddTemporalIdsToInterpolationTarget.
-template <typename Metavariables>
+template <typename TemporalId>
 struct CompletedTemporalIds : db::SimpleTag {
-  using type = std::deque<typename Metavariables::temporal_id::type>;
-  static std::string name() noexcept { return "CompletedTemporalIds"; }
+  using type = std::deque<TemporalId>;
+};
+
+/// Holds interpolated variables on an InterpolationTarget.
+template <typename InterpolationTargetTag, typename TemporalId>
+struct InterpolatedVars : db::SimpleTag {
+  using type = std::unordered_map<
+      TemporalId,
+      Variables<
+          typename InterpolationTargetTag::vars_to_interpolate_to_target>>;
 };
 
 /// Volume variables at all `temporal_id`s for all local `Element`s.
@@ -86,7 +95,6 @@ struct VolumeVarsInfo : db::SimpleTag {
   using type = std::unordered_map<
       typename Metavariables::temporal_id::type,
       std::unordered_map<ElementId<Metavariables::volume_dim>, Info>>;
-  static std::string name() noexcept { return "VolumeVarsInfo"; }
 };
 
 namespace holders_detail {
@@ -106,12 +114,10 @@ struct InterpolatedVarsHolders : db::SimpleTag {
   using type = tuples::tagged_tuple_from_typelist<db::wrap_tags_in<
       holders_detail::WrappedHolderTag,
       typename Metavariables::interpolation_target_tags, Metavariables>>;
-  static std::string name() noexcept { return "InterpolatedVarsHolders"; }
 };
 
 /// Number of local `Element`s.
 struct NumberOfElements : db::SimpleTag {
-  static std::string name() noexcept { return "NumberOfElements"; }
   using type = size_t;
 };
 

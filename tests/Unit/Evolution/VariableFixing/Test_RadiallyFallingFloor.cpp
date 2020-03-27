@@ -1,16 +1,16 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cmath>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/VariableFixing/RadiallyFallingFloor.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Utilities/Gsl.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
@@ -46,11 +46,11 @@ SPECTRE_TEST_CASE("Unit.Evolution.VariableFixing.RadiallyFallingFloor",
   test_serialization(variable_fixer);
 
   const auto fixer_from_options =
-      test_creation<VariableFixing::RadiallyFallingFloor<3>>(
-          "  MinimumRadius: 1.e-4\n"
-          "  ScaleDensityFloor: 1.e-5\n"
-          "  PowerDensityFloor: -1.5\n"
-          "  ScalePressureFloor: 0.33333333333333333e-7\n"
-          "  PowerPressureFloor: -2.5\n");
+      TestHelpers::test_creation<VariableFixing::RadiallyFallingFloor<3>>(
+          "MinimumRadius: 1.e-4\n"
+          "ScaleDensityFloor: 1.e-5\n"
+          "PowerDensityFloor: -1.5\n"
+          "ScalePressureFloor: 0.33333333333333333e-7\n"
+          "PowerPressureFloor: -2.5\n");
   test_variable_fixer(fixer_from_options);
 }

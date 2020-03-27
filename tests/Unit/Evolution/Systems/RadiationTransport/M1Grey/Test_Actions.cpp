@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <boost/variant/get.hpp> // IWYU pragma: keep
@@ -13,13 +13,13 @@
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
 #include "Evolution/Systems/RadiationTransport/M1Grey/M1Closure.hpp"
 #include "Evolution/Systems/RadiationTransport/M1Grey/Tags.hpp"  // IWYU pragma: keep
-#include "Evolution/Systems/RadiationTransport/M1Grey/UpdateM1Closure.hpp"  // IWYU pragma: keep
 #include "Evolution/Systems/RadiationTransport/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
+#include "ParallelAlgorithms/Actions/MutateApply.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
@@ -35,14 +35,16 @@ struct mock_component {
       typename Metavariables::neutrino_species>;
   using simple_tags = db::AddSimpleTags<tmpl::flatten<
       tmpl::list<typename Closure::return_tags, typename Closure::argument_tags,
-                 Tags::Coordinates<3, Frame::Inertial>>>>;
+                 domain::Tags::Coordinates<3, Frame::Inertial>>>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<ActionTesting::InitializeDataBox<simple_tags>>>,
-      Parallel::PhaseActions<typename Metavariables::Phase,
-                             Metavariables::Phase::Testing,
-                             tmpl::list<Actions::UpdateM1Closure>>>;
+      Parallel::PhaseActions<
+          typename Metavariables::Phase, Metavariables::Phase::Testing,
+          tmpl::list<Actions::MutateApply<
+              typename RadiationTransport::M1Grey::ComputeM1Closure<
+                  typename metavariables::neutrino_species>>>>>;
 };
 
 struct Metavariables {
@@ -109,7 +111,8 @@ SPECTRE_TEST_CASE("Unit.RadiationTransport.M1Grey.Actions", "[Unit][M1Grey]") {
        tnsr::I<DataVector, 3, Frame::Inertial>{{{vx, vy, vz}}},
        Scalar<DataVector>{W}, metric, inverse_metric,
        tnsr::I<DataVector, 3, Frame::Inertial>{{{x, y, z}}}});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   runner.next_action<component>(0);
 

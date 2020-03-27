@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <string>
@@ -9,14 +9,15 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"
 #include "Evolution/Actions/ComputeVolumeFluxes.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <unordered_map>
 
@@ -28,12 +29,10 @@ namespace {
 constexpr size_t dim = 2;
 
 struct Var1 : db::SimpleTag {
-  static std::string name() noexcept { return "Var1"; }
   using type = Scalar<double>;
 };
 
 struct Var2 : db::SimpleTag {
-  static std::string name() noexcept { return "Var2"; }
   using type = tnsr::I<double, dim, Frame::Inertial>;
 };
 
@@ -92,7 +91,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.ComputeVolumeFluxes",
       &runner, self_id,
       {db::item_type<Var1>{{{3.}}}, db::item_type<Var2>{{{7., 12.}}},
        db::item_type<flux_tag>{{{-100.}}}});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
   runner.next_action<component<Metavariables>>(self_id);
 
   auto& box = ActionTesting::get_databox<component<Metavariables>, simple_tags>(

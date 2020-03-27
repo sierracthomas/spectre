@@ -13,6 +13,7 @@ set(LIBRARY_SOURCES
     Frustum.cpp
     Identity.cpp
     Rotation.cpp
+    RotationTimeDep.cpp
     SpecialMobius.cpp
     Translation.cpp
     Wedge2D.cpp
@@ -23,7 +24,12 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE Domain
-  INTERFACE ErrorHandling
+  PUBLIC
+  Boost::boost
+  DataStructures
+  ErrorHandling
+  FunctionsOfTime
+
+  INTERFACE
+  Domain  # Domain should really be PUBLIC but there are cyclic dependencies
   )

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -15,6 +15,11 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/SmoothFlow.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
@@ -23,11 +28,6 @@
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <vector>
 // IWYU pragma: no_include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Minkowski.hpp"
@@ -68,12 +68,12 @@ struct SmoothFlowProxy : grmhd::Solutions::SmoothFlow {
 };
 
 void test_create_from_options() noexcept {
-  const auto flow = test_creation<grmhd::Solutions::SmoothFlow>(
-      "  MeanVelocity: [0.1, -0.2, 0.3]\n"
-      "  WaveVector: [-0.13, -0.54, 0.04]\n"
-      "  Pressure: 1.23\n"
-      "  AdiabaticIndex: 1.4\n"
-      "  PerturbationSize: 0.75");
+  const auto flow = TestHelpers::test_creation<grmhd::Solutions::SmoothFlow>(
+      "MeanVelocity: [0.1, -0.2, 0.3]\n"
+      "WaveVector: [-0.13, -0.54, 0.04]\n"
+      "Pressure: 1.23\n"
+      "AdiabaticIndex: 1.4\n"
+      "PerturbationSize: 0.75");
   CHECK(flow == grmhd::Solutions::SmoothFlow({{0.1, -0.2, 0.3}},
                                              {{-0.13, -0.54, 0.04}}, 1.23, 1.4,
                                              0.75));
@@ -163,8 +163,8 @@ void test_solution() noexcept {
   const std::array<double, 3> x{{4.0, 4.0, 4.0}};
   const std::array<double, 3> dx{{1.e-3, 1.e-3, 1.e-3}};
 
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{4, 4, 4}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{4, 4, 4}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

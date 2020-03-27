@@ -17,6 +17,8 @@
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Deferred.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
+#include "DataStructures/DataBox/TagTraits.hpp"
 #include "ErrorHandling/Error.hpp"
 #include "ErrorHandling/StaticAssert.hpp"
 #include "Utilities/ForceInline.hpp"
@@ -26,6 +28,9 @@
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/CreateIsCallable.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
+#include "Utilities/TypeTraits/IsCallable.hpp"
 
 // IWYU pragma: no_forward_declare brigand::get_destination
 // IWYU pragma: no_forward_declare brigand::get_source
@@ -60,13 +65,18 @@ struct is_databox<DataBox<tmpl::list<Tags...>>> : std::true_type {};
 /// \endcond
 // @}
 
+// @{
 /// \ingroup DataBoxGroup
 /// Equal to `true` if `Tag` can be retrieved from a `DataBox` of type
 /// `DataBoxType`.
 template <typename Tag, typename DataBoxType>
+using tag_is_retrievable = tmpl::any<typename DataBoxType::tags_list,
+                                     std::is_base_of<tmpl::pin<Tag>, tmpl::_1>>;
+
+template <typename Tag, typename DataBoxType>
 constexpr bool tag_is_retrievable_v =
-    tmpl::any<typename DataBoxType::tags_list,
-              std::is_base_of<tmpl::pin<Tag>, tmpl::_1>>::value;
+    tag_is_retrievable<Tag, DataBoxType>::value;
+// @}
 
 namespace DataBox_detail {
 template <class Tag, class Type>
@@ -497,7 +507,6 @@ class DataBox<tmpl::list<Tags...>>
                     tmpl::list<ComputeTags...> /*meta*/,
                     tmpl::list<FullComputeItems...> /*meta*/,
                     Args&&... args) noexcept;
-  /// \endcond
 
  private:
   template <typename... MutateTags, typename TagList, typename Invokable,
@@ -1524,6 +1533,7 @@ constexpr const Type& get_item_from_box(const DataBox<TagList>& box,
 
 namespace DataBox_detail {
 CREATE_IS_CALLABLE(apply)
+CREATE_IS_CALLABLE_V(apply)
 
 template <typename TagsList>
 struct Apply;

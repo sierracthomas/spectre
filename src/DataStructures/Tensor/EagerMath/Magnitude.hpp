@@ -6,9 +6,12 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/DotProduct.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Utilities/ContainerHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 
 /*!
@@ -25,6 +28,7 @@ Scalar<DataType> magnitude(
   return Scalar<DataType>{sqrt(get(dot_product(vector, vector)))};
 }
 
+// @{
 /*!
  * \ingroup TensorGroup
  * \brief Compute the magnitude of a rank-1 tensor
@@ -39,8 +43,22 @@ Scalar<DataType> magnitude(
     const Tensor<DataType, Symmetry<1, 1>,
                  index_list<change_index_up_lo<Index>,
                             change_index_up_lo<Index>>>& metric) noexcept {
-  return Scalar<DataType>{sqrt(get(dot_product(vector, vector, metric)))};
+  Scalar<DataType> local_magnitude{get_size(get<0>(vector))};
+  magnitude(make_not_null(&local_magnitude), vector, metric);
+  return local_magnitude;
 }
+
+template <typename DataType, typename Index>
+void magnitude(
+    const gsl::not_null<Scalar<DataType>*> magnitude,
+    const Tensor<DataType, Symmetry<1>, index_list<Index>>& vector,
+    const Tensor<DataType, Symmetry<1, 1>,
+                 index_list<change_index_up_lo<Index>,
+                            change_index_up_lo<Index>>>& metric) noexcept {
+  dot_product(magnitude, vector, vector, metric);
+  get(*magnitude) = sqrt(get(*magnitude));
+}
+// @}
 
 /// \ingroup TensorGroup
 /// \brief Compute square root of the Euclidean magnitude of a rank-0 tensor
@@ -48,8 +66,7 @@ Scalar<DataType> magnitude(
 /// \details
 /// Computes the square root of the absolute value of the scalar.
 template <typename DataType>
-Scalar<DataType> sqrt_magnitude(
-    const Scalar<DataType>& input) noexcept {
+Scalar<DataType> sqrt_magnitude(const Scalar<DataType>& input) noexcept {
   return Scalar<DataType>{sqrt(abs(get(input)))};
 }
 
@@ -62,7 +79,7 @@ namespace Tags {
 template <typename Tag>
 struct Magnitude : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
-    return "Magnitude(" + Tag::name() + ")";
+    return "Magnitude(" + db::tag_name<Tag>() + ")";
   }
   using tag = Tag;
   using type = Scalar<DataVector>;
@@ -103,7 +120,7 @@ struct NonEuclideanMagnitude : Magnitude<Tag>, db::ComputeTag {
 template <typename Tag>
 struct Normalized : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
-    return "Normalized(" + Tag::name() + ")";
+    return "Normalized(" + db::tag_name<Tag>() + ")";
   }
   using tag = Tag;
   using type = db::const_item_type<Tag>;
@@ -137,7 +154,9 @@ struct NormalizedCompute : Normalized<Tag>, db::ComputeTag {
 /// \snippet Test_Magnitude.cpp sqrt_name
 template <typename Tag>
 struct Sqrt : db::ComputeTag {
-  static std::string name() noexcept { return "Sqrt(" + Tag::name() + ")"; }
+  static std::string name() noexcept {
+    return "Sqrt(" + db::tag_name<Tag>() + ")";
+  }
   static constexpr Scalar<DataVector> (*function)(
       const db::const_item_type<Tag>&) = sqrt_magnitude;
   using argument_tags = tmpl::list<Tag>;

@@ -1,13 +1,15 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <initializer_list>  // IWYU pragma: keep
 #include <memory>
 #include <pup.h>
 
 #include "DataStructures/DataBox/DataBox.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/PupStlCpp11.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Trigger.hpp"
@@ -18,8 +20,6 @@
 #include "Time/Triggers/SpecifiedSlabs.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <vector>
 
@@ -27,9 +27,9 @@ SPECTRE_TEST_CASE("Unit.Time.Triggers.SpecifiedSlabs", "[Unit][Time]") {
   using TriggerType = Trigger<tmpl::list<Triggers::Registrars::SpecifiedSlabs>>;
   Parallel::register_derived_classes_with_charm<TriggerType>();
 
-  const auto trigger = test_factory_creation<TriggerType>(
-      "  SpecifiedSlabs:\n"
-      "    Slabs: [3, 6, 8]");
+  const auto trigger = TestHelpers::test_factory_creation<TriggerType>(
+      "SpecifiedSlabs:\n"
+      "  Slabs: [3, 6, 8]");
 
   const auto sent_trigger = serialize_and_deserialize(trigger);
 

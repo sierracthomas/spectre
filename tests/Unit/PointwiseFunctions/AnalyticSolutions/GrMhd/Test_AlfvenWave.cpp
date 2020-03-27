@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -16,6 +16,11 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/AlfvenWave.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
@@ -24,11 +29,6 @@
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <vector>
 // IWYU pragma: no_include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Minkowski.hpp"
@@ -69,13 +69,13 @@ struct AlfvenWaveProxy : grmhd::Solutions::AlfvenWave {
 };
 
 void test_create_from_options() noexcept {
-  const auto wave = test_creation<grmhd::Solutions::AlfvenWave>(
-      "  WaveNumber: 2.2\n"
-      "  Pressure: 1.23\n"
-      "  RestMassDensity: 0.2\n"
-      "  AdiabaticIndex: 1.4\n"
-      "  BkgdMagneticField: [0.0, 0.0, 2.0]\n"
-      "  WaveMagneticField: [0.75, 0.0, 0.0]");
+  const auto wave = TestHelpers::test_creation<grmhd::Solutions::AlfvenWave>(
+      "WaveNumber: 2.2\n"
+      "Pressure: 1.23\n"
+      "RestMassDensity: 0.2\n"
+      "AdiabaticIndex: 1.4\n"
+      "BkgdMagneticField: [0.0, 0.0, 2.0]\n"
+      "WaveMagneticField: [0.75, 0.0, 0.0]");
   CHECK(wave == grmhd::Solutions::AlfvenWave(2.2, 1.23, 0.2, 1.4,
                                              {{0.0, 0.0, 2.0}},
                                              {{0.75, 0.0, 0.0}}));
@@ -172,8 +172,8 @@ void test_solution() noexcept {
   const std::array<double, 3> x{{1.0, 2.3, -0.4}};
   const std::array<double, 3> dx{{1.e-4, 1.e-4, 1.e-4}};
 
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{5, 5, 5}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{5, 5, 5}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

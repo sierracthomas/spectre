@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <string>
@@ -10,8 +10,11 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DenseVector.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/Convergence/HasConverged.hpp"
 #include "ParallelAlgorithms/LinearSolver/Gmres/ElementActions.hpp"  // IWYU pragma: keep
 #include "ParallelAlgorithms/LinearSolver/Gmres/InitializeElement.hpp"
@@ -19,7 +22,6 @@
 #include "Utilities/Literals.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <boost/variant/get.hpp>
 // IWYU pragma: no_forward_declare db::DataBox
@@ -28,7 +30,6 @@ namespace {
 
 struct VectorTag : db::SimpleTag {
   using type = DenseVector<double>;
-  static std::string name() noexcept { return "VectorTag"; }
 };
 
 using fields_tag = VectorTag;
@@ -90,7 +91,8 @@ SPECTRE_TEST_CASE("Unit.ParallelAlgorithms.LinearSolver.Gmres.ElementActions",
     return ActionTesting::get_databox_tag<element_array, tag>(runner, 0);
   };
 
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   // Can't test the other element actions because reductions are not yet
   // supported. The full algorithm is tested in

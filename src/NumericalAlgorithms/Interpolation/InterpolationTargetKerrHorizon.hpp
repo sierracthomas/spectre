@@ -10,6 +10,7 @@
 #include "ApparentHorizons/Tags.hpp"
 #include "ApparentHorizons/YlmSpherepack.hpp"
 #include "DataStructures/DataBox/DataBox.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "NumericalAlgorithms/Interpolation/SendPointsToInterpolator.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
@@ -28,7 +29,7 @@ class DataBox;
 }  // namespace db
 namespace intrp {
 namespace Tags {
-template <typename Metavariables>
+template <typename TemporalId>
 struct TemporalIds;
 }  // namespace Tags
 }  // namespace intrp
@@ -106,6 +107,8 @@ struct KerrHorizon : db::SimpleTag {
   using type = OptionHolders::KerrHorizon;
   using option_tags =
       tmpl::list<OptionTags::KerrHorizon<InterpolationTargetTag>>;
+
+  static constexpr bool pass_metavariables = false;
   static type create_from_options(const type& option) noexcept {
     return option;
   }
@@ -129,7 +132,7 @@ namespace Actions {
 ///
 /// Uses:
 /// - DataBox:
-///   - `::Tags::Domain<3, Frame>`
+///   - `domain::Tags::Domain<3>`
 ///   - `::Tags::Variables<typename
 ///                   InterpolationTargetTag::vars_to_interpolate_to_target>`
 ///
@@ -149,6 +152,7 @@ struct KerrHorizon {
   using initialization_tags =
       tmpl::append<StrahlkorperTags::items_tags<Frame>,
                    StrahlkorperTags::compute_items_tags<Frame>>;
+  using is_sequential = std::false_type;
   template <typename DbTags, typename Metavariables>
   static auto initialize(
       db::DataBox<DbTags>&& box,
@@ -171,15 +175,15 @@ struct KerrHorizon {
         db::AddComputeTags<StrahlkorperTags::compute_items_tags<Frame>>>(
         std::move(box), std::move(strahlkorper));
   }
-  template <typename ParallelComponent, typename DbTags, typename Metavariables,
-            typename ArrayIndex,
-            Requires<tmpl::list_contains_v<
-                DbTags, Tags::TemporalIds<Metavariables>>> = nullptr>
-  static void apply(
-      db::DataBox<DbTags>& box,
-      Parallel::ConstGlobalCache<Metavariables>& cache,
-      const ArrayIndex& /*array_index*/,
-      const typename Metavariables::temporal_id::type& temporal_id) noexcept {
+  template <
+      typename ParallelComponent, typename DbTags, typename Metavariables,
+      typename ArrayIndex, typename TemporalId,
+      Requires<tmpl::list_contains_v<DbTags, Tags::TemporalIds<TemporalId>>> =
+          nullptr>
+  static void apply(db::DataBox<DbTags>& box,
+                    Parallel::ConstGlobalCache<Metavariables>& cache,
+                    const ArrayIndex& /*array_index*/,
+                    const TemporalId& temporal_id) noexcept {
     // In the future, when we add support for multiple Frames,
     // the code that transforms coordinates from the Strahlkorper Frame
     // to Frame::Inertial will go here.  That transformation

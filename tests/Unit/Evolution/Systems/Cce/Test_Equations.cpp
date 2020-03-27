@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <string>
@@ -13,10 +13,10 @@
 #include "DataStructures/Variables.hpp"  // IWYU pragma: keep
 #include "Evolution/Systems/Cce/Equations.hpp"
 #include "Evolution/Systems/Cce/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 // IWYU pragma: no_forward_declare Cce::Tags::BondiBeta
 // IWYU pragma: no_forward_declare Cce::Tags::H
@@ -152,7 +152,7 @@ struct python_function_for_bondi_integrand<
   }
 };
 
-SPECTRE_TEST_CASE("Unit.Evolution.Systems.Cce.Equations", "[Unit][Evolution]") {
+SPECTRE_TEST_CASE("Unit.Evolution.Systems.Cce.Equations", "[Unit][Cce]") {
   pypp::SetupLocalPythonEnvironment local_python_env{"Evolution/Systems/Cce/"};
 
   using all_bondi_tags = tmpl::list<Tags::BondiBeta, Tags::BondiQ, Tags::BondiU,

@@ -9,6 +9,7 @@
 #include "ApparentHorizons/Strahlkorper.hpp"
 #include "ApparentHorizons/Tags.hpp"
 #include "DataStructures/DataBox/DataBox.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Informer/Verbosity.hpp"
 #include "NumericalAlgorithms/Interpolation/SendPointsToInterpolator.hpp"
 #include "Options/Options.hpp"
@@ -27,7 +28,7 @@ class DataBox;
 }  // namespace db
 namespace intrp {
 namespace Tags {
-template <typename Metavariables>
+template <typename TemporalId>
 struct TemporalIds;
 }  // namespace Tags
 }  // namespace intrp
@@ -111,6 +112,8 @@ struct ApparentHorizon : db::SimpleTag {
   using type = OptionHolders::ApparentHorizon<Frame>;
   using option_tags =
       tmpl::list<OptionTags::ApparentHorizon<InterpolationTargetTag, Frame>>;
+
+  static constexpr bool pass_metavariables = false;
   static type create_from_options(const type& option) noexcept {
     return option;
   }
@@ -129,7 +132,7 @@ namespace Actions {
 ///
 /// Uses:
 /// - DataBox:
-///   - `::Tags::Domain<3, Frame>`
+///   - `domain::Tags::Domain<3>`
 ///   - `::ah::Tags::FastFlow`
 ///   - `StrahlkorperTags::CartesianCoords<Frame>`
 ///   - `::Tags::Variables<typename
@@ -159,6 +162,7 @@ struct ApparentHorizon {
       tmpl::append<StrahlkorperTags::items_tags<Frame>,
                    tmpl::list<::ah::Tags::FastFlow, ::Tags::Verbosity>,
                    StrahlkorperTags::compute_items_tags<Frame>>;
+  using is_sequential = std::true_type;
   template <typename DbTags, typename Metavariables>
   static auto initialize(
       db::DataBox<DbTags>&& box,
@@ -178,15 +182,15 @@ struct ApparentHorizon {
         std::move(box), options.initial_guess, options.fast_flow,
         options.verbosity);
   }
-  template <typename ParallelComponent, typename DbTags, typename Metavariables,
-            typename ArrayIndex,
-            Requires<tmpl::list_contains_v<
-                DbTags, Tags::TemporalIds<Metavariables>>> = nullptr>
-  static void apply(
-      db::DataBox<DbTags>& box,
-      Parallel::ConstGlobalCache<Metavariables>& cache,
-      const ArrayIndex& /*array_index*/,
-      const typename Metavariables::temporal_id::type& temporal_id) noexcept {
+  template <
+      typename ParallelComponent, typename DbTags, typename Metavariables,
+      typename ArrayIndex, typename TemporalId,
+      Requires<tmpl::list_contains_v<DbTags, Tags::TemporalIds<TemporalId>>> =
+          nullptr>
+  static void apply(db::DataBox<DbTags>& box,
+                    Parallel::ConstGlobalCache<Metavariables>& cache,
+                    const ArrayIndex& /*array_index*/,
+                    const TemporalId& temporal_id) noexcept {
     const auto& fast_flow = db::get<::ah::Tags::FastFlow>(box);
     const auto& strahlkorper =
         db::get<StrahlkorperTags::Strahlkorper<Frame>>(box);

@@ -1,20 +1,20 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
 #include <cstddef>
 
 #include "DataStructures/DataVector.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/PupStlCpp11.hpp"
 #include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
 #include "PointwiseFunctions/MathFunctions/PowX.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/Gsl.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 template <size_t VolumeDim> class MathFunction;
 
@@ -100,7 +100,7 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.MathFunctions.PowX",
 
 SPECTRE_TEST_CASE("Unit.PointwiseFunctions.MathFunctions.PowX.Factory",
                   "[PointwiseFunctions][Unit]") {
-  test_factory_creation<MathFunction<1>>("  PowX:\n    Power: 3");
+  TestHelpers::test_factory_creation<MathFunction<1>>("PowX:\n    Power: 3");
   // Catch requires us to have at least one CHECK in each test
   // The Unit.PointwiseFunctions.MathFunctions.PowX.Factory does not need to
   // check anything

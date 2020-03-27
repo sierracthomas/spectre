@@ -6,94 +6,72 @@
 #include <cstddef>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
-#include "DataStructures/Variables.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "Domain/InterfaceHelpers.hpp"
+#include "Elliptic/FirstOrderOperator.hpp"
 #include "Elliptic/Tags.hpp"
-#include "Utilities/MakeWithValue.hpp"
+#include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
 namespace elliptic {
 namespace Tags {
 
-template <size_t Dim, typename System,
-          typename VarsTag = typename System::variables_tag,
-          typename FluxesComputer = typename System::fluxes,
-          typename PrimalVars = typename System::primal_variables,
-          typename AuxiliaryVars = typename System::auxiliary_variables,
-          typename FluxesArgs = typename FluxesComputer::argument_tags>
-struct FirstOrderFluxesCompute;
-
-template <size_t Dim, typename System, typename VarsTag,
-          typename FluxesComputer, typename... PrimalVars,
-          typename... AuxiliaryVars, typename... FluxesArgs>
-struct FirstOrderFluxesCompute<
-    Dim, System, VarsTag, FluxesComputer, tmpl::list<PrimalVars...>,
-    tmpl::list<AuxiliaryVars...>, tmpl::list<FluxesArgs...>>
-    : db::add_tag_prefix<::Tags::Flux, VarsTag, tmpl::size_t<Dim>,
-                         Frame::Inertial>,
+template <typename System>
+struct FirstOrderFluxesCompute
+    : db::add_tag_prefix<::Tags::Flux, typename System::variables_tag,
+                         tmpl::size_t<System::volume_dim>, Frame::Inertial>,
       db::ComputeTag {
  private:
+  static constexpr size_t volume_dim = System::volume_dim;
+  using vars_tag = typename System::variables_tag;
+  using FluxesComputer = typename System::fluxes;
   using fluxes_computer_tag = elliptic::Tags::FluxesComputer<FluxesComputer>;
 
  public:
-  using base = db::add_tag_prefix<::Tags::Flux, VarsTag, tmpl::size_t<Dim>,
-                                  Frame::Inertial>;
-  using argument_tags = tmpl::list<VarsTag, fluxes_computer_tag, FluxesArgs...>;
-  using volume_tags = tmpl::list<fluxes_computer_tag>;
-  static constexpr auto function(
-      const db::const_item_type<VarsTag>& vars,
-      const FluxesComputer& fluxes_computer,
-      const db::const_item_type<FluxesArgs>&... fluxes_args) noexcept {
-    auto fluxes = make_with_value<db::item_type<base>>(vars, 0.);
-    // Compute fluxes for primal fields
-    fluxes_computer.apply(
-        make_not_null(
-            &get<::Tags::Flux<PrimalVars, tmpl::size_t<Dim>, Frame::Inertial>>(
-                fluxes))...,
-        fluxes_args..., get<AuxiliaryVars>(vars)...);
-    // Compute fluxes for auxiliary fields
-    fluxes_computer.apply(
-        make_not_null(&get<::Tags::Flux<AuxiliaryVars, tmpl::size_t<Dim>,
-                                        Frame::Inertial>>(fluxes))...,
-        fluxes_args..., get<PrimalVars>(vars)...);
-    return fluxes;
+  using base = db::add_tag_prefix<::Tags::Flux, vars_tag,
+                                  tmpl::size_t<volume_dim>, Frame::Inertial>;
+  using argument_tags = tmpl::push_front<typename FluxesComputer::argument_tags,
+                                         vars_tag, fluxes_computer_tag>;
+  using volume_tags =
+      tmpl::push_front<get_volume_tags<FluxesComputer>, fluxes_computer_tag>;
+  using return_type = db::item_type<base>;
+  template <typename... FluxesArgs>
+  static void function(const gsl::not_null<return_type*> fluxes,
+                       const db::const_item_type<vars_tag>& vars,
+                       const FluxesComputer& fluxes_computer,
+                       const FluxesArgs&... fluxes_args) noexcept {
+    *fluxes = return_type{vars.number_of_grid_points()};
+    elliptic::first_order_fluxes<volume_dim, typename System::primal_variables,
+                                 typename System::auxiliary_variables>(
+        fluxes, vars, fluxes_computer, fluxes_args...);
   }
 };
 
-template <typename System, typename VarsTag = typename System::variables_tag,
-          typename SourcesComputer = typename System::sources,
-          typename PrimalVars = typename System::primal_variables,
-          typename AuxiliaryVars = typename System::auxiliary_variables,
-          typename SourcesArgs = typename SourcesComputer::argument_tags>
-struct FirstOrderSourcesCompute;
+template <typename System>
+struct FirstOrderSourcesCompute
+    : db::add_tag_prefix<::Tags::Source, typename System::variables_tag>,
+      db::ComputeTag {
+ private:
+  using vars_tag = typename System::variables_tag;
+  using SourcesComputer = typename System::sources;
 
-template <typename System, typename VarsTag, typename SourcesComputer,
-          typename... PrimalVars, typename... AuxiliaryVars,
-          typename... SourcesArgs>
-struct FirstOrderSourcesCompute<
-    System, VarsTag, SourcesComputer, tmpl::list<PrimalVars...>,
-    tmpl::list<AuxiliaryVars...>, tmpl::list<SourcesArgs...>>
-    : db::add_tag_prefix<::Tags::Source, VarsTag>, db::ComputeTag {
-  using base = db::add_tag_prefix<::Tags::Source, VarsTag>;
-  using argument_tags = tmpl::list<VarsTag, SourcesArgs...>;
-  static constexpr auto function(
-      const db::const_item_type<VarsTag>& vars,
-      const db::const_item_type<SourcesArgs>&... sources_args) noexcept {
-    auto sources = make_with_value<db::item_type<base>>(vars, 0.);
-    // Compute sources for primal fields
-    SourcesComputer::apply(
-        make_not_null(&get<::Tags::Source<PrimalVars>>(sources))...,
-        sources_args..., get<PrimalVars>(vars)...);
-    // Compute sources for auxiliary fields. They are just the auxiliary field
-    // values.
-    tmpl::for_each<tmpl::list<AuxiliaryVars...>>(
-        [&sources, &vars ](const auto auxiliary_field_tag_v) noexcept {
-          using auxiliary_field_tag =
-              tmpl::type_from<decltype(auxiliary_field_tag_v)>;
-          get<::Tags::Source<auxiliary_field_tag>>(sources) =
-              get<auxiliary_field_tag>(vars);
-        });
-    return sources;
+ public:
+  using base = db::add_tag_prefix<::Tags::Source, vars_tag>;
+  using argument_tags =
+      tmpl::push_front<typename SourcesComputer::argument_tags, vars_tag>;
+  using volume_tags = get_volume_tags<SourcesComputer>;
+  using return_type = db::item_type<base>;
+  template <typename... SourcesArgs>
+  static void function(const gsl::not_null<return_type*> sources,
+                       const db::const_item_type<vars_tag>& vars,
+                       const SourcesArgs&... sources_args) noexcept {
+    *sources = return_type{vars.number_of_grid_points()};
+    elliptic::first_order_sources<typename System::primal_variables,
+                                  typename System::auxiliary_variables,
+                                  SourcesComputer>(sources, vars,
+                                                   sources_args...);
   }
 };
 

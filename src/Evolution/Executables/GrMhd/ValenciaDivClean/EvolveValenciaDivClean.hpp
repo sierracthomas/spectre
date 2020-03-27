@@ -5,6 +5,9 @@
 
 #include <vector>
 
+#include "AlgorithmSingleton.hpp"
+#include "ApparentHorizons/Tags.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/FloatingPointExceptions.hpp"
@@ -12,6 +15,7 @@
 #include "Evolution/Actions/ComputeVolumeFluxes.hpp"
 #include "Evolution/Actions/ComputeVolumeSources.hpp"
 #include "Evolution/ComputeTags.hpp"
+#include "Evolution/Conservative/ConservativeDuDt.hpp"
 #include "Evolution/Conservative/UpdateConservatives.hpp"
 #include "Evolution/Conservative/UpdatePrimitives.hpp"
 #include "Evolution/DiscontinuousGalerkin/DgElementArray.hpp"
@@ -40,8 +44,23 @@
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/FluxCommunication.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ImposeBoundaryConditions.hpp"  // IWYU pragma: keep
+#include "NumericalAlgorithms/DiscontinuousGalerkin/Formulation.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/LocalLaxFriedrichs.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
+#include "NumericalAlgorithms/Interpolation/AddTemporalIdsToInterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/Callbacks/ObserveTimeSeriesOnSurface.hpp"
+#include "NumericalAlgorithms/Interpolation/CleanUpInterpolator.hpp"
+#include "NumericalAlgorithms/Interpolation/InitializeInterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/Interpolate.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTarget.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTargetKerrHorizon.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolationTargetReceiveVars.hpp"
+#include "NumericalAlgorithms/Interpolation/Interpolator.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorReceivePoints.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorReceiveVolumeData.hpp"
+#include "NumericalAlgorithms/Interpolation/InterpolatorRegisterElement.hpp"
+#include "NumericalAlgorithms/Interpolation/Tags.hpp"
+#include "NumericalAlgorithms/Interpolation/TryToInterpolate.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Actions/TerminatePhase.hpp"
 #include "Parallel/InitializationFunctions.hpp"
@@ -73,8 +92,10 @@
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/FishboneMoncriefDisk.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/TovStar.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "PointwiseFunctions/Hydro/MassFlux.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Time/Actions/AdvanceTime.hpp"
+#include "Time/Actions/ChangeSlabSize.hpp"
 #include "Time/Actions/ChangeStepSize.hpp"
 #include "Time/Actions/RecordTimeStepperData.hpp"
 #include "Time/Actions/SelfStartActions.hpp"  // IWYU pragma: keep
@@ -82,7 +103,9 @@
 #include "Time/StepChoosers/Cfl.hpp"
 #include "Time/StepChoosers/Constant.hpp"
 #include "Time/StepChoosers/Increase.hpp"
+#include "Time/StepChoosers/PreventRapidIncrease.hpp"
 #include "Time/StepChoosers/StepChooser.hpp"
+#include "Time/StepChoosers/StepToTimes.hpp"
 #include "Time/StepControllers/StepController.hpp"
 #include "Time/Tags.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
@@ -100,9 +123,34 @@ class CProxy_ConstGlobalCache;
 }  // namespace Parallel
 /// \endcond
 
-template <typename InitialData>
+struct KerrHorizon {
+  using tags_to_observe =
+      tmpl::list<StrahlkorperTags::EuclideanSurfaceIntegralVector<
+          hydro::Tags::MassFlux<DataVector, 3, ::Frame::Inertial>,
+          ::Frame::Inertial>>;
+  using compute_items_on_source = tmpl::list<>;
+  using vars_to_interpolate_to_target = tmpl::list<
+      hydro::Tags::RestMassDensity<DataVector>,
+    hydro::Tags::SpatialVelocity<DataVector, 3, Frame::Inertial>,
+      hydro::Tags::LorentzFactor<DataVector>, gr::Tags::Lapse<DataVector>,
+      gr::Tags::Shift<3, Frame::Inertial, DataVector>,
+      gr::Tags::SqrtDetSpatialMetric<DataVector>>;
+  using compute_items_on_target = tmpl::push_front<
+      tags_to_observe,
+      StrahlkorperTags::EuclideanAreaElement<::Frame::Inertial>,
+      hydro::Tags::MassFluxCompute<DataVector, 3, ::Frame::Inertial>>;
+  using compute_target_points =
+      intrp::Actions::KerrHorizon<KerrHorizon, ::Frame::Inertial>;
+  using post_interpolation_callback =
+      intrp::callbacks::ObserveTimeSeriesOnSurface<tags_to_observe, KerrHorizon,
+                                                   KerrHorizon>;
+};
+
+template <typename InitialData, typename...InterpolationTargetTags>
 struct EvolutionMetavars {
   static constexpr size_t volume_dim = 3;
+  static constexpr dg::Formulation dg_formulation =
+      dg::Formulation::StrongInertial;
   using initial_data = InitialData;
   static_assert(
       evolution::is_analytic_data_v<initial_data> xor
@@ -131,8 +179,32 @@ struct EvolutionMetavars {
                     grmhd::ValenciaDivClean::Tags::TildeS<Frame::Inertial>,
                     grmhd::ValenciaDivClean::Tags::TildeB<Frame::Inertial>>>>;
 
+  using step_choosers_common =
+      tmpl::list<StepChoosers::Registrars::Cfl<volume_dim, Frame::Inertial>,
+                 StepChoosers::Registrars::Constant,
+                 StepChoosers::Registrars::Increase>;
+  using step_choosers_for_step_only =
+      tmpl::list<StepChoosers::Registrars::PreventRapidIncrease>;
+  using step_choosers_for_slab_only =
+      tmpl::list<StepChoosers::Registrars::StepToTimes>;
+  using step_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only>,
+      tmpl::list<>>;
+  using slab_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_slab_only>,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only,
+                   step_choosers_for_slab_only>>;
+
+  using domain_frame = Frame::Inertial;
+  static constexpr size_t domain_dim = 3;
+  using interpolator_source_vars =
+      tmpl::remove_duplicates<tmpl::flatten<tmpl::list<
+          typename InterpolationTargetTags::vars_to_interpolate_to_target...>>>;
+
   // public for use by the Charm++ registration code
-  using events = tmpl::flatten<tmpl::list<
+  using observation_events = tmpl::flatten<tmpl::list<
       tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
                           dg::Events::Registrars::ObserveErrorNorms<
                               Tags::Time, analytic_variables_tags>,
@@ -144,13 +216,15 @@ struct EvolutionMetavars {
               db::get_variables_tags_list<
                   typename system::primitive_variables_tag>>,
           tmpl::conditional_t<evolution::is_analytic_solution_v<initial_data>,
-                              analytic_variables_tags, tmpl::list<>>>>>;
+                              analytic_variables_tags, tmpl::list<>>>,
+      Events::Registrars::ChangeSlabSize<slab_choosers>>>;
+  using interpolation_events =
+      tmpl::list<intrp::Events::Registrars::Interpolate<
+          3, InterpolationTargetTags, interpolator_source_vars>...>;
+  using events = tmpl::append<observation_events, interpolation_events>;
+
   using triggers = Triggers::time_triggers;
 
-  using step_choosers =
-      tmpl::list<StepChoosers::Registrars::Cfl<3, Frame::Inertial>,
-                 StepChoosers::Registrars::Constant,
-                 StepChoosers::Registrars::Increase>;
   using ordered_list_of_primitive_recovery_schemes = tmpl::list<
       grmhd::ValenciaDivClean::PrimitiveRecoverySchemes::NewmanHamlin,
       grmhd::ValenciaDivClean::PrimitiveRecoverySchemes::PalenzuelaEtAl>;
@@ -158,13 +232,19 @@ struct EvolutionMetavars {
   struct ObservationType {};
   using element_observation_type = ObservationType;
 
+  using interpolation_target_tags = tmpl::list<InterpolationTargetTags...>;
+
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
-      typename Event<events>::creatable_classes>;
+      tmpl::push_back<typename Event<observation_events>::creatable_classes,
+                   typename InterpolationTargetTags::
+                                  post_interpolation_callback...>>;
 
   using step_actions = tmpl::flatten<tmpl::list<
       Actions::ComputeVolumeFluxes,
       dg::Actions::SendDataForFluxes<EvolutionMetavars>,
-      Actions::ComputeVolumeSources, Actions::ComputeTimeDerivative,
+      Actions::ComputeVolumeSources,
+      Actions::ComputeTimeDerivative<
+          evolution::dg::ConservativeDuDt<system, dg_formulation>>,
       tmpl::conditional_t<
           evolution::is_analytic_solution_v<initial_data>,
           dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
@@ -172,26 +252,29 @@ struct EvolutionMetavars {
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
-      Actions::RecordTimeStepperData,
+      Actions::RecordTimeStepperData<>,
       tmpl::conditional_t<local_time_stepping,
                           dg::Actions::ApplyBoundaryFluxesLocalTimeStepping,
                           tmpl::list<>>,
-      Actions::UpdateU, Limiters::Actions::SendData<EvolutionMetavars>,
+      Actions::UpdateU<>, Limiters::Actions::SendData<EvolutionMetavars>,
       Limiters::Actions::Limit<EvolutionMetavars>,
-      VariableFixing::Actions::FixVariables<VariableFixing::FixConservatives>,
+      VariableFixing::Actions::FixVariables<
+          grmhd::ValenciaDivClean::FixConservatives>,
       Actions::UpdatePrimitives>>;
 
   enum class Phase {
     Initialization,
     InitializeTimeStepperHistory,
-    RegisterWithObserver,
+    Register,
     Evolve,
     Exit
   };
 
   using initialization_actions = tmpl::list<
+      Initialization::Actions::TimeAndTimeStep<EvolutionMetavars>,
       dg::Actions::InitializeDomain<3>, Initialization::Actions::GrTagsForHydro,
       Initialization::Actions::ConservativeSystem,
+      Initialization::Actions::TimeStepperHistory<EvolutionMetavars>,
       VariableFixing::Actions::FixVariables<
           VariableFixing::FixToAtmosphere<volume_dim, thermodynamic_dim>>,
       Actions::UpdateConservatives,
@@ -204,7 +287,6 @@ struct EvolutionMetavars {
           dg::Initialization::slice_tags_to_exterior<
               typename system::spacetime_variables_tag,
               typename system::primitive_variables_tag>>,
-      Initialization::Actions::Evolution<EvolutionMetavars>,
       tmpl::conditional_t<
           evolution::is_analytic_solution_v<initial_data>,
           Initialization::Actions::AddComputeTags<
@@ -219,6 +301,8 @@ struct EvolutionMetavars {
   using component_list = tmpl::list<
       observers::Observer<EvolutionMetavars>,
       observers::ObserverWriter<EvolutionMetavars>,
+      intrp::Interpolator<EvolutionMetavars>,
+      intrp::InterpolationTarget<EvolutionMetavars, InterpolationTargetTags>...,
       DgElementArray<
           EvolutionMetavars,
           tmpl::list<
@@ -230,8 +314,9 @@ struct EvolutionMetavars {
                   SelfStart::self_start_procedure<step_actions>>,
 
               Parallel::PhaseActions<
-                  Phase, Phase::RegisterWithObserver,
-                  tmpl::list<observers::Actions::RegisterWithObservers<
+                  Phase, Phase::Register,
+                  tmpl::list<intrp::Actions::RegisterElementWithInterpolator,
+                             observers::Actions::RegisterWithObservers<
                                  observers::RegisterObservers<
                                      Tags::Time, element_observation_type>>,
                              Parallel::Actions::TerminatePhase>>,
@@ -244,6 +329,7 @@ struct EvolutionMetavars {
                                                           thermodynamic_dim>>,
                       Actions::UpdateConservatives,
                       Actions::RunEventsAndTriggers,
+                      Actions::ChangeSlabSize,
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
@@ -268,8 +354,8 @@ struct EvolutionMetavars {
       case Phase::Initialization:
         return Phase::InitializeTimeStepperHistory;
       case Phase::InitializeTimeStepperHistory:
-        return Phase::RegisterWithObserver;
-      case Phase::RegisterWithObserver:
+        return Phase::Register;
+      case Phase::Register:
         return Phase::Evolve;
       case Phase::Evolve:
         return Phase::Exit;
@@ -290,6 +376,8 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &domain::creators::register_derived_with_charm,
     &Parallel::register_derived_classes_with_charm<
         Event<metavariables::events>>,
+    &Parallel::register_derived_classes_with_charm<
+        StepChooser<metavariables::slab_choosers>>,
     &Parallel::register_derived_classes_with_charm<
         StepChooser<metavariables::step_choosers>>,
     &Parallel::register_derived_classes_with_charm<StepController>,

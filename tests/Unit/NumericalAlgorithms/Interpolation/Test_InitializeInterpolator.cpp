@@ -1,12 +1,13 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <string>
 #include <unordered_map>
 
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/Interpolation/InitializeInterpolator.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Interpolation/InterpolatedVars.hpp"
 #include "NumericalAlgorithms/Interpolation/Tags.hpp"
@@ -16,7 +17,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <boost/variant/get.hpp>
 
@@ -55,10 +55,12 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.Initialize",
   using metavars = Metavariables;
   using component = mock_interpolator<metavars>;
   ActionTesting::MockRuntimeSystem<metavars> runner{{}};
-  runner.set_phase(Metavariables::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Initialization);
   ActionTesting::emplace_component<component>(&runner, 0);
   ActionTesting::next_action<component>(make_not_null(&runner), 0);
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   CHECK(ActionTesting::get_databox_tag<component,
                                        ::intrp::Tags::NumberOfElements>(
@@ -78,11 +80,5 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.Interpolator.Initialize",
   CHECK(holder.infos.empty());
   // Check that 'holders' has only one tag.
   CHECK(holders.size() == 1);
-
-  // check tag names
-  CHECK(::intrp::Tags::VolumeVarsInfo<metavars>::name() == "VolumeVarsInfo");
-  CHECK(::intrp::Tags::InterpolatedVarsHolders<metavars>::name() ==
-        "InterpolatedVarsHolders");
-  CHECK(::intrp::Tags::NumberOfElements::name() == "NumberOfElements");
 }
 }  // namespace

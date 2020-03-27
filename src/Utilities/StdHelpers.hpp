@@ -26,7 +26,7 @@
 #include "Utilities/PrintHelpers.hpp"
 #include "Utilities/Requires.hpp"
 #include "Utilities/StlStreamDeclarations.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsStreamable.hpp"
 
 namespace StdHelpers_detail {
 // Helper classes for operator<< for tuples
@@ -151,9 +151,9 @@ inline std::ostream& operator<<(std::ostream& os,
  * \ingroup UtilitiesGroup
  * \brief Output the items of a std::unordered_set
  */
-template <typename T>
+template <typename T, typename H>
 inline std::ostream& operator<<(std::ostream& os,
-                                const std::unordered_set<T>& v) noexcept {
+                                const std::unordered_set<T, H>& v) noexcept {
   unordered_print_helper(os, std::begin(v), std::end(v));
   return os;
 }

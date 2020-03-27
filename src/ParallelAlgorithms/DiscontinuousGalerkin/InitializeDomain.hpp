@@ -53,7 +53,7 @@ namespace Actions {
  *   - `Tags::ElementMap<Dim, Frame::Inertial>`
  *   - `Tags::Coordinates<Dim, Frame::Logical>`
  *   - `Tags::Coordinates<Dim, Frame::Inertial>`
- *   - `Tags::InverseJacobian<
+ *   - `Tags::InverseJacobianCompute<
  *   Tags::ElementMap<Dim>, Tags::Coordinates<Dim, Frame::Logical>>`
  *   - `Tags::MinimumGridSpacing<Dim, Frame::Inertial>>`
  * - Removes: nothing
@@ -61,11 +61,11 @@ namespace Actions {
  */
 template <size_t Dim>
 struct InitializeDomain {
-  using initialization_tags = tmpl::list<::Tags::InitialExtents<Dim>>;
+  using initialization_tags = tmpl::list<domain::Tags::InitialExtents<Dim>>;
 
   template <typename DataBox, typename... InboxTags, typename Metavariables,
             typename ActionList, typename ParallelComponent,
-            Requires<db::tag_is_retrievable_v<::Tags::InitialExtents<Dim>,
+            Requires<db::tag_is_retrievable_v<domain::Tags::InitialExtents<Dim>,
                                               DataBox>> = nullptr>
   static auto apply(DataBox& box,
                     const tuples::TaggedTuple<InboxTags...>& /*inboxes*/,
@@ -74,18 +74,21 @@ struct InitializeDomain {
                     const ActionList /*meta*/,
                     const ParallelComponent* const /*meta*/) noexcept {
     using simple_tags =
-        db::AddSimpleTags<::Tags::Mesh<Dim>, ::Tags::Element<Dim>,
-                          ::Tags::ElementMap<Dim>>;
+        db::AddSimpleTags<domain::Tags::Mesh<Dim>, domain::Tags::Element<Dim>,
+                          domain::Tags::ElementMap<Dim>>;
     using compute_tags = tmpl::append<db::AddComputeTags<
-        ::Tags::LogicalCoordinates<Dim>,
-        ::Tags::MappedCoordinates<::Tags::ElementMap<Dim>,
-                                  ::Tags::Coordinates<Dim, Frame::Logical>>,
-        ::Tags::InverseJacobian<::Tags::ElementMap<Dim>,
-                                ::Tags::Coordinates<Dim, Frame::Logical>>,
-        ::Tags::MinimumGridSpacing<Dim, Frame::Inertial>>>;
+        domain::Tags::LogicalCoordinates<Dim>,
+        domain ::Tags::MappedCoordinates<
+            domain::Tags::ElementMap<Dim>,
+            domain ::Tags::Coordinates<Dim, Frame::Logical>>,
+        domain ::Tags::InverseJacobianCompute<
+            domain ::Tags::ElementMap<Dim>,
+            domain::Tags::Coordinates<Dim, Frame::Logical>>,
+        domain::Tags::MinimumGridSpacing<Dim, Frame::Inertial>>>;
 
-    const auto& initial_extents = db::get<::Tags::InitialExtents<Dim>>(box);
-    const auto& domain = db::get<::Tags::Domain<Dim, Frame::Inertial>>(box);
+    const auto& initial_extents =
+        db::get<domain::Tags::InitialExtents<Dim>>(box);
+    const auto& domain = db::get<domain::Tags::Domain<Dim>>(box);
 
     const ElementId<Dim> element_id{array_index};
     const auto& my_block = domain.blocks()[element_id.block_id()];
@@ -93,8 +96,14 @@ struct InitializeDomain {
         initial_extents, element_id);
     Element<Dim> element =
         domain::Initialization::create_initial_element(element_id, my_block);
+    if (my_block.is_time_dependent()) {
+      ERROR(
+          "The version of the InitializeDomain action being used is for "
+          "elliptic systems which do not have any time-dependence but the "
+          "domain creator has set up the domain to have time-dependence.");
+    }
     ElementMap<Dim, Frame::Inertial> element_map{
-        element_id, my_block.coordinate_map().get_clone()};
+        element_id, my_block.stationary_map().get_clone()};
 
     return std::make_tuple(
         ::Initialization::merge_into_databox<InitializeDomain, simple_tags,
@@ -106,8 +115,8 @@ struct InitializeDomain {
   template <typename DataBox, typename... InboxTags, typename Metavariables,
             typename ArrayIndex, typename ActionList,
             typename ParallelComponent,
-            Requires<not db::tag_is_retrievable_v<::Tags::InitialExtents<Dim>,
-                                                  DataBox>> = nullptr>
+            Requires<not db::tag_is_retrievable_v<
+                domain::Tags::InitialExtents<Dim>, DataBox>> = nullptr>
   static std::tuple<DataBox&&> apply(
       DataBox& /*box*/, const tuples::TaggedTuple<InboxTags...>& /*inboxes*/,
       const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,

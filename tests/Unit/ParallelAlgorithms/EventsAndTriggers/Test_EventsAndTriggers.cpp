@@ -4,13 +4,16 @@
 // This file checks the Completion event and the basic logical
 // triggers (Always, And, Not, and Or).
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Actions/RunEventsAndTriggers.hpp"  // IWYU pragma: keep
@@ -23,9 +26,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeVector.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <pup.h>
 
@@ -63,7 +63,8 @@ void run_events_and_triggers(const EventsAndTriggersType& events_and_triggers,
   ActionTesting::MockRuntimeSystem<Metavariables> runner{
       {serialize_and_deserialize(events_and_triggers)}};
   ActionTesting::emplace_component<my_component>(&runner, 0);
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   runner.next_action<my_component>(0);
 
@@ -73,7 +74,7 @@ void run_events_and_triggers(const EventsAndTriggersType& events_and_triggers,
 void check_trigger(const bool expected, const std::string& trigger_string) {
   // Test factory
   std::unique_ptr<Trigger<tmpl::list<>>> trigger =
-      test_factory_creation<Trigger<tmpl::list<>>>(trigger_string);
+      TestHelpers::test_factory_creation<Trigger<tmpl::list<>>>(trigger_string);
 
   EventsAndTriggersType::Storage events_and_triggers_map;
   events_and_triggers_map.emplace(
@@ -88,71 +89,72 @@ void check_trigger(const bool expected, const std::string& trigger_string) {
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.Evolution.EventsAndTriggers", "[Unit][Evolution]") {
-  test_factory_creation<Event<tmpl::list<>>>("  Completion");
+  TestHelpers::test_factory_creation<Event<tmpl::list<>>>("Completion");
 
-  check_trigger(true, "  Always");
-  check_trigger(false, "  Not: Always");
+  check_trigger(true, "Always");
+  check_trigger(false, "Not: Always");
   check_trigger(true,
-                "  Not:\n"
-                "    Not: Always");
-
-  check_trigger(true,
-                "  And:\n"
-                "    - Always\n"
-                "    - Always");
-  check_trigger(false,
-                "  And:\n"
-                "    - Always\n"
-                "    - Not: Always");
-  check_trigger(false,
-                "  And:\n"
-                "    - Not: Always\n"
-                "    - Always");
-  check_trigger(false,
-                "  And:\n"
-                "    - Not: Always\n"
-                "    - Not: Always");
-  check_trigger(false,
-                "  And:\n"
-                "    - Always\n"
-                "    - Always\n"
-                "    - Not: Always");
+                "Not:\n"
+                "  Not: Always");
 
   check_trigger(true,
-                "  Or:\n"
-                "    - Always\n"
-                "    - Always");
-  check_trigger(true,
-                "  Or:\n"
-                "    - Always\n"
-                "    - Not: Always");
-  check_trigger(true,
-                "  Or:\n"
-                "    - Not: Always\n"
-                "    - Always");
+                "And:\n"
+                "  - Always\n"
+                "  - Always");
   check_trigger(false,
-                "  Or:\n"
-                "    - Not: Always\n"
-                "    - Not: Always");
+                "And:\n"
+                "  - Always\n"
+                "  - Not: Always");
+  check_trigger(false,
+                "And:\n"
+                "  - Not: Always\n"
+                "  - Always");
+  check_trigger(false,
+                "And:\n"
+                "  - Not: Always\n"
+                "  - Not: Always");
+  check_trigger(false,
+                "And:\n"
+                "  - Always\n"
+                "  - Always\n"
+                "  - Not: Always");
+
   check_trigger(true,
-                "  Or:\n"
-                "    - Not: Always\n"
-                "    - Not: Always\n"
-                "    - Always");
+                "Or:\n"
+                "  - Always\n"
+                "  - Always");
+  check_trigger(true,
+                "Or:\n"
+                "  - Always\n"
+                "  - Not: Always");
+  check_trigger(true,
+                "Or:\n"
+                "  - Not: Always\n"
+                "  - Always");
+  check_trigger(false,
+                "Or:\n"
+                "  - Not: Always\n"
+                "  - Not: Always");
+  check_trigger(true,
+                "Or:\n"
+                "  - Not: Always\n"
+                "  - Not: Always\n"
+                "  - Always");
 }
 
 SPECTRE_TEST_CASE("Unit.Evolution.EventsAndTriggers.creation",
                   "[Unit][Evolution]") {
-  const auto events_and_triggers = test_creation<EventsAndTriggersType>(
-      "  ? Not: Always\n"
-      "  : - Completion\n"
-      "  ? Or:\n"
-      "    - Not: Always\n"
-      "    - Always\n"
-      "  : - Completion\n"
-      "    - Completion\n"
-      "  ? Not: Always\n"
-      "  : - Completion\n");
+  const auto events_and_triggers =
+      TestHelpers::test_creation<EventsAndTriggersType>(
+          "? Not: Always\n"
+          ": - Completion\n"
+          "? Or:\n"
+          "  - Not: Always\n"
+          "  - Always\n"
+          ": - Completion\n"
+          "  - Completion\n"
+          "? Not: Always\n"
+          ": - Completion\n");
 
   run_events_and_triggers(events_and_triggers, true);
 }

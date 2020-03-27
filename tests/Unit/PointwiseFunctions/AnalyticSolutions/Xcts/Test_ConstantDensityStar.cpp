@@ -1,23 +1,24 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 #include <tuple>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Elliptic/Systems/Xcts/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Xcts/ConstantDensityStar.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -78,7 +79,7 @@ void test_solution(const double density, const double radius,
       make_with_value<Scalar<DataVector>>(far_away_coords, 1.));
 
   Xcts::Solutions::ConstantDensityStar created_solution =
-      test_creation<Xcts::Solutions::ConstantDensityStar>(options);
+      TestHelpers::test_creation<Xcts::Solutions::ConstantDensityStar>(options);
   CHECK(created_solution == solution);
   test_serialization(solution);
 }
@@ -91,6 +92,6 @@ SPECTRE_TEST_CASE(
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/AnalyticSolutions/Xcts"};
   test_solution(0.01, 1.,
-                "  Density: 0.01\n"
-                "  Radius: 1.\n");
+                "Density: 0.01\n"
+                "Radius: 1.\n");
 }

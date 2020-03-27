@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,11 +14,11 @@
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/Error.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Utilities/GetOutput.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/StdHelpers.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 template <size_t Dim>
@@ -239,13 +239,6 @@ void test_serialization() noexcept {
               {{Spectral::Quadrature::GaussLobatto, Spectral::Quadrature::Gauss,
                 Spectral::Quadrature::GaussLobatto}}});
 }
-
-void test_tags() noexcept {
-  INFO("Tags");
-  CHECK(Tags::Mesh<1>::name() == "Mesh");
-  CHECK(Tags::Mesh<2>::name() == "Mesh");
-  CHECK(Tags::Mesh<3>::name() == "Mesh");
-}
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.Domain.Mesh", "[Domain][Unit]") {
@@ -253,7 +246,6 @@ SPECTRE_TEST_CASE("Unit.Domain.Mesh", "[Domain][Unit]") {
   test_explicit_choices_per_dimension();
   test_equality();
   test_serialization();
-  test_tags();
 }
 
 // [[OutputRegex, Tried to slice through non-existing dimension]]

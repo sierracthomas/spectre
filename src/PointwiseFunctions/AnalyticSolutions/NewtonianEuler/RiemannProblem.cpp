@@ -79,9 +79,10 @@ namespace Solutions {
 template <size_t Dim>
 RiemannProblem<Dim>::RiemannProblem(
     const double adiabatic_index, const double initial_position,
-    const double left_mass_density, const std::array<double, Dim> left_velocity,
-    const double left_pressure, const double right_mass_density,
-    const std::array<double, Dim> right_velocity, const double right_pressure,
+    const double left_mass_density,
+    const std::array<double, Dim>& left_velocity, const double left_pressure,
+    const double right_mass_density,
+    const std::array<double, Dim>& right_velocity, const double right_pressure,
     const double pressure_star_tol) noexcept
     : adiabatic_index_(adiabatic_index),
       initial_position_(initial_position),
@@ -134,10 +135,10 @@ RiemannProblem<Dim>::RiemannProblem(
 
   // Compute bracket for root finder according to value of the function whose
   // root we want (Eqn. 4.39 of Toro.)
-  FunctionOfPressureAndData<Dim> f_of_p_left(left_initial_data_,
-                                             adiabatic_index_);
-  FunctionOfPressureAndData<Dim> f_of_p_right(right_initial_data_,
-                                              adiabatic_index_);
+  const FunctionOfPressureAndData<Dim> f_of_p_left(left_initial_data_,
+                                                   adiabatic_index_);
+  const FunctionOfPressureAndData<Dim> f_of_p_right(right_initial_data_,
+                                                    adiabatic_index_);
   const auto p_minmax =
       std::minmax(left_initial_data_.pressure_, right_initial_data_.pressure_);
   const double f_min =
@@ -200,7 +201,7 @@ void RiemannProblem<Dim>::pup(PUP::er& p) noexcept {
 
 template <size_t Dim>
 RiemannProblem<Dim>::InitialData::InitialData(
-    const double mass_density, const std::array<double, Dim> velocity,
+    const double mass_density, const std::array<double, Dim>& velocity,
     const double pressure, const double adiabatic_index,
     const size_t propagation_axis) noexcept
     : mass_density_(mass_density), velocity_(velocity), pressure_(pressure) {

@@ -6,16 +6,22 @@ set(LIBRARY Valencia)
 set(LIBRARY_SOURCES
   Characteristics.cpp
   ConservativeFromPrimitive.cpp
-  Equations.cpp
+  FixConservatives.cpp
   Fluxes.cpp
   PrimitiveFromConservative.cpp
+  Sources.cpp
   )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
-  INTERFACE GeneralRelativity
+  PUBLIC
+  DataStructures
+  ErrorHandling
+  GeneralRelativity
+  Hydro
+  Limiters
+  Options
+  VariableFixing
   )

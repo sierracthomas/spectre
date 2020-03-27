@@ -159,6 +159,8 @@ guidelines:
   PointwiseFunction.GeneralRelativity.Christoffel as christoffel`) or use
   relative imports like `from . import Christoffel as christoffel`. Don't assume
   the Python environment is set up in a subdirectory of `tests/Unit/`.
+- The python code is formatted according to the `.style.yapf` file in the root
+  of the repository.
 
 It is possible to test C++ functions that return by value and ones that return
 by `gsl::not_null`. In the latter case, since it is possible to return multiple
@@ -173,42 +175,53 @@ The corresponding Python functions are:
 
 \snippet PyppPyTests.py python_two_not_null
 
+The random number generator is set up using:
+```cpp
+MAKE_GENERATOR(gen);
+```
+The generator `gen` can then be passed to distribution classes such as
+`std::uniform_real_distribution` or `UniformCustomDistribution`. Furthermore, if
+a test case fails with a particular seed, the seed can be played back by
+changing the `MAKE_GENERATOR(gen);` line in a test to
+```cpp
+MAKE_GENERATOR(gen, PROBLEMATIC_SEED_TO_DEBUG);
+```
+
 #### Testing Failure Cases
 
-Adding the "attribute" `// [[OutputRegex, Regular expression to match]]`
-before the `SPECTRE_TEST_CASE` macro will force ctest to only pass the
-particular test if the regular expression is found. This can be used to test
-error handling. When testing `ASSERT`s you must mark the `SPECTRE_TEST_CASE` as
-`[[noreturn]]`,
-add the macro `ASSERTION_TEST();` to the beginning of the test, and also have
-the test call `ERROR("Failed to trigger ASSERT in an assertion test");` at the
-end of the test body.
+Adding the "attribute" `// [[OutputRegex, Regular expression to
+match]]` before the `SPECTRE_TEST_CASE` macro will force ctest to only
+pass the particular test if the regular expression is found in the
+output of the test. This can be used to test error handling. When
+testing `ASSERT`s you must mark the `SPECTRE_TEST_CASE` as
+`[[noreturn]]`, add the macro `ASSERTION_TEST();` to the beginning of
+the test, and also have the test call `ERROR("Failed to trigger ASSERT
+in an assertion test");` at the end of the test body.  The test body
+should be enclosed between `#%ifdef SPECTRE_DEBUG` and an `#%endif`
 For example,
 
-```cpp
-// [[OutputRegex, Must copy into same size]]
-[[noreturn]] SPECTRE_TEST_CASE("Unit.DataStructures.DataVector.ref_diff_size",
-                               "[DataStructures][Unit]") {
-  ASSERTION_TEST();
-#ifdef SPECTRE_DEBUG
-  DataVector data{1.43, 2.83, 3.94, 7.85};
-  DataVector data_ref;
-  data_ref.set_data_ref(data);
-  DataVector data2{1.43, 2.83, 3.94};
-  data_ref = data2;
-  ERROR("Failed to trigger ASSERT in an assertion test");
-#endif
-}
-```
-If the `ifdef SPECTRE_DEBUG` is omitted then compilers will correctly flag
-the code as being unreachable which results in warnings.
+\snippet Test_AssertAndError.cpp assertion_test_example
 
-You can also test `ERROR`s inside your code. These tests need to have the
-`OutputRegex`, and also call `ERROR_TEST();` at the beginning. The do not need
-the `ifdef SPECTRE_DEBUG` block, they can just call have the code that triggers
-an `ERROR`. For example,
+If the `#%ifdef SPECTRE_DEBUG` block is omitted then compilers will
+correctly flag the code as being unreachable which results in
+warnings.
 
-\snippet Test_AbortWithErrorMessage.cpp error_test_example
+You can also test `ERROR`s inside your code. These tests need to have
+the `OutputRegex`, and also call `ERROR_TEST();` at the
+beginning. They do not need the `#%ifdef SPECTRE_DEBUG` block, they
+can just call have the code that triggers an `ERROR`. For example,
+
+\snippet Test_AssertAndError.cpp error_test_example
+
+Note that a `OutputRegex` can also be specified in a test that is
+supposed to succeed with output that matches the regular expression.
+In this case, the first line of the test should call the macro
+`OUTPUT_TEST();`.
+
+### Testing Actions
+
+The action testing framework is documented as part of the `ActionTesting`
+namespace.
 
 ### Building and Running A Single Test File
 

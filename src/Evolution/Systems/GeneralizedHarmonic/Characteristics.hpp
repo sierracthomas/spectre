@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include <array>
 #include <cstddef>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Domain/FaceNormal.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
@@ -80,7 +79,7 @@ struct CharacteristicSpeedsCompute : Tags::CharacteristicSpeeds<Dim, Frame>,
   using argument_tags = tmpl::list<
       Tags::ConstraintGamma1, gr::Tags::Lapse<DataVector>,
       gr::Tags::Shift<Dim, Frame, DataVector>,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
+      ::Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
 
   static typename Tags::CharacteristicSpeeds<Dim, Frame>::type function(
       const Scalar<DataVector>& gamma_1, const Scalar<DataVector>& lapse,
@@ -168,7 +167,7 @@ struct CharacteristicFieldsCompute : Tags::CharacteristicFields<Dim, Frame>,
       gr::Tags::InverseSpatialMetric<Dim, Frame, DataVector>,
       gr::Tags::SpacetimeMetric<Dim, Frame, DataVector>, Tags::Pi<Dim, Frame>,
       Tags::Phi<Dim, Frame>,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
+      ::Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
 
   static typename Tags::CharacteristicFields<Dim, Frame>::type function(
       const Scalar<DataVector>& gamma_2,
@@ -221,7 +220,7 @@ struct EvolvedFieldsFromCharacteristicFieldsCompute
   using argument_tags = tmpl::list<
       Tags::ConstraintGamma2, Tags::UPsi<Dim, Frame>, Tags::UZero<Dim, Frame>,
       Tags::UPlus<Dim, Frame>, Tags::UMinus<Dim, Frame>,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
+      ::Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<Dim, Frame>>>;
 
   static typename Tags::EvolvedFieldsFromCharacteristicFields<Dim, Frame>::type
   function(
@@ -243,7 +242,13 @@ struct EvolvedFieldsFromCharacteristicFieldsCompute
  */
 template <size_t Dim, typename Frame>
 struct ComputeLargestCharacteristicSpeed {
-  using argument_tags = tmpl::list<Tags::CharacteristicSpeeds<Dim, Frame>>;
-  static double apply(const std::array<DataVector, 4>& char_speeds) noexcept;
+  using argument_tags =
+      tmpl::list<Tags::ConstraintGamma1, gr::Tags::Lapse<DataVector>,
+                 gr::Tags::Shift<Dim, Frame, DataVector>,
+                 gr::Tags::SpatialMetric<Dim, Frame, DataVector>>;
+  static double apply(
+      const Scalar<DataVector>& gamma_1, const Scalar<DataVector>& lapse,
+      const tnsr::I<DataVector, Dim, Frame>& shift,
+      const tnsr::ii<DataVector, Dim, Frame>& spatial_metric) noexcept;
 };
 }  // namespace GeneralizedHarmonic

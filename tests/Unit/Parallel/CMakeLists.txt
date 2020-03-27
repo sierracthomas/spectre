@@ -17,8 +17,13 @@ function(add_algorithm_test EXECUTABLE_NAME)
 
   target_link_libraries(
     ${EXECUTABLE_NAME}
+    PRIVATE
+    # Link against Boost::program_options for now until we have proper
+    # dependency handling for header-only libs
+    Boost::program_options
     ErrorHandling
     Informer
+    Options
     Utilities
     ${SPECTRE_LIBRARIES}
     )
@@ -54,6 +59,7 @@ add_dependencies(
 
 target_link_libraries(
   Test_ConstGlobalCache
+  PRIVATE
   ErrorHandling
   Informer
   ${SPECTRE_LIBRARIES}
@@ -125,6 +131,7 @@ set(LIBRARY "Test_Parallel")
 
 set(LIBRARY_SOURCES
   Test_ConstGlobalCacheDataBox.cpp
+  Test_InboxInserters.cpp
   Test_Parallel.cpp
   Test_ParallelComponentHelpers.cpp
   Test_PupStlCpp11.cpp
@@ -135,7 +142,7 @@ add_test_library(
   ${LIBRARY}
   "Parallel"
   "${LIBRARY_SOURCES}"
-  ""
+  "Options"
   )
 
 add_dependencies(

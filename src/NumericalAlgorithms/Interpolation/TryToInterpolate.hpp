@@ -6,6 +6,7 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/Variables.hpp"
+#include "DataStructures/VariablesTag.hpp"
 #include "Domain/ElementLogicalCoordinates.hpp"
 #include "Domain/Tags.hpp"
 #include "NumericalAlgorithms/Interpolation/IrregularInterpolant.hpp"
@@ -153,7 +154,7 @@ void try_to_interpolate(
           InterpolationTarget<Metavariables, InterpolationTargetTag>>(*cache);
       Parallel::simple_action<
           Actions::InterpolationTargetReceiveVars<InterpolationTargetTag>>(
-          receiver_proxy, info.vars, info.global_offsets);
+          receiver_proxy, info.vars, info.global_offsets, temporal_id);
     }
 
     // Clear interpolated data, since we don't need it anymore.

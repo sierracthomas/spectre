@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -10,21 +10,24 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "PointwiseFunctions/Hydro/LorentzFactor.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 namespace hydro {
 namespace {
 template <size_t Dim, typename Frame, typename DataType>
 void test_lorentz_factor(const DataType& used_for_size) {
-  pypp::check_with_random_values<1>(&lorentz_factor<DataType, Dim, Frame>,
-                                    "TestFunctions", "lorentz_factor",
+  constexpr auto function = static_cast<Scalar<DataType> (*)(
+      const tnsr::I<DataType, Dim, Frame>&,
+      const tnsr::i<DataType, Dim, Frame>&) noexcept>(
+      &lorentz_factor<DataType, Dim, Frame>);
+  pypp::check_with_random_values<1>(function, "TestFunctions", "lorentz_factor",
                                     {{{0.0, 1.0 / sqrt(Dim)}}}, used_for_size);
-  pypp::check_with_random_values<1>(&lorentz_factor<DataType, Dim, Frame>,
-                                    "TestFunctions", "lorentz_factor",
+  pypp::check_with_random_values<1>(function, "TestFunctions", "lorentz_factor",
                                     {{{-1.0 / sqrt(Dim), 0.0}}}, used_for_size);
 }
 }  // namespace
@@ -49,8 +52,9 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.Hydro.LorentzFactor",
   test_lorentz_factor<3, Frame::Grid>(0.0);
 
   // Check compute item works correctly in DataBox
-  CHECK(Tags::LorentzFactorCompute<DataVector, 2, Frame::Inertial>::name() ==
-        "LorentzFactor");
+  TestHelpers::db::test_compute_tag<
+      Tags::LorentzFactorCompute<DataVector, 2, Frame::Inertial>>(
+      "LorentzFactor");
   tnsr::i<DataVector, 2> velocity_one_form{
       {{DataVector{5, 0.2}, DataVector{5, 0.3}}}};
   tnsr::I<DataVector, 2> velocity{{{DataVector{5, 0.25}, DataVector{5, 0.35}}}};

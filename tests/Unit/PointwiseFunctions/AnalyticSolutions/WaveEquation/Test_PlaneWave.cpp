@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -13,6 +13,8 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"           // IWYU pragma: keep
 #include "Evolution/Systems/ScalarWave/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/WaveEquation/PlaneWave.hpp"
 #include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
@@ -21,8 +23,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare MathFunction
 // IWYU pragma: no_forward_declare Tensor
@@ -158,12 +158,12 @@ void test_1d() {
       deserialized_pw, x, t);
 
   const auto created_solution =
-      test_creation<ScalarWave::Solutions::PlaneWave<1>>(
-          "  WaveVector: [-1.5]\n"
-          "  Center: [2.4]\n"
-          "  Profile:\n"
-          "    PowX:\n"
-          "      Power: 3");
+      TestHelpers::test_creation<ScalarWave::Solutions::PlaneWave<1>>(
+          "WaveVector: [-1.5]\n"
+          "Center: [2.4]\n"
+          "Profile:\n"
+          "  PowX:\n"
+          "    Power: 3");
   CHECK(
       created_solution.variables(
           x, t,
@@ -218,12 +218,12 @@ void test_2d() {
       deserialized_pw, x, t);
 
   const auto created_solution =
-      test_creation<ScalarWave::Solutions::PlaneWave<2>>(
-          "  WaveVector: [1.5, -7.2]\n"
-          "  Center: [2.4, -4.8]\n"
-          "  Profile:\n"
-          "    PowX:\n"
-          "      Power: 3");
+      TestHelpers::test_creation<ScalarWave::Solutions::PlaneWave<2>>(
+          "WaveVector: [1.5, -7.2]\n"
+          "Center: [2.4, -4.8]\n"
+          "Profile:\n"
+          "  PowX:\n"
+          "    Power: 3");
   CHECK(
       created_solution.variables(
           x, t,
@@ -296,12 +296,12 @@ void test_3d() {
       deserialized_pw, x, t);
 
   const auto created_solution =
-      test_creation<ScalarWave::Solutions::PlaneWave<3>>(
-          "  WaveVector: [1.5, -7.2, 2.7]\n"
-          "  Center: [2.4, -4.8, 8.4]\n"
-          "  Profile:\n"
-          "    PowX:\n"
-          "      Power: 3");
+      TestHelpers::test_creation<ScalarWave::Solutions::PlaneWave<3>>(
+          "WaveVector: [1.5, -7.2, 2.7]\n"
+          "Center: [2.4, -4.8, 8.4]\n"
+          "Profile:\n"
+          "  PowX:\n"
+          "    Power: 3");
   CHECK(
       created_solution.variables(
           x, t,

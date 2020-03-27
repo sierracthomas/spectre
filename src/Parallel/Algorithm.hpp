@@ -15,6 +15,7 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "ErrorHandling/Assert.hpp"
 #include "ErrorHandling/Error.hpp"
 #include "Parallel/AlgorithmMetafunctions.hpp"
@@ -325,24 +326,6 @@ class AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>> {
         std::forward<Args>(std::get<Is>(args))...);
   }
 
-  // @{
-  /// Since it's not clear how or if it's possible at all to do SFINAE with
-  /// Charm's ci files, we use a forward to implementation, where the
-  /// implementation is a simple function call that we can use SFINAE with
-  template <typename ReceiveTag, typename ReceiveDataType,
-            Requires<tt::is_maplike_v<typename ReceiveTag::type::mapped_type>> =
-                nullptr>
-  void receive_data_impl(typename ReceiveTag::temporal_id& instance,
-                         ReceiveDataType&& t);
-
-  template <
-      typename ReceiveTag, typename ReceiveDataType,
-      Requires<tt::is_a_v<std::unordered_multiset,
-                          typename ReceiveTag::type::mapped_type>> = nullptr>
-  constexpr void receive_data_impl(typename ReceiveTag::temporal_id& instance,
-                                   ReceiveDataType&& t);
-  // @}
-
   size_t number_of_actions_in_phase(const PhaseType phase) const noexcept {
     size_t number_of_actions = 0;
     const auto helper = [&number_of_actions, phase](auto pdal_v) {
@@ -467,6 +450,7 @@ void AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
                                   std::make_index_sequence<Arg::pack_size()>{});
   performing_action_ = false;
   unlock(&node_lock_);
+  perform_algorithm();
 }
 
 template <typename ParallelComponent, typename... PhaseDepActionListsPack>
@@ -488,6 +472,7 @@ void AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
                                   std::make_index_sequence<sizeof...(Args)>{});
   performing_action_ = false;
   unlock(&node_lock_);
+  perform_algorithm();
 }
 
 template <typename ParallelComponent, typename... PhaseDepActionListsPack>
@@ -510,6 +495,7 @@ void AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
       static_cast<const array_index&>(array_index_));
   performing_action_ = false;
   unlock(&node_lock_);
+  perform_algorithm();
 }
 
 template <typename ParallelComponent, typename... PhaseDepActionListsPack>
@@ -524,7 +510,9 @@ void AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
     if (enable_if_disabled) {
       set_terminate(false);
     }
-    receive_data_impl<ReceiveTag>(instance, std::forward<ReceiveDataType>(t));
+    ReceiveTag::insert_into_inbox(
+        make_not_null(&tuples::get<ReceiveTag>(inboxes_)), instance,
+        std::forward<ReceiveDataType>(t));
     unlock(&node_lock_);
   } catch (std::exception& e) {
     ERROR("Fatal error: Unexpected exception caught in receive_data: "
@@ -778,50 +766,5 @@ AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
   // This is a template for loop for Is
   EXPAND_PACK_LEFT_TO_RIGHT(helper(std::integral_constant<size_t, Is>{}));
   return take_next_action;
-}
-
-template <typename ParallelComponent, typename... PhaseDepActionListsPack>
-template <typename ReceiveTag, typename ReceiveDataType,
-          Requires<tt::is_maplike_v<typename ReceiveTag::type::mapped_type>>>
-void AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
-    receive_data_impl(typename ReceiveTag::temporal_id& instance,
-                      ReceiveDataType&& t) {
-  static_assert(
-      cpp17::is_same_v<
-          cpp20::remove_cvref_t<typename ReceiveDataType::first_type>,
-          typename ReceiveTag::type::mapped_type::key_type> and
-          cpp17::is_same_v<
-              cpp20::remove_cvref_t<typename ReceiveDataType::second_type>,
-              typename ReceiveTag::type::mapped_type::mapped_type>,
-      "The type of the data passed to receive_data for a tag that holds a map "
-      "must be a std::pair.");
-#ifdef SPECTRE_CHARM_RECEIVE_MAP_DATA_EVENT_ID
-  double start_time = Parallel::wall_time();
-#endif
-  auto& inbox = tuples::get<ReceiveTag>(inboxes_)[instance];
-  ASSERT(0 == inbox.count(t.first),
-         "Receiving data from the 'same' source twice. The message id is: "
-             << t.first);
-  if (not inbox.insert(std::forward<ReceiveDataType>(t)).second) {
-    ERROR("Failed to insert data to receive at instance '"
-          << instance << "' with tag '" << pretty_type::get_name<ReceiveTag>()
-          << "'.\n");
-  }
-#ifdef SPECTRE_CHARM_RECEIVE_MAP_DATA_EVENT_ID
-  traceUserBracketEvent(SPECTRE_CHARM_RECEIVE_MAP_DATA_EVENT_ID, start_time,
-                        Parallel::wall_time());
-#endif
-}
-
-template <typename ParallelComponent, typename... PhaseDepActionListsPack>
-template <typename ReceiveTag, typename ReceiveDataType,
-          Requires<tt::is_a_v<std::unordered_multiset,
-                              typename ReceiveTag::type::mapped_type>>>
-constexpr void
-AlgorithmImpl<ParallelComponent, tmpl::list<PhaseDepActionListsPack...>>::
-    receive_data_impl(typename ReceiveTag::temporal_id& instance,
-                      ReceiveDataType&& t) {
-  tuples::get<ReceiveTag>(inboxes_)[instance].insert(
-      std::forward<ReceiveDataType>(t));
 }
 }  // namespace Parallel

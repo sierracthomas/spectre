@@ -2,7 +2,7 @@
 # See LICENSE.txt for details.
 
 # Executable: EvolveFishboneMoncriefDisk
-# Check: execute
+# Check: parse;execute
 
 Evolution:
   InitialTime: 0.0
@@ -31,8 +31,8 @@ DomainCreator:
 
 AnalyticSolution:
   FishboneMoncriefDisk:
-    BhMass: 1.0
-    BhDimlessSpin: 0.9375
+    BhMass: &BhMass 1.0
+    BhDimlessSpin: &BhDimlessSpin 0.9375
     InnerEdgeRadius: 6.0
     MaxPressureRadius: 12.0
     PolytropicConstant: 0.001
@@ -51,7 +51,7 @@ Limiter:
     # DisableForDebugging: True
     Type: LambdaPiN
     # Recommended value from minmod papers:
-    TvbmConstant: 50.0
+    TvbConstant: 50.0
 
 VariableFixing:
   FixConservatives:
@@ -67,7 +67,28 @@ EventsAndTriggers:
   ? SpecifiedSlabs:
       Slabs: [10]
   : - Completion
+  ? EveryNSlabs:
+      N: 1
+  : - ChangeSlabSize:
+        # DelayChange: 0 forces a synchronization after every slab.
+        # It is more efficient to use a higher value.  This is for
+        # testing.
+        DelayChange: 0
+        StepChoosers:
+          - Constant: 0.05
+          - Increase:
+              Factor: 2
+          - Cfl:
+              SafetyFactor: 0.2
+          - PreventRapidIncrease
 
 Observers:
   VolumeFileName: "GrMhdVolume"
   ReductionFileName: "GrMhdReductions"
+
+InterpolationTargets:
+  KerrHorizon:
+    Lmax: 10
+    Center: [0.0, 0.0, 0.0]
+    Mass: *BhMass
+    DimensionlessSpin: [0.0, 0.0, *BhDimlessSpin]

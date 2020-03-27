@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cmath>
 #include <cstddef>
@@ -12,12 +12,12 @@
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
 #include "Evolution/VariableFixing/Actions.hpp"
 #include "Evolution/VariableFixing/RadiallyFallingFloor.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/ParallelComponentHelpers.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/Hydro/Tags.hpp"      // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <exception>
 
@@ -33,7 +33,7 @@ struct mock_component {
   using array_index = size_t;
   using simple_tags = tmpl::list<hydro::Tags::RestMassDensity<DataVector>,
                                  hydro::Tags::Pressure<DataVector>,
-                                 ::Tags::Coordinates<3, Frame::Inertial>>;
+                                 domain::Tags::Coordinates<3, Frame::Inertial>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -66,7 +66,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.VariableFixing.Actions",
       {Scalar<DataVector>{DataVector{2.3, -4.2, 1.e-10, 0.0, -0.1}},
        Scalar<DataVector>{DataVector{0.0, 1.e-8, 2.0, -5.5, 3.2}},
        tnsr::I<DataVector, 3, Frame::Inertial>{{{x, y, z}}}});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   auto& box = ActionTesting::get_databox<component, simple_tags>(runner, 0);
   runner.next_action<component>(0);

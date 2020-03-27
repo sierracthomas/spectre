@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -13,15 +13,17 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Direction.hpp"
 #include "Domain/Element.hpp"
 #include "Domain/ElementId.hpp"
@@ -32,13 +34,13 @@
 #include "Domain/Mesh.hpp"
 #include "Domain/Neighbors.hpp"  // IWYU pragma: keep
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ComputeNonconservativeBoundaryFluxes.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/StdHelpers.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
 // IWYU pragma: no_forward_declare db::DataBox
@@ -49,17 +51,14 @@
 
 namespace {
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
 struct Var2 : db::SimpleTag {
-  static std::string name() noexcept { return "Var2"; }
   using type = tnsr::ii<DataVector, 2>;
 };
 
 struct OtherArg : db::SimpleTag {
-  static std::string name() noexcept { return "OtherArg"; }
   using type = double;
 };
 
@@ -72,7 +71,7 @@ struct System {
   struct normal_dot_fluxes {
     using argument_tags =
         tmpl::list<Var, OtherArg, Var2,
-                   Tags::Normalized<Tags::UnnormalizedFaceNormal<2>>>;
+                   Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<2>>>;
     static void apply(
         const gsl::not_null<Scalar<DataVector>*> var_normal_dot_flux,
         const gsl::not_null<tnsr::ii<DataVector, 2>*> var2_normal_dot_flux,
@@ -92,10 +91,11 @@ struct System {
 };
 
 template <typename Tag>
-using interface_tag = Tags::Interface<Tags::InternalDirections<2>, Tag>;
+using interface_tag =
+    domain::Tags::Interface<domain::Tags::InternalDirections<2>, Tag>;
 template <typename Tag>
 using interface_compute_tag =
-    Tags::InterfaceCompute<Tags::InternalDirections<2>, Tag>;
+    domain::Tags::InterfaceCompute<domain::Tags::InternalDirections<2>, Tag>;
 
 using n_dot_f_tag = interface_tag<Tags::NormalDotFlux<Tags::Variables<
     tmpl::list<Tags::NormalDotFlux<Var>, Tags::NormalDotFlux<Var2>>>>>;
@@ -108,17 +108,19 @@ struct component {
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = ElementIndex<2>;
   using simple_tags =
-      db::AddSimpleTags<Tags::Element<2>, Tags::Mesh<2>, Tags::ElementMap<2>,
+      db::AddSimpleTags<domain::Tags::Element<2>, domain::Tags::Mesh<2>,
+                        domain::Tags::ElementMap<2>,
                         interface_tag<Tags::Variables<tmpl::list<Var, Var2>>>,
                         interface_tag<OtherArg>, n_dot_f_tag>;
   using compute_tags = db::AddComputeTags<
-      Tags::InternalDirections<2>, interface_compute_tag<Tags::Direction<2>>,
-      interface_compute_tag<Tags::InterfaceMesh<2>>,
-      interface_compute_tag<Tags::UnnormalizedFaceNormalCompute<2>>,
+      domain::Tags::InternalDirections<2>,
+      interface_compute_tag<domain::Tags::Direction<2>>,
+      interface_compute_tag<domain::Tags::InterfaceMesh<2>>,
+      interface_compute_tag<domain::Tags::UnnormalizedFaceNormalCompute<2>>,
       interface_compute_tag<
-          Tags::EuclideanMagnitude<Tags::UnnormalizedFaceNormal<2>>>,
+          Tags::EuclideanMagnitude<domain::Tags::UnnormalizedFaceNormal<2>>>,
       interface_compute_tag<
-          Tags::NormalizedCompute<Tags::UnnormalizedFaceNormal<2>>>>;
+          Tags::NormalizedCompute<domain::Tags::UnnormalizedFaceNormal<2>>>>;
 
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
@@ -128,7 +130,7 @@ struct component {
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Testing,
           tmpl::list<dg::Actions::ComputeNonconservativeBoundaryFluxes<
-              Tags::InternalDirections<2>>>>>;
+              domain::Tags::InternalDirections<2>>>>>;
 };
 
 struct Metavariables {
@@ -171,7 +173,8 @@ auto run_action(
       &runner, element.id(),
       {element, mesh, std::move(element_map), vars, other_arg,
        std::move(n_dot_f_storage)});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   runner.next_action<my_component>(element.id());
   // std::move call on returned value is intentional.
@@ -204,9 +207,9 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ComputeNonconservativeBoundaryFluxes",
 
   auto box = run_action(element, vars, other_arg);
 
-  const auto& unit_face_normal =
-      db::get<interface_tag<Tags::Normalized<Tags::UnnormalizedFaceNormal<2>>>>(
-          box);
+  const auto& unit_face_normal = db::get<
+      interface_tag<Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<2>>>>(
+      box);
   const auto& n_dot_f = db::get<n_dot_f_tag>(box);
 
   std::unordered_map<Direction<2>,

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Matrix.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
@@ -27,6 +28,8 @@
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "IO/H5/AccessType.hpp"
 #include "IO/H5/Dat.hpp"
 #include "IO/H5/File.hpp"
@@ -64,8 +67,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -84,34 +85,31 @@ namespace {
 // Simple DataBoxItems for test.
 namespace Tags {
 struct TestSolution : db::SimpleTag {
-  static std::string name() noexcept { return "TestSolution"; }
   using type = Scalar<DataVector>;
 };
 struct Square : db::SimpleTag {
-  static std::string name() noexcept { return "Square"; }
   using type = Scalar<DataVector>;
 };
-struct SquareComputeItem : Square, db::ComputeTag {
-  static std::string name() noexcept { return "Square"; }
+struct SquareCompute : Square, db::ComputeTag {
   static Scalar<DataVector> function(const Scalar<DataVector>& x) noexcept {
     auto result = make_with_value<Scalar<DataVector>>(x, 0.0);
     get(result) = square(get(x));
     return result;
   }
   using argument_tags = tmpl::list<TestSolution>;
+  using base = Square;
 };
 struct Negate : db::SimpleTag {
-  static std::string name() noexcept { return "Negate"; }
   using type = Scalar<DataVector>;
 };
-struct NegateComputeItem : Negate, db::ComputeTag {
-  static std::string name() noexcept { return "Negate"; }
+struct NegateCompute : Negate, db::ComputeTag {
   static Scalar<DataVector> function(const Scalar<DataVector>& x) noexcept {
     auto result = make_with_value<Scalar<DataVector>>(x, 0.0);
     get(result) = -get(x);
     return result;
   }
   using argument_tags = tmpl::list<Square>;
+  using base = Negate;
 };
 }  // namespace Tags
 
@@ -165,7 +163,7 @@ struct MockInterpolationTarget {
       Parallel::get_const_global_cache_tags_from_actions<tmpl::list<
           typename InterpolationTargetTag::compute_target_points,
           typename InterpolationTargetTag::post_interpolation_callback>>,
-      tmpl::list<::Tags::Domain<Metavariables::volume_dim, Frame::Inertial>>>>;
+      tmpl::list<domain::Tags::Domain<Metavariables::volume_dim>>>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -204,7 +202,7 @@ struct MockMetavariables {
         tmpl::list<Tags::TestSolution,
                    gr::Tags::SpatialMetric<3, Frame::Inertial>>;
     using compute_items_on_target = tmpl::list<
-        Tags::SquareComputeItem,
+        Tags::SquareCompute,
         StrahlkorperGr::Tags::AreaElement<Frame::Inertial>,
         StrahlkorperGr::Tags::SurfaceIntegral<Tags::Square, ::Frame::Inertial>>;
     using compute_target_points =
@@ -221,7 +219,7 @@ struct MockMetavariables {
         tmpl::list<Tags::TestSolution,
                    gr::Tags::SpatialMetric<3, Frame::Inertial>>;
     using compute_items_on_target = tmpl::list<
-        Tags::SquareComputeItem, Tags::NegateComputeItem,
+        Tags::SquareCompute, Tags::NegateCompute,
         StrahlkorperGr::Tags::AreaElement<Frame::Inertial>,
         StrahlkorperGr::Tags::SurfaceIntegral<Tags::Square, Frame::Inertial>,
         StrahlkorperGr::Tags::SurfaceIntegral<Tags::Negate, Frame::Inertial>>;
@@ -241,7 +239,7 @@ struct MockMetavariables {
         tmpl::list<Tags::TestSolution,
                    gr::Tags::SpatialMetric<3, Frame::Inertial>>;
     using compute_items_on_target = tmpl::list<
-        Tags::SquareComputeItem, Tags::NegateComputeItem,
+        Tags::SquareCompute, Tags::NegateCompute,
         StrahlkorperGr::Tags::AreaElement<Frame::Inertial>,
         StrahlkorperGr::Tags::SurfaceIntegral<Tags::Negate, ::Frame::Inertial>>;
     using compute_target_points =
@@ -299,19 +297,19 @@ SPECTRE_TEST_CASE(
   intrp::OptionHolders::KerrHorizon kerr_horizon_opts_C(10, {{0.0, 0.0, 0.0}},
                                                         1.5, {{0.0, 0.0, 0.0}});
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
   tuples::TaggedTuple<observers::Tags::ReductionFileName,
                       ::intrp::Tags::KerrHorizon<metavars::SurfaceA>,
-                      ::Tags::Domain<3, Frame::Inertial>,
+                      domain::Tags::Domain<3>,
                       ::intrp::Tags::KerrHorizon<metavars::SurfaceB>,
                       ::intrp::Tags::KerrHorizon<metavars::SurfaceC>>
       tuple_of_opts{h5_file_prefix, kerr_horizon_opts_A,
-                    domain_creator.create_domain(),
-                    kerr_horizon_opts_B,
+                    domain_creator.create_domain(), kerr_horizon_opts_B,
                     kerr_horizon_opts_C};
 
   ActionTesting::MockRuntimeSystem<metavars> runner{std::move(tuple_of_opts)};
-  runner.set_phase(metavars::Phase::Initialization);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Initialization);
   ActionTesting::emplace_component<interp_component>(&runner, 0);
   ActionTesting::next_action<interp_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<target_a_component>(&runner, 0);
@@ -322,7 +320,8 @@ SPECTRE_TEST_CASE(
   ActionTesting::next_action<target_c_component>(make_not_null(&runner), 0);
   ActionTesting::emplace_component<obs_writer>(&runner, 0);
   ActionTesting::next_action<obs_writer>(make_not_null(&runner), 0);
-  runner.set_phase(metavars::Phase::Registration);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavars::Phase::Registration);
 
   Slab slab(0.0, 1.0);
   TimeStepId temporal_id(true, 0, Time(slab, 0));
@@ -374,7 +373,7 @@ SPECTRE_TEST_CASE(
   ActionTesting::invoke_queued_simple_action<obs_writer>(make_not_null(&runner),
                                                          0);
   CHECK(ActionTesting::is_simple_action_queue_empty<obs_writer>(runner, 0));
-  runner.set_phase(metavars::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner), metavars::Phase::Testing);
 
   // Create volume data and send it to the interpolator.
   for (const auto& element_id : element_ids) {
@@ -382,8 +381,11 @@ SPECTRE_TEST_CASE(
     ::Mesh<3> mesh{domain_creator.initial_extents()[element_id.block_id()],
                    Spectral::Basis::Legendre,
                    Spectral::Quadrature::GaussLobatto};
+    if (block.is_time_dependent()) {
+      ERROR("The block must be time-independent");
+    }
     ElementMap<3, Frame::Inertial> map{element_id,
-                                       block.coordinate_map().get_clone()};
+                                       block.stationary_map().get_clone()};
     const auto inertial_coords = map(logical_coordinates(mesh));
     db::item_type<
         ::Tags::Variables<typename metavars::interpolator_source_vars>>
@@ -450,11 +452,11 @@ SPECTRE_TEST_CASE(
   // minus sign for "Negate".
   const std::vector<double> expected_integral_c{-5.0625 * 2432.0 * M_PI / 3.0};
   const std::vector<std::string> expected_legend_a{"Time",
-                                                   "SurfaceIntegralSquare"};
+                                                   "SurfaceIntegral(Square)"};
   const std::vector<std::string> expected_legend_b{
-      "Time", "SurfaceIntegralSquare", "SurfaceIntegralNegate"};
+      "Time", "SurfaceIntegral(Square)", "SurfaceIntegral(Negate)"};
   const std::vector<std::string> expected_legend_c{"Time",
-                                                   "SurfaceIntegralNegate"};
+                                                   "SurfaceIntegral(Negate)"};
 
   // Check that the H5 file was written correctly.
   const auto file = h5::H5File<h5::AccessType::ReadOnly>(h5_file_name);

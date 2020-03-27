@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,15 +14,15 @@
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "ErrorHandling/Error.hpp"
 #include "Evolution/Systems/NewtonianEuler/Tags.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Options/Options.hpp"
 #include "Options/ParseOptions.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/NewtonianEuler/RiemannProblem.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
@@ -65,21 +65,21 @@ void test_solution(const std::array<double, Dim> left_velocity,
                       0.1),
       used_for_size, 1.e-9);
 
-  const auto solution_from_options =
-      test_creation<NewtonianEuler::Solutions::RiemannProblem<Dim>>(
-          "  AdiabaticIndex: 1.4\n"
-          "  InitialPosition: 0.5\n"
-          "  LeftMassDensity: 1.0\n"
-          "  LeftVelocity: " +
-          left_velocity_opt +
-          "\n"
-          "  LeftPressure: 1.0\n"
-          "  RightMassDensity: 0.125\n"
-          "  RightVelocity: " +
-          right_velocity_opt +
-          "\n"
-          "  RightPressure: 0.1\n"
-          "  PressureStarTol: 1.e-6");
+  const auto solution_from_options = TestHelpers::test_creation<
+      NewtonianEuler::Solutions::RiemannProblem<Dim>>(
+      "AdiabaticIndex: 1.4\n"
+      "InitialPosition: 0.5\n"
+      "LeftMassDensity: 1.0\n"
+      "LeftVelocity: " +
+      left_velocity_opt +
+      "\n"
+      "LeftPressure: 1.0\n"
+      "RightMassDensity: 0.125\n"
+      "RightVelocity: " +
+      right_velocity_opt +
+      "\n"
+      "RightPressure: 0.1\n"
+      "PressureStarTol: 1.e-6");
   CHECK(solution_from_options == solution);
 
   RiemannProblemProxy<Dim> solution_to_move(1.4, 0.5, 1.0, left_velocity, 1.0,
@@ -166,9 +166,9 @@ SPECTRE_TEST_CASE(
 [[noreturn]] SPECTRE_TEST_CASE(
     "Unit.PointwiseFunctions.AnalyticSolutions.NewtEuler.RiemannProblem.PositP",
     "[Unit][PointwiseFunctions]") {
+  ASSERTION_TEST();
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/AnalyticSolutions/NewtonianEuler"};
-  ASSERTION_TEST();
 #ifdef SPECTRE_DEBUG
   NewtonianEuler::Solutions::RiemannProblem<1> solution(
       1.4, 0.7, 1.0, {{0.0}}, 1.0, 0.125, {{30.0}}, 1.1);
@@ -181,10 +181,10 @@ SPECTRE_TEST_CASE(
 [[noreturn]] SPECTRE_TEST_CASE(
     "Unit.PointwiseFunctions.AnalyticSolutions.NewtEuler.RiemannProblem.Dens",
     "[Unit][PointwiseFunctions]") {
+  ASSERTION_TEST();
   // clang-format on
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/AnalyticSolutions/NewtonianEuler"};
-  ASSERTION_TEST();
 #ifdef SPECTRE_DEBUG
   NewtonianEuler::Solutions::RiemannProblem<2> solution(
       1.4, 0.7, -1.0, {{0.0}}, 1.0, 0.125, {{30.0}}, 1.1);
@@ -196,9 +196,9 @@ SPECTRE_TEST_CASE(
 [[noreturn]] SPECTRE_TEST_CASE(
     "Unit.PointwiseFunctions.AnalyticSolutions.NewtEuler.RiemannProblem.Pres",
     "[Unit][PointwiseFunctions]") {
+  ASSERTION_TEST();
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/AnalyticSolutions/NewtonianEuler"};
-  ASSERTION_TEST();
 #ifdef SPECTRE_DEBUG
   NewtonianEuler::Solutions::RiemannProblem<3> solution(
       1.4, 0.7, 1.0, {{0.0}}, -1.0, 0.125, {{30.0}}, 1.1);

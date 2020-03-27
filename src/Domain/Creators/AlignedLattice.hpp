@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cstddef>
+#include <iosfwd>
 #include <limits>
 #include <vector>
 
@@ -15,8 +16,68 @@
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/TMPL.hpp"
 
+/// \cond
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+template <typename Map1, typename Map2>
+class ProductOf2Maps;
+template <typename Map1, typename Map2, typename Map3>
+class ProductOf3Maps;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
+/// \endcond
+
 namespace domain {
 namespace creators {
+
+template <size_t VolumeDim>
+struct RefinementRegion {
+  std::array<size_t, VolumeDim> lower_corner_index;
+  std::array<size_t, VolumeDim> upper_corner_index;
+  std::array<size_t, VolumeDim> refinement;
+
+  struct LowerCornerIndex {
+    using type = std::array<size_t, VolumeDim>;
+    static constexpr OptionString help = {"Lower bound of refined region."};
+  };
+
+  struct UpperCornerIndex {
+    using type = std::array<size_t, VolumeDim>;
+    static constexpr OptionString help = {"Upper bound of refined region."};
+  };
+
+  struct Refinement {
+    using type = std::array<size_t, VolumeDim>;
+    static constexpr OptionString help = {"Refinement inside region."};
+  };
+
+  static constexpr OptionString help = {
+      "A region to be refined differently from the default for the lattice.\n"
+      "The region is a box between the block boundaries indexed by the bound\n"
+      "options."};
+  using options = tmpl::list<LowerCornerIndex, UpperCornerIndex, Refinement>;
+  RefinementRegion(const std::array<size_t, VolumeDim>& lower_corner_index_in,
+                   const std::array<size_t, VolumeDim>& upper_corner_index_in,
+                   const std::array<size_t, VolumeDim>& refinement_in) noexcept
+      : lower_corner_index(lower_corner_index_in),
+        upper_corner_index(upper_corner_index_in),
+        refinement(refinement_in) {}
+  RefinementRegion() = default;
+};
+
+/// \cond
+// This is needed to print the default value for the RefinedGridPoints
+// option.  Since the default value is an empty vector, this function
+// is never actually called.
+template <size_t VolumeDim>
+[[noreturn]] std::ostream& operator<<(
+    std::ostream& /*s*/,
+    const RefinementRegion<VolumeDim>& /*unused*/) noexcept;
+/// \endcond
 
 /// \brief Create a Domain consisting of multiple aligned Blocks arrayed in a
 /// lattice.
@@ -28,9 +89,21 @@ namespace creators {
 /// \note Adaptive mesh refinement can never join Block%s, so use the fewest
 /// number of Block%s that your problem needs.  More initial Element%s can be
 /// created by specifying a larger `InitialRefinement`.
-template <size_t VolumeDim, typename TargetFrame>
-class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
+template <size_t VolumeDim>
+class AlignedLattice : public DomainCreator<VolumeDim> {
  public:
+  using maps_list = tmpl::list<
+      domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                            CoordinateMaps::Affine>,
+      domain::CoordinateMap<
+          Frame::Logical, Frame::Inertial,
+          CoordinateMaps::ProductOf2Maps<CoordinateMaps::Affine,
+                                         CoordinateMaps::Affine>>,
+      domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                            CoordinateMaps::ProductOf3Maps<
+                                CoordinateMaps::Affine, CoordinateMaps::Affine,
+                                CoordinateMaps::Affine>>>;
+
   struct BlockBounds {
     using type = std::array<std::vector<double>, VolumeDim>;
     static constexpr OptionString help = {
@@ -58,6 +131,13 @@ class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
         "Initial number of grid points in each dimension."};
   };
 
+  struct RefinedGridPoints {
+    using type = std::vector<RefinementRegion<VolumeDim>>;
+    static constexpr OptionString help = {
+        "Refined regions.  Later entries take priority."};
+    static type default_value() noexcept { return {}; }
+  };
+
   struct BlocksToExclude {
     using type = std::vector<std::array<size_t, VolumeDim>>;
     static constexpr OptionString help = {
@@ -67,8 +147,9 @@ class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
     }
   };
 
-  using options = tmpl::list<BlockBounds, IsPeriodicIn, InitialRefinement,
-                             InitialGridPoints, BlocksToExclude>;
+  using options =
+      tmpl::list<BlockBounds, IsPeriodicIn, InitialRefinement,
+                 InitialGridPoints, RefinedGridPoints, BlocksToExclude>;
 
   static constexpr OptionString help = {
       "AlignedLattice creates a regular lattice of blocks whose corners are\n"
@@ -86,6 +167,7 @@ class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
                  typename IsPeriodicIn::type is_periodic_in,
                  typename InitialRefinement::type initial_refinement_levels,
                  typename InitialGridPoints::type initial_number_of_grid_points,
+                 typename RefinedGridPoints::type refined_grid_points,
                  typename BlocksToExclude::type blocks_to_exclude) noexcept;
 
   AlignedLattice() = default;
@@ -95,7 +177,7 @@ class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
   AlignedLattice& operator=(AlignedLattice&&) noexcept = default;
   ~AlignedLattice() override = default;
 
-  Domain<VolumeDim, TargetFrame> create_domain() const noexcept override;
+  Domain<VolumeDim> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, VolumeDim>> initial_extents() const
       noexcept override;
@@ -111,6 +193,7 @@ class AlignedLattice : public DomainCreator<VolumeDim, TargetFrame> {
       make_array<VolumeDim>(std::numeric_limits<size_t>::max())};
   typename InitialGridPoints::type initial_number_of_grid_points_{
       make_array<VolumeDim>(std::numeric_limits<size_t>::max())};
+  typename RefinedGridPoints::type refined_grid_points_{};
   typename BlocksToExclude::type blocks_to_exclude_{};
   Index<VolumeDim> number_of_blocks_by_dim_{};
 };

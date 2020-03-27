@@ -24,11 +24,13 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE ErrorHandling
-  INTERFACE Utilities
+  PUBLIC
+  Boost::boost # PUBLIC because of the actions
+  DataStructures
+  ErrorHandling
+  Hdf5
+  Options
+  Utilities
   )
 
-if(BUILD_PYTHON_BINDINGS)
-  add_subdirectory(H5/Python)
-endif()
+add_subdirectory(H5/Python)

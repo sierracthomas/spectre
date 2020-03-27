@@ -7,7 +7,9 @@
 
 #include "DataStructures/DataVector.hpp"                  // IWYU pragma: keep
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"  // IWYU pragma: keep
+#include "DataStructures/Tensor/Tensor.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Tov.hpp"
+#include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/MakeWithValue.hpp"
@@ -94,22 +96,20 @@ TovStar<RadialSolution>::variables(
 
 template <typename RadialSolution>
 template <typename DataType>
-tuples::TaggedTuple<hydro::Tags::SpatialVelocity<DataType, 3, Frame::Inertial>>
+tuples::TaggedTuple<hydro::Tags::SpatialVelocity<DataType, 3>>
 TovStar<RadialSolution>::variables(
     const tnsr::I<DataType, 3>& x,
-    tmpl::list<
-        hydro::Tags::SpatialVelocity<DataType, 3, Frame::Inertial>> /*meta*/,
+    tmpl::list<hydro::Tags::SpatialVelocity<DataType, 3>> /*meta*/,
     const RadialVariables<DataType>& /*radial_vars*/) const noexcept {
   return make_with_value<tnsr::I<DataType, 3>>(x, 0.0);
 }
 
 template <typename RadialSolution>
 template <typename DataType>
-tuples::TaggedTuple<hydro::Tags::MagneticField<DataType, 3, Frame::Inertial>>
+tuples::TaggedTuple<hydro::Tags::MagneticField<DataType, 3>>
 TovStar<RadialSolution>::variables(
     const tnsr::I<DataType, 3>& x,
-    tmpl::list<
-        hydro::Tags::MagneticField<DataType, 3, Frame::Inertial>> /*meta*/,
+    tmpl::list<hydro::Tags::MagneticField<DataType, 3>> /*meta*/,
     const RadialVariables<DataType>& /*radial_vars*/) const noexcept {
   return make_with_value<tnsr::I<DataType, 3>>(x, 0.0);
 }
@@ -284,9 +284,9 @@ TovStar<RadialSolution>::variables(
   return make_with_value<tnsr::ii<DataType, 3>>(x, 0.0);
 }
 
-template <typename RadialSolution>
-bool operator==(const TovStar<RadialSolution>& lhs,
-                const TovStar<RadialSolution>& rhs) noexcept {
+template <typename LocalRadialSolution>
+bool operator==(const TovStar<LocalRadialSolution>& lhs,
+                const TovStar<LocalRadialSolution>& rhs) noexcept {
   // there is no comparison operator for the EoS, but should be okay as
   // the `polytropic_exponent`s and `polytropic_constant`s are compared
   return lhs.central_rest_mass_density_ == rhs.central_rest_mass_density_ and
@@ -329,19 +329,15 @@ bool operator!=(const TovStar<RadialSolution>& lhs,
       const tnsr::I<DTYPE(data), 3>& x,                                        \
       tmpl::list<hydro::Tags::LorentzFactor<DTYPE(data)>> /*meta*/,            \
       const RadialVariables<DTYPE(data)>& radial_vars) const noexcept;         \
-  template tuples::TaggedTuple<                                                \
-      hydro::Tags::SpatialVelocity<DTYPE(data), 3, Frame::Inertial>>           \
+  template tuples::TaggedTuple<hydro::Tags::SpatialVelocity<DTYPE(data), 3>>   \
   TovStar<STYPE(data)>::variables(                                             \
       const tnsr::I<DTYPE(data), 3>& x,                                        \
-      tmpl::list<hydro::Tags::SpatialVelocity<DTYPE(data), 3,                  \
-                                              Frame::Inertial>> /*meta*/,      \
+      tmpl::list<hydro::Tags::SpatialVelocity<DTYPE(data), 3>> /*meta*/,       \
       const RadialVariables<DTYPE(data)>& radial_vars) const noexcept;         \
-  template tuples::TaggedTuple<                                                \
-      hydro::Tags::MagneticField<DTYPE(data), 3, Frame::Inertial>>             \
+  template tuples::TaggedTuple<hydro::Tags::MagneticField<DTYPE(data), 3>>     \
   TovStar<STYPE(data)>::variables(                                             \
       const tnsr::I<DTYPE(data), 3>& x,                                        \
-      tmpl::list<hydro::Tags::MagneticField<DTYPE(data), 3,                    \
-                                            Frame::Inertial>> /*meta*/,        \
+      tmpl::list<hydro::Tags::MagneticField<DTYPE(data), 3>> /*meta*/,         \
       const RadialVariables<DTYPE(data)>& radial_vars) const noexcept;         \
   template tuples::TaggedTuple<                                                \
       hydro::Tags::DivergenceCleaningField<DTYPE(data)>>                       \
@@ -408,9 +404,11 @@ bool operator!=(const TovStar<RadialSolution>& lhs,
                                               DTYPE(data)>> /*meta*/,          \
       const RadialVariables<DTYPE(data)>& radial_vars) const noexcept;
 
-#define INSTANTIATE(_, data)                                \
-  template class TovStar<STYPE(data)>;                      \
-  template bool operator!=(const TovStar<STYPE(data)>& lhs, \
+#define INSTANTIATE(_, data)                                          \
+  template class TovStar<STYPE(data)>;                                \
+  template bool operator==(const TovStar<STYPE(data)>& lhs,           \
+                           const TovStar<STYPE(data)>& rhs) noexcept; \
+  template bool operator!=(const TovStar<STYPE(data)>& lhs,           \
                            const TovStar<STYPE(data)>& rhs) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATE_VARS, (gr::Solutions::TovSolution),
@@ -420,7 +418,6 @@ GENERATE_INSTANTIATIONS(INSTANTIATE, (gr::Solutions::TovSolution))
 #undef DTYPE
 #undef STYPE
 #undef INSTANTIATE
-#undef INSTANTIATE_OPS
+#undef INSTANTIATE_VARS
 }  // namespace Solutions
 }  // namespace RelativisticEuler
-/// \endcond

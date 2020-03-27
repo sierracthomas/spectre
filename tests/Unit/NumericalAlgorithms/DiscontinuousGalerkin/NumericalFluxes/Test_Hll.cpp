@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -11,12 +11,12 @@
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"  // IWYU pragma: keep
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Helpers/NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/TestHelpers.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/Hll.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/DiscontinuousGalerkin/NumericalFluxes/TestHelpers.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -52,9 +52,9 @@ void test_hll_flux_tags() noexcept {
       TestHelpers::NumericalFluxes::Tags::Variable3<Dim>,
       TestHelpers::NumericalFluxes::Tags::Variable4<Dim>,
       typename dg::NumericalFluxes::Hll<
-          TestHelpers::NumericalFluxes::System<Dim>>::MinSignalSpeed,
+          TestHelpers::NumericalFluxes::System<Dim>>::LargestIngoingSpeed,
       typename dg::NumericalFluxes::Hll<
-          TestHelpers::NumericalFluxes::System<Dim>>::MaxSignalSpeed>;
+          TestHelpers::NumericalFluxes::System<Dim>>::LargestOutgoingSpeed>;
 
   static_assert(cpp17::is_same_v<typename hll_flux::package_tags,
                                  expected_type_package_tags>,

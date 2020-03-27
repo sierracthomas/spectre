@@ -5,24 +5,36 @@
 
 #include <cstddef>
 #include <tuple>
-#include <utility>
+#include <utility>  // IWYU pragma: keep  // for move
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
-#include "DataStructures/DataBox/Prefixes.hpp"
-#include "DataStructures/Variables.hpp"
-#include "Domain/Mesh.hpp"
-#include "Domain/Tags.hpp"
-#include "Evolution/Initialization/Tags.hpp"
+#include "Evolution/Initialization/InitialData.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
-#include "PointwiseFunctions/AnalyticData/Tags.hpp"
-#include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
+#include "Utilities/TMPL.hpp"
+#include "Utilities/TaggedTuple.hpp"
 
 /// \cond
 namespace Frame {
 struct Inertial;
 }  // namespace Frame
+namespace Initialization {
+namespace Tags {
+struct InitialTime;
+}  // namespace Tags
+}  // namespace Initialization
+namespace Tags {
+struct AnalyticSolutionOrData;
+}  // namespace Tags
+namespace domain {
+namespace Tags {
+template <size_t VolumeDim, typename Frame>
+struct Coordinates;
+template <size_t VolumeDim>
+struct Mesh;
+}  // namespace Tags
+}  // namespace domain
+// IWYU pragma: no_forward_declare db::DataBox
 /// \endcond
 
 namespace Initialization {
@@ -62,16 +74,16 @@ struct NonconservativeSystem {
     using Vars = typename variables_tag::type;
 
     const size_t num_grid_points =
-        db::get<::Tags::Mesh<dim>>(box).number_of_grid_points();
+        db::get<domain::Tags::Mesh<dim>>(box).number_of_grid_points();
     const double initial_time = db::get<Initialization::Tags::InitialTime>(box);
     const auto& inertial_coords =
-        db::get<::Tags::Coordinates<dim, Frame::Inertial>>(box);
+        db::get<domain::Tags::Coordinates<dim, Frame::Inertial>>(box);
 
     // Set initial data from analytic solution
-    using solution_tag = ::Tags::AnalyticSolutionBase;
     Vars vars{num_grid_points};
-    vars.assign_subset(Parallel::get<solution_tag>(cache).variables(
-        inertial_coords, initial_time, typename Vars::tags_list{}));
+    vars.assign_subset(evolution::initial_data(
+        Parallel::get<::Tags::AnalyticSolutionOrData>(cache), inertial_coords,
+        initial_time, typename Vars::tags_list{}));
 
     return std::make_tuple(
         merge_into_databox<NonconservativeSystem, simple_tags, compute_tags>(

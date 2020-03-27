@@ -6,7 +6,7 @@
 #include <cmath>
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Time/Tags.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
@@ -16,20 +16,20 @@ namespace Initialization {
 /// \brief %Tags used during initialization of parallel components.
 namespace Tags {
 struct InitialTime : db::SimpleTag {
-  static std::string name() noexcept { return "InitialTime"; }
   using type = double;
   using option_tags = tmpl::list<OptionTags::InitialTime>;
 
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double initial_time) noexcept {
     return initial_time;
   }
 };
 
 struct InitialTimeDelta : db::SimpleTag {
-  static std::string name() noexcept { return "InitialTimeDelta"; }
   using type = double;
   using option_tags = tmpl::list<OptionTags::InitialTimeStep>;
 
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double initial_time_step) noexcept {
     return initial_time_step;
   }
@@ -37,10 +37,10 @@ struct InitialTimeDelta : db::SimpleTag {
 
 template <bool UsingLocalTimeStepping>
 struct InitialSlabSize : db::SimpleTag {
-  static std::string name() noexcept { return "InitialSlabSize"; }
   using type = double;
   using option_tags = tmpl::list<OptionTags::InitialSlabSize>;
 
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double initial_slab_size) noexcept {
     return initial_slab_size;
   }
@@ -48,10 +48,10 @@ struct InitialSlabSize : db::SimpleTag {
 
 template <>
 struct InitialSlabSize<false> : db::SimpleTag {
-  static std::string name() noexcept { return "InitialSlabSize"; }
   using type = double;
   using option_tags = tmpl::list<OptionTags::InitialTimeStep>;
 
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double initial_time_step) noexcept {
     return std::abs(initial_time_step);
   }

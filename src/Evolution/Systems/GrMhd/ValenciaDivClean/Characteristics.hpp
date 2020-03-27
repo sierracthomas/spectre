@@ -6,7 +6,7 @@
 #include <array>
 #include <cstddef>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Domain/FaceNormal.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Tags.hpp"
@@ -130,6 +130,7 @@ namespace Tags {
 template <typename EquationOfStateType>
 struct CharacteristicSpeedsCompute : Tags::CharacteristicSpeeds,
                                      db::ComputeTag {
+  using base = Tags::CharacteristicSpeeds;
   using argument_tags =
       tmpl::list<hydro::Tags::RestMassDensity<DataVector>,
                  hydro::Tags::SpecificInternalEnergy<DataVector>,
@@ -138,7 +139,7 @@ struct CharacteristicSpeedsCompute : Tags::CharacteristicSpeeds,
                  hydro::Tags::LorentzFactor<DataVector>,
                  hydro::Tags::MagneticField<DataVector, 3>, gr::Tags::Lapse<>,
                  gr::Tags::Shift<3>, gr::Tags::SpatialMetric<3>,
-                 ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<3>>,
+                 ::Tags::Normalized<domain::Tags::UnnormalizedFaceNormal<3>>,
                  hydro::Tags::EquationOfState<EquationOfStateType>>;
 
   using volume_tags =

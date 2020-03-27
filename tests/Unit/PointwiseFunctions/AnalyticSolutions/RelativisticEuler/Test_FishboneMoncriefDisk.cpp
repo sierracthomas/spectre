@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -16,6 +16,11 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Options/Options.hpp"
 #include "Options/ParseOptions.hpp"
@@ -27,11 +32,6 @@
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <vector>
 
@@ -70,14 +70,14 @@ struct FishboneMoncriefDiskProxy
 };
 
 void test_create_from_options() noexcept {
-  const auto disk =
-      test_creation<RelativisticEuler::Solutions::FishboneMoncriefDisk>(
-          "  BhMass: 1.0\n"
-          "  BhDimlessSpin: 0.23\n"
-          "  InnerEdgeRadius: 6.0\n"
-          "  MaxPressureRadius: 12.0\n"
-          "  PolytropicConstant: 0.001\n"
-          "  PolytropicExponent: 1.4");
+  const auto disk = TestHelpers::test_creation<
+      RelativisticEuler::Solutions::FishboneMoncriefDisk>(
+      "BhMass: 1.0\n"
+      "BhDimlessSpin: 0.23\n"
+      "InnerEdgeRadius: 6.0\n"
+      "MaxPressureRadius: 12.0\n"
+      "PolytropicConstant: 0.001\n"
+      "PolytropicExponent: 1.4");
   CHECK(disk == RelativisticEuler::Solutions::FishboneMoncriefDisk(
                     1.0, 0.23, 6.0, 12.0, 0.001, 1.4));
 }
@@ -188,8 +188,8 @@ void test_solution() noexcept {
   const std::array<double, 3> x{{5.0, 5.0, 0.0}};
   const std::array<double, 3> dx{{1.e-1, 1.e-1, 1.e-1}};
 
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{8, 8, 8}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{8, 8, 8}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

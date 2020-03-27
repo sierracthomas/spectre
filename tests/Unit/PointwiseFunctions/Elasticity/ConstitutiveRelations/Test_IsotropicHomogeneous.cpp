@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <pup.h>
@@ -10,14 +10,14 @@
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "PointwiseFunctions/Elasticity/ConstitutiveRelations/IsotropicHomogeneous.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 // IWYU pragma: no_forward_declare Tensor
 
 namespace {
@@ -34,10 +34,10 @@ void test_type_traits() {
   CHECK(relation !=
         Elasticity::ConstitutiveRelations::IsotropicHomogeneous<Dim>{2., 2.});
   test_serialization(relation);
-  const auto created_relation = test_creation<
+  const auto created_relation = TestHelpers::test_creation<
       Elasticity::ConstitutiveRelations::IsotropicHomogeneous<Dim>>(
-      "  BulkModulus: 1.\n"
-      "  ShearModulus: 2.\n");
+      "BulkModulus: 1.\n"
+      "ShearModulus: 2.\n");
   CHECK(created_relation == relation);
   Elasticity::ConstitutiveRelations::IsotropicHomogeneous<Dim> moved_relation{
       1., 2.};

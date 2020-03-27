@@ -1,9 +1,10 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
+#include <complex>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -13,16 +14,18 @@
 #include <utility>
 #include <vector>
 
+#include "DataStructures/ComplexDataVector.hpp"
 #include "DataStructures/DataVector.hpp"
+#include "DataStructures/SpinWeighted.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "ErrorHandling/Error.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Utilities/GetOutput.hpp"
 #include "Utilities/Literals.hpp"
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/StdHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 // IWYU pragma: no_forward_declare Tensor
 
 /// [change_up_lo]
@@ -422,6 +425,17 @@ SPECTRE_TEST_CASE("Unit.DataStructures.Tensor.ComponentNames",
                                 make_array<3>(std::string("abcd"))) == "cdd");
   CHECK(tensor_5.component_name(std::array<size_t, 3>{{3, 3, 3}},
                                 make_array<3>(std::string("abcd"))) == "ddd");
+
+  // The component_name is tested extensively above, so not checking that again
+  // for component_suffix
+  CHECK(scalar.component_suffix().empty());
+  CHECK(tensor_1.component_suffix(std::array<size_t, 3>{{0, 0, 0}}) == "_txx");
+  CHECK(tensor_5.component_suffix(std::array<size_t, 3>{{0, 2, 1}},
+                                  make_array<3>(std::string("abcd"))) ==
+        "_acb");
+  CHECK(scalar.component_suffix(0).empty());
+  CHECK(tensor_2.component_suffix(3) == "_tyx");
+  CHECK(tensor_3.component_suffix(12) == "_xzy");
 }
 
 // [[OutputRegex, Tensor dim\[0\] must be 1,2,3, or 4 for default axis_labels]]
@@ -1361,3 +1375,40 @@ SPECTRE_TEST_CASE("Unit.DataStructures.Tensor.Frames",
   CHECK("NoFrame" == get_output(Frame::NoFrame{}));
 }
 /// [example_spectre_test_case]
+
+SPECTRE_TEST_CASE("Unit.DataStructures.Tensor.MakeWithValue",
+                  "[Unit][DataStructures]") {
+  auto complex_tensor =
+      make_with_value<tnsr::i<ComplexDataVector, 3>>(DataVector{5}, 2.0);
+  std::complex<double> expected_value{2.0, 0.0};
+  for (size_t i = 0; i < 3; ++i) {
+    for (size_t j = 0; j < 5; ++j) {
+      CHECK(complex_tensor.get(i)[j] == expected_value);
+    }
+  }
+
+  auto complex_tensor_made_with_complex_values =
+      make_with_value<tnsr::i<std::complex<double>, 3>>(
+          std::complex<double>{-1.0, -1.0}, std::complex<double>{3.0, 1.0});
+  expected_value = std::complex<double>{3.0, 1.0};
+  for (size_t i = 0; i < 3; ++i) {
+    CHECK(complex_tensor_made_with_complex_values.get(i) == expected_value);
+  }
+
+  auto spin_weighted_complex =
+      make_with_value<Scalar<SpinWeighted<ComplexDataVector, 2>>>(DataVector{5},
+                                                                  3.0);
+  expected_value = std::complex<double>{3.0, 0.0};
+  for (size_t j = 0; j < 5; ++j) {
+    CHECK(get(spin_weighted_complex).data()[j] == expected_value);
+  }
+
+  auto spin_weighted_complex_from_complex_vector =
+      make_with_value<Scalar<SpinWeighted<ComplexDataVector, 2>>>(
+          ComplexDataVector{5}, 4.0);
+  expected_value = std::complex<double>{4.0, 0.0};
+  for (size_t j = 0; j < 5; ++j) {
+    CHECK(get(spin_weighted_complex_from_complex_vector).data()[j] ==
+          expected_value);
+  }
+}

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -9,7 +9,9 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/EagerMath/Magnitude.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
@@ -25,6 +27,7 @@
 #include "Domain/SegmentId.hpp"
 #include "Domain/Tags.hpp"
 #include "Elliptic/DiscontinuousGalerkin/InitializeFluxes.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/LinearOperators/Divergence.tpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeInterfaces.hpp"
@@ -32,17 +35,14 @@
 #include "Utilities/Functional.hpp"
 #include "Utilities/Numeric.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 struct ScalarFieldTag : db::SimpleTag {
-  static std::string name() noexcept { return "ScalarFieldTag"; };
   using type = Scalar<DataVector>;
 };
 
 template <size_t Dim>
 struct AuxiliaryFieldTag : db::SimpleTag {
-  static std::string name() noexcept { return "AuxiliaryFieldTag"; };
   using type = tnsr::i<DataVector, Dim>;
 };
 
@@ -55,9 +55,9 @@ using fluxes_tag = db::add_tag_prefix<::Tags::Flux, vars_tag<Dim>,
 template <size_t Dim>
 using div_fluxes_tag = db::add_tag_prefix<::Tags::div, fluxes_tag<Dim>>;
 template <size_t Dim>
-using inv_jacobian_tag =
-    Tags::InverseJacobian<::Tags::ElementMap<Dim>,
-                          ::Tags::Coordinates<Dim, Frame::Logical>>;
+using inv_jacobian_tag = domain::Tags::InverseJacobianCompute<
+    domain::Tags::ElementMap<Dim>,
+    domain::Tags::Coordinates<Dim, Frame::Logical>>;
 
 template <size_t Dim>
 struct Fluxes {
@@ -85,19 +85,19 @@ struct ElementArray {
   using metavariables = Metavariables;
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = ElementIndex<Dim>;
-  using const_global_cache_tags =
-      tmpl::list<::Tags::Domain<Dim, Frame::Inertial>>;
+  using const_global_cache_tags = tmpl::list<domain::Tags::Domain<Dim>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<
               ActionTesting::InitializeDataBox<
-                  tmpl::list<::Tags::InitialExtents<Dim>, vars_tag<Dim>>>,
+                  tmpl::list<domain::Tags::InitialExtents<Dim>, vars_tag<Dim>>>,
               dg::Actions::InitializeDomain<Dim>,
-              Initialization::Actions::AddComputeTags<tmpl::list<
-                  elliptic::Tags::FirstOrderFluxesCompute<
-                      Dim, typename metavariables::system>,
-                  ::Tags::DivCompute<fluxes_tag<Dim>, inv_jacobian_tag<Dim>>>>,
+              Initialization::Actions::AddComputeTags<
+                  tmpl::list<elliptic::Tags::FirstOrderFluxesCompute<
+                                 typename metavariables::system>,
+                             ::Tags::DivVariablesCompute<
+                                 fluxes_tag<Dim>, inv_jacobian_tag<Dim>>>>,
               dg::Actions::InitializeInterfaces<
                   typename Metavariables::system,
                   dg::Initialization::slice_tags_to_face<vars_tag<Dim>>,
@@ -147,10 +147,9 @@ void check_compute_items(
       ::Tags::Flux<ScalarFieldTag, tmpl::size_t<Dim>, Frame::Inertial>{}));
 }
 
-template <size_t Dim, typename DomainFrame>
-void test_initialize_fluxes(
-    const DomainCreator<Dim, DomainFrame>& domain_creator,
-    const ElementId<Dim>& element_id) {
+template <size_t Dim>
+void test_initialize_fluxes(const DomainCreator<Dim>& domain_creator,
+                            const ElementId<Dim>& element_id) {
   using metavariables = Metavariables<Dim>;
   using element_array = typename metavariables::element_array;
 
@@ -167,7 +166,8 @@ void test_initialize_fluxes(
   ActionTesting::next_action<element_array>(make_not_null(&runner), element_id);
   ActionTesting::next_action<element_array>(make_not_null(&runner), element_id);
   ActionTesting::next_action<element_array>(make_not_null(&runner), element_id);
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
   ActionTesting::next_action<element_array>(make_not_null(&runner), element_id);
 
   check_compute_items(runner, element_id);
@@ -183,7 +183,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.DG.Actions.InitializeFluxes",
     // Reference element:
     // [X| | | ]-> xi
     const ElementId<1> element_id{0, {{{2, 0}}}};
-    const domain::creators::Interval<Frame::Inertial> domain_creator{
+    const domain::creators::Interval domain_creator{
         {{-0.5}}, {{1.5}}, {{false}}, {{2}}, {{4}}};
 
     test_initialize_fluxes(domain_creator, element_id);
@@ -198,7 +198,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.DG.Actions.InitializeFluxes",
     // | | |
     // +-+-+
     const ElementId<2> element_id{0, {{{1, 0}, {1, 1}}}};
-    const domain::creators::Rectangle<Frame::Inertial> domain_creator{
+    const domain::creators::Rectangle domain_creator{
         {{-0.5, 0.}}, {{1.5, 1.}}, {{false, false}}, {{1, 1}}, {{3, 2}}};
 
     test_initialize_fluxes(domain_creator, element_id);
@@ -207,12 +207,11 @@ SPECTRE_TEST_CASE("Unit.Elliptic.DG.Actions.InitializeFluxes",
     INFO("3D");
     const ElementId<3> element_id{
         0, {{SegmentId{1, 0}, SegmentId{1, 1}, SegmentId{1, 0}}}};
-    const domain::creators::Brick<Frame::Inertial> domain_creator{
-        {{-0.5, 0., -1.}},
-        {{1.5, 1., 3.}},
-        {{false, false, false}},
-        {{1, 1, 1}},
-        {{2, 3, 4}}};
+    const domain::creators::Brick domain_creator{{{-0.5, 0., -1.}},
+                                                 {{1.5, 1., 3.}},
+                                                 {{false, false, false}},
+                                                 {{1, 1, 1}},
+                                                 {{2, 3, 4}}};
 
     test_initialize_fluxes(domain_creator, element_id);
   }

@@ -5,9 +5,10 @@
 
 #include <string>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Utilities/PrettyType.hpp"
 
+/// Functionality related to solving elliptic partial differential equations
 namespace elliptic {
 namespace Tags {
 
@@ -29,6 +30,8 @@ struct FluxesComputer : db::SimpleTag {
     return pretty_type::short_name<FluxesComputerType>();
   }
   using option_tags = tmpl::list<>;
+
+  static constexpr bool pass_metavariables = false;
   static FluxesComputerType create_from_options() {
     return FluxesComputerType{};
   }

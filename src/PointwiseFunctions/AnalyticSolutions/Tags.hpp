@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/Serialize.hpp"
+#include "PointwiseFunctions/AnalyticData/Tags.hpp"
 
 namespace OptionTags {
 /// \ingroup OptionGroupsGroup
@@ -37,7 +39,7 @@ struct BoundaryCondition {
 namespace Tags {
 /// Can be used to retrieve the analytic solution from the cache without having
 /// to know the template parameters of AnalyticSolution.
-struct AnalyticSolutionBase : db::BaseTag {};
+struct AnalyticSolutionBase : AnalyticSolutionOrData {};
 
 /// Base tag with which to retrieve the BoundaryConditionType
 struct BoundaryConditionBase : db::BaseTag {};
@@ -47,9 +49,10 @@ struct BoundaryConditionBase : db::BaseTag {};
 /// template parameter
 template <typename SolutionType>
 struct AnalyticSolution : AnalyticSolutionBase, db::SimpleTag {
-  static std::string name() noexcept { return "AnalyticSolution"; }
   using type = SolutionType;
   using option_tags = tmpl::list<::OptionTags::AnalyticSolution<SolutionType>>;
+
+  static constexpr bool pass_metavariables = false;
   static SolutionType create_from_options(
       const SolutionType& analytic_solution) noexcept {
     return deserialize<type>(serialize<type>(analytic_solution).data());
@@ -59,10 +62,11 @@ struct AnalyticSolution : AnalyticSolutionBase, db::SimpleTag {
 /// The boundary condition to be applied at all external boundaries.
 template <typename BoundaryConditionType>
 struct BoundaryCondition : BoundaryConditionBase, db::SimpleTag {
-  static std::string name() noexcept { return "BoundaryCondition"; }
   using type = BoundaryConditionType;
   using option_tags =
       tmpl::list<::OptionTags::BoundaryCondition<BoundaryConditionType>>;
+
+  static constexpr bool pass_metavariables = false;
   static BoundaryConditionType create_from_options(
       const BoundaryConditionType& boundary_condition) noexcept {
     return boundary_condition;

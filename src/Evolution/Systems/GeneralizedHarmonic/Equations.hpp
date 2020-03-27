@@ -55,6 +55,13 @@ namespace GeneralizedHarmonic {
 template <size_t Dim>
 struct ComputeDuDt {
  public:
+  template <template <class> class StepPrefix>
+  using return_tags = tmpl::list<
+      db::add_tag_prefix<StepPrefix, gr::Tags::SpacetimeMetric<
+                                         Dim, Frame::Inertial, DataVector>>,
+      db::add_tag_prefix<StepPrefix, Tags::Pi<Dim>>,
+      db::add_tag_prefix<StepPrefix, Tags::Phi<Dim>>>;
+
   using argument_tags = tmpl::list<
       gr::Tags::SpacetimeMetric<Dim>, Tags::Pi<Dim>, Tags::Phi<Dim>,
       ::Tags::deriv<gr::Tags::SpacetimeMetric<Dim>, tmpl::size_t<Dim>,
@@ -127,7 +134,8 @@ struct ComputeNormalDotFluxes {
       gr::Tags::SpacetimeMetric<Dim>, Tags::Pi<Dim>, Tags::Phi<Dim>,
       Tags::ConstraintGamma1, Tags::ConstraintGamma2, gr::Tags::Lapse<>,
       gr::Tags::Shift<Dim>, gr::Tags::InverseSpatialMetric<Dim>,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
+      ::Tags::Normalized<
+          domain::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
 
   static void apply(
       gsl::not_null<tnsr::aa<DataVector, Dim>*>
@@ -220,7 +228,8 @@ struct UpwindFlux {
       gr::Tags::Shift<Dim, Frame::Inertial, DataVector>,
       gr::Tags::InverseSpatialMetric<Dim, Frame::Inertial, DataVector>,
       Tags::ConstraintGamma1, Tags::ConstraintGamma2,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
+      ::Tags::Normalized<
+          domain::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
 
   // These tags on the interface of the element are passed to
   // `package_data` to provide the data needed to compute the numerical fluxes.
@@ -231,7 +240,8 @@ struct UpwindFlux {
       gr::Tags::Shift<Dim, Frame::Inertial, DataVector>,
       gr::Tags::InverseSpatialMetric<Dim, Frame::Inertial, DataVector>,
       Tags::ConstraintGamma1, Tags::ConstraintGamma2,
-      ::Tags::Normalized<::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
+      ::Tags::Normalized<
+          domain::Tags::UnnormalizedFaceNormal<Dim, Frame::Inertial>>>;
 
   // pseudo-interface: used internally by Algorithm infrastructure, not
   // user-level code

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -16,8 +16,10 @@
 #include "Domain/BlockNeighbor.hpp"  // IWYU pragma: keep
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/Equiangular.hpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/CoordinateMaps/Wedge2D.hpp"
 #include "Domain/Creators/Cylinder.hpp"
 #include "Domain/Creators/DomainCreator.hpp"
@@ -25,17 +27,18 @@
 #include "Domain/DirectionMap.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/OrientationMap.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/DomainTestHelpers.hpp"
+#include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "Utilities/MakeArray.hpp"
-#include "tests/Unit/Domain/DomainTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace domain {
 namespace {
 void test_cylinder_construction(
-    const creators::Cylinder<Frame::Inertial>& cylinder,
-    const double inner_radius, const double outer_radius,
-    const double lower_bound, const double upper_bound,
-    const bool is_periodic_in_z,
+    const creators::Cylinder& cylinder, const double inner_radius,
+    const double outer_radius, const double lower_bound,
+    const double upper_bound, const bool is_periodic_in_z,
     const std::array<size_t, 3>& expected_wedge_extents,
     const std::vector<std::array<size_t, 3>>& expected_refinement_level,
     const bool use_equiangular_map) {
@@ -187,6 +190,9 @@ void test_cylinder_construction(
                            expected_external_boundaries, coord_maps);
 
   test_initial_domain(domain, cylinder.initial_refinement_levels());
+
+  Parallel::register_classes_in_list<typename creators::Cylinder::maps_list>();
+  test_serialization(domain);
 }
 
 void test_cylinder_boundaries_equiangular() {
@@ -196,7 +202,7 @@ void test_cylinder_boundaries_equiangular() {
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{4, 4, 3}};
 
-  const creators::Cylinder<Frame::Inertial> cylinder{
+  const creators::Cylinder cylinder{
       inner_radius, outer_radius,     lower_bound, upper_bound,
       true,         refinement_level, grid_points, true};
   test_physical_separation(cylinder.create_domain().blocks());
@@ -207,25 +213,24 @@ void test_cylinder_boundaries_equiangular() {
 
 void test_cylinder_factory_equiangular() {
   INFO("Cylinder factory equiangular");
-  const auto cylinder =
-      test_factory_creation<DomainCreator<3, Frame::Inertial>>(
-          "  Cylinder:\n"
-          "    InnerRadius: 1.0\n"
-          "    OuterRadius: 3.0\n"
-          "    LowerBound: -1.2\n"
-          "    UpperBound: 3.7\n"
-          "    InitialRefinement: 2\n"
-          "    InitialGridPoints: [2,3,4]\n"
-          "    UseEquiangularMap: true\n");
+  const auto cylinder = TestHelpers::test_factory_creation<DomainCreator<3>>(
+          "Cylinder:\n"
+          "  InnerRadius: 1.0\n"
+          "  OuterRadius: 3.0\n"
+          "  LowerBound: -1.2\n"
+          "  UpperBound: 3.7\n"
+          "  InitialRefinement: 2\n"
+          "  InitialGridPoints: [2,3,4]\n"
+          "  UseEquiangularMap: true\n");
 
   const double inner_radius = 1.0, outer_radius = 3.0;
   const double lower_bound = -1.2, upper_bound = 3.7;
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{2, 3, 4}};
-  test_cylinder_construction(
-      dynamic_cast<const creators::Cylinder<Frame::Inertial>&>(*cylinder),
-      inner_radius, outer_radius, lower_bound, upper_bound, true, grid_points,
-      {5, make_array<3>(refinement_level)}, true);
+  test_cylinder_construction(dynamic_cast<const creators::Cylinder&>(*cylinder),
+                             inner_radius, outer_radius, lower_bound,
+                             upper_bound, true, grid_points,
+                             {5, make_array<3>(refinement_level)}, true);
 }
 
 void test_cylinder_boundaries_equidistant() {
@@ -235,7 +240,7 @@ void test_cylinder_boundaries_equidistant() {
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{4, 4, 3}};
 
-  const creators::Cylinder<Frame::Inertial> cylinder{
+  const creators::Cylinder cylinder{
       inner_radius, outer_radius,     lower_bound, upper_bound,
       true,         refinement_level, grid_points, false};
   test_physical_separation(cylinder.create_domain().blocks());
@@ -246,25 +251,24 @@ void test_cylinder_boundaries_equidistant() {
 
 void test_cylinder_factory_equidistant() {
   INFO("Cylinder factory equidistant");
-  const auto cylinder =
-      test_factory_creation<DomainCreator<3, Frame::Inertial>>(
-          "  Cylinder:\n"
-          "    InnerRadius: 1.0\n"
-          "    OuterRadius: 3.0\n"
-          "    LowerBound: -1.2\n"
-          "    UpperBound: 3.7\n"
-          "    InitialRefinement: 2\n"
-          "    InitialGridPoints: [2,3,4]\n"
-          "    UseEquiangularMap: false\n");
+  const auto cylinder = TestHelpers::test_factory_creation<DomainCreator<3>>(
+          "Cylinder:\n"
+          "  InnerRadius: 1.0\n"
+          "  OuterRadius: 3.0\n"
+          "  LowerBound: -1.2\n"
+          "  UpperBound: 3.7\n"
+          "  InitialRefinement: 2\n"
+          "  InitialGridPoints: [2,3,4]\n"
+          "  UseEquiangularMap: false\n");
 
   const double inner_radius = 1.0, outer_radius = 3.0;
   const double lower_bound = -1.2, upper_bound = 3.7;
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{2, 3, 4}};
-  test_cylinder_construction(
-      dynamic_cast<const creators::Cylinder<Frame::Inertial>&>(*cylinder),
-      inner_radius, outer_radius, lower_bound, upper_bound, true, grid_points,
-      {5, make_array<3>(refinement_level)}, false);
+  test_cylinder_construction(dynamic_cast<const creators::Cylinder&>(*cylinder),
+                             inner_radius, outer_radius, lower_bound,
+                             upper_bound, true, grid_points,
+                             {5, make_array<3>(refinement_level)}, false);
 }
 
 void test_cylinder_boundaries_equiangular_not_periodic_in_z() {
@@ -274,7 +278,7 @@ void test_cylinder_boundaries_equiangular_not_periodic_in_z() {
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{4, 4, 3}};
 
-  const creators::Cylinder<Frame::Inertial> cylinder{
+  const creators::Cylinder cylinder{
       inner_radius, outer_radius,     lower_bound, upper_bound,
       false,        refinement_level, grid_points, true};
   test_physical_separation(cylinder.create_domain().blocks());
@@ -285,26 +289,25 @@ void test_cylinder_boundaries_equiangular_not_periodic_in_z() {
 
 void test_cylinder_factory_equiangular_not_periodic_in_z() {
   INFO("Cylinder factory equiangular not periodic in z");
-  const auto cylinder =
-      test_factory_creation<DomainCreator<3, Frame::Inertial>>(
-          "  Cylinder:\n"
-          "    InnerRadius: 1.0\n"
-          "    OuterRadius: 3.0\n"
-          "    LowerBound: -1.2\n"
-          "    UpperBound: 3.7\n"
-          "    IsPeriodicInZ: false\n"
-          "    InitialRefinement: 2\n"
-          "    InitialGridPoints: [2,3,4]\n"
-          "    UseEquiangularMap: true\n");
+  const auto cylinder = TestHelpers::test_factory_creation<DomainCreator<3>>(
+          "Cylinder:\n"
+          "  InnerRadius: 1.0\n"
+          "  OuterRadius: 3.0\n"
+          "  LowerBound: -1.2\n"
+          "  UpperBound: 3.7\n"
+          "  IsPeriodicInZ: false\n"
+          "  InitialRefinement: 2\n"
+          "  InitialGridPoints: [2,3,4]\n"
+          "  UseEquiangularMap: true\n");
 
   const double inner_radius = 1.0, outer_radius = 3.0;
   const double lower_bound = -1.2, upper_bound = 3.7;
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{2, 3, 4}};
-  test_cylinder_construction(
-      dynamic_cast<const creators::Cylinder<Frame::Inertial>&>(*cylinder),
-      inner_radius, outer_radius, lower_bound, upper_bound, false, grid_points,
-      {5, make_array<3>(refinement_level)}, true);
+  test_cylinder_construction(dynamic_cast<const creators::Cylinder&>(*cylinder),
+                             inner_radius, outer_radius, lower_bound,
+                             upper_bound, false, grid_points,
+                             {5, make_array<3>(refinement_level)}, true);
 }
 
 void test_cylinder_boundaries_equidistant_not_periodic_in_z() {
@@ -314,7 +317,7 @@ void test_cylinder_boundaries_equidistant_not_periodic_in_z() {
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{4, 4, 3}};
 
-  const creators::Cylinder<Frame::Inertial> cylinder{
+  const creators::Cylinder cylinder{
       inner_radius, outer_radius,     lower_bound, upper_bound,
       false,        refinement_level, grid_points, false};
   test_physical_separation(cylinder.create_domain().blocks());
@@ -325,26 +328,25 @@ void test_cylinder_boundaries_equidistant_not_periodic_in_z() {
 
 void test_cylinder_factory_equidistant_not_periodic_in_z() {
   INFO("Cylinder factory equidistant not periodic in z");
-  const auto cylinder =
-      test_factory_creation<DomainCreator<3, Frame::Inertial>>(
-          "  Cylinder:\n"
-          "    InnerRadius: 1.0\n"
-          "    OuterRadius: 3.0\n"
-          "    LowerBound: -1.2\n"
-          "    UpperBound: 3.7\n"
-          "    IsPeriodicInZ: false\n"
-          "    InitialRefinement: 2\n"
-          "    InitialGridPoints: [2,3,4]\n"
-          "    UseEquiangularMap: false\n");
+  const auto cylinder = TestHelpers::test_factory_creation<DomainCreator<3>>(
+          "Cylinder:\n"
+          "  InnerRadius: 1.0\n"
+          "  OuterRadius: 3.0\n"
+          "  LowerBound: -1.2\n"
+          "  UpperBound: 3.7\n"
+          "  IsPeriodicInZ: false\n"
+          "  InitialRefinement: 2\n"
+          "  InitialGridPoints: [2,3,4]\n"
+          "  UseEquiangularMap: false\n");
 
   const double inner_radius = 1.0, outer_radius = 3.0;
   const double lower_bound = -1.2, upper_bound = 3.7;
   const size_t refinement_level = 2;
   const std::array<size_t, 3> grid_points{{2, 3, 4}};
-  test_cylinder_construction(
-      dynamic_cast<const creators::Cylinder<Frame::Inertial>&>(*cylinder),
-      inner_radius, outer_radius, lower_bound, upper_bound, false, grid_points,
-      {5, make_array<3>(refinement_level)}, false);
+  test_cylinder_construction(dynamic_cast<const creators::Cylinder&>(*cylinder),
+                             inner_radius, outer_radius, lower_bound,
+                             upper_bound, false, grid_points,
+                             {5, make_array<3>(refinement_level)}, false);
 }
 }  // namespace
 

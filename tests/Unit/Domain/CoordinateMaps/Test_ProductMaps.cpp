@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <boost/optional.hpp>
@@ -13,13 +13,14 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/CoordinateMaps/Wedge2D.hpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/OrientationMap.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/CoordinateMaps/TestMapHelpers.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
-#include "tests/Unit/Domain/CoordinateMaps/TestMapHelpers.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace domain {
 namespace {

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -19,10 +19,17 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/KerrSchild.hpp"
@@ -35,10 +42,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -85,7 +88,16 @@ void test_compute_pi(const DataType& used_for_size) {
 template <size_t Dim, typename DataType>
 void test_compute_gauge_source(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
-      &GeneralizedHarmonic::gauge_source<Dim, Frame::Inertial, DataType>,
+      static_cast<tnsr::a<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&, const Scalar<DataType>&,
+          const tnsr::i<DataType, Dim, Frame::Inertial>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::iJ<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const Scalar<DataType>&,
+          const tnsr::i<DataType, Dim, Frame::Inertial>&) noexcept>(
+          &::GeneralizedHarmonic::gauge_source<Dim, Frame::Inertial, DataType>),
       "GeneralRelativity.ComputeGhQuantities", "gauge_source", {{{-10., 10.}}},
       used_for_size, 1.e-11);
 }
@@ -199,6 +211,20 @@ void test_gij_deriv_functions(const DataVector& used_for_size) noexcept {
           &::GeneralizedHarmonic::spacetime_deriv_of_det_spatial_metric<
               SpatialDim, Frame, DataType>),
       "GeneralRelativity.ComputeGhQuantities", "spacetime_deriv_detg",
+      {{{std::numeric_limits<double>::denorm_min(), 10.}}}, used_for_size);
+}
+
+template <typename DataType, size_t SpatialDim, typename Frame>
+void test_spacetime_metric_deriv_functions(
+    const DataVector& used_for_size) noexcept {
+  pypp::check_with_random_values<1>(
+      static_cast<tnsr::aa<DataType, SpatialDim, Frame> (*)(
+          const Scalar<DataType>&, const tnsr::I<DataType, SpatialDim, Frame>&,
+          const tnsr::aa<DataType, SpatialDim, Frame>&,
+          const tnsr::iaa<DataType, SpatialDim, Frame>&)>(
+          &::GeneralizedHarmonic::time_derivative_of_spacetime_metric<
+              SpatialDim, Frame, DataType>),
+      "GeneralRelativity.ComputeGhQuantities", "gh_dt_spacetime_metric",
       {{{std::numeric_limits<double>::denorm_min(), 10.}}}, used_for_size);
 }
 
@@ -565,6 +591,19 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.GhQuantities",
   test_gij_deriv_functions<DataVector, 2, Frame::Inertial>(used_for_size);
   test_gij_deriv_functions<DataVector, 3, Frame::Inertial>(used_for_size);
 
+  test_spacetime_metric_deriv_functions<DataVector, 1, Frame::Grid>(
+      used_for_size);
+  test_spacetime_metric_deriv_functions<DataVector, 2, Frame::Grid>(
+      used_for_size);
+  test_spacetime_metric_deriv_functions<DataVector, 3, Frame::Grid>(
+      used_for_size);
+  test_spacetime_metric_deriv_functions<DataVector, 1, Frame::Inertial>(
+      used_for_size);
+  test_spacetime_metric_deriv_functions<DataVector, 2, Frame::Inertial>(
+      used_for_size);
+  test_spacetime_metric_deriv_functions<DataVector, 3, Frame::Inertial>(
+      used_for_size);
+
   test_shift_deriv_functions<DataVector, 1, Frame::Grid>(used_for_size);
   test_shift_deriv_functions<DataVector, 2, Frame::Grid>(used_for_size);
   test_shift_deriv_functions<DataVector, 3, Frame::Grid>(used_for_size);
@@ -590,28 +629,34 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.GhQuantities",
 
   // Check that compute items work correctly in the DataBox
   // First, check that the names are correct
-  CHECK(GeneralizedHarmonic::Tags::TimeDerivSpatialMetricCompute<
-            3, Frame::Inertial>::name() == "dt(SpatialMetric)");
-  CHECK(GeneralizedHarmonic::Tags::TimeDerivLapseCompute<
-            3, Frame::Inertial>::name() == "dt(Lapse)");
-  CHECK(GeneralizedHarmonic::Tags::TimeDerivShiftCompute<
-            3, Frame::Inertial>::name() == "dt(Shift)");
-  CHECK(GeneralizedHarmonic::Tags::DerivSpatialMetricCompute<
-            3, Frame::Inertial>::name() == "deriv(SpatialMetric)");
-  CHECK(GeneralizedHarmonic::Tags::DerivLapseCompute<3,
-                                                     Frame::Inertial>::name() ==
-        "deriv(Lapse)");
-  CHECK(GeneralizedHarmonic::Tags::DerivShiftCompute<3,
-                                                     Frame::Inertial>::name() ==
-        "deriv(Shift)");
-  CHECK(GeneralizedHarmonic::Tags::PhiCompute<3, Frame::Inertial>::name() ==
-        "Phi");
-  CHECK(GeneralizedHarmonic::Tags::PiCompute<3, Frame::Inertial>::name() ==
-        "Pi");
-  CHECK(GeneralizedHarmonic::Tags::ExtrinsicCurvatureCompute<
-            3, Frame::Inertial>::name() == "ExtrinsicCurvature");
-  CHECK(GeneralizedHarmonic::Tags::TraceExtrinsicCurvatureCompute<
-            3, Frame::Inertial>::name() == "TraceExtrinsicCurvature");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::TimeDerivSpatialMetricCompute<
+          3, Frame::Inertial>>("dt(SpatialMetric)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::TimeDerivLapseCompute<3, Frame::Inertial>>(
+      "dt(Lapse)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::TimeDerivShiftCompute<3, Frame::Inertial>>(
+      "dt(Shift)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::DerivSpatialMetricCompute<3, Frame::Inertial>>(
+      "deriv(SpatialMetric)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::DerivLapseCompute<3, Frame::Inertial>>(
+      "deriv(Lapse)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::DerivShiftCompute<3, Frame::Inertial>>(
+      "deriv(Shift)");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::PhiCompute<3, Frame::Inertial>>("Phi");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::PiCompute<3, Frame::Inertial>>("Pi");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::ExtrinsicCurvatureCompute<3, Frame::Inertial>>(
+      "ExtrinsicCurvature");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::Tags::TraceExtrinsicCurvatureCompute<
+          3, Frame::Inertial>>("TraceExtrinsicCurvature");
 
   // Check that the compute items return the correct values
   MAKE_GENERATOR(generator);

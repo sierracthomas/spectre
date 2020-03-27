@@ -1,18 +1,18 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <limits>
 #include <pup.h>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Helpers/PointwiseFunctions/Hydro/EquationsOfState/TestHelpers.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
-#include "tests/Unit/PointwiseFunctions/Hydro/EquationsOfState/TestHelpers.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 // IWYU pragma: no_forward_declare EquationsOfState::EquationOfState
 
@@ -37,24 +37,24 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.EquationsOfState.IdealFluid",
                                        "ideal_fluid", dv_for_size, 4.0 / 3.0);
 
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<true, 2>>(
-          {"  IdealFluid:\n"
-           "    AdiabaticIndex: 1.6666666666666667\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<true, 2>>(
+          {"IdealFluid:\n"
+           "  AdiabaticIndex: 1.6666666666666667\n"}),
       "ideal_fluid", d_for_size, 5.0 / 3.0);
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<true, 2>>(
-          {"  IdealFluid:\n"
-           "    AdiabaticIndex: 1.3333333333333333\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<true, 2>>(
+          {"IdealFluid:\n"
+           "  AdiabaticIndex: 1.3333333333333333\n"}),
       "ideal_fluid", dv_for_size, 4.0 / 3.0);
 
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<false, 2>>(
-          {"  IdealFluid:\n"
-           "    AdiabaticIndex: 1.6666666666666667\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<false, 2>>(
+          {"IdealFluid:\n"
+           "  AdiabaticIndex: 1.6666666666666667\n"}),
       "ideal_fluid", d_for_size, 5.0 / 3.0);
   TestHelpers::EquationsOfState::check(
-      test_factory_creation<EoS::EquationOfState<false, 2>>(
-          {"  IdealFluid:\n"
-           "    AdiabaticIndex: 1.3333333333333333\n"}),
+      TestHelpers::test_factory_creation<EoS::EquationOfState<false, 2>>(
+          {"IdealFluid:\n"
+           "  AdiabaticIndex: 1.3333333333333333\n"}),
       "ideal_fluid", dv_for_size, 4.0 / 3.0);
 }

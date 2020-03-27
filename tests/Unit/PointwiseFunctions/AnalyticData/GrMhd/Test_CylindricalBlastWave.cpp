@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -13,16 +13,16 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"  // IWYU pragma: keep
 #include "ErrorHandling/Error.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Options/Options.hpp"
 #include "PointwiseFunctions/AnalyticData/GrMhd/CylindricalBlastWave.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -63,15 +63,15 @@ struct CylindricalBlastWaveProxy : grmhd::AnalyticData::CylindricalBlastWave {
 
 void test_create_from_options() noexcept {
   const auto cylindrical_blast_wave =
-      test_creation<grmhd::AnalyticData::CylindricalBlastWave>(
-          "  InnerRadius: 0.8\n"
-          "  OuterRadius: 1.0\n"
-          "  InnerDensity: 1.0e-2\n"
-          "  OuterDensity: 1.0e-4\n"
-          "  InnerPressure: 1.0\n"
-          "  OuterPressure: 5.0e-4\n"
-          "  MagneticField: [0.1, 0.0, 0.0]\n"
-          "  AdiabaticIndex: 1.3333333333333333333");
+      TestHelpers::test_creation<grmhd::AnalyticData::CylindricalBlastWave>(
+          "InnerRadius: 0.8\n"
+          "OuterRadius: 1.0\n"
+          "InnerDensity: 1.0e-2\n"
+          "OuterDensity: 1.0e-4\n"
+          "InnerPressure: 1.0\n"
+          "OuterPressure: 5.0e-4\n"
+          "MagneticField: [0.1, 0.0, 0.0]\n"
+          "AdiabaticIndex: 1.3333333333333333333");
   CHECK(cylindrical_blast_wave == grmhd::AnalyticData::CylindricalBlastWave(
                                       0.8, 1.0, 1.0e-2, 1.0e-4, 1.0, 5.0e-4,
                                       std::array<double, 3>{{0.1, 0.0, 0.0}},

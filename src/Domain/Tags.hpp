@@ -15,54 +15,49 @@
 #include <vector>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
-#include "DataStructures/Index.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "DataStructures/Variables.hpp"
-#include "Domain/Creators/DomainCreator.hpp"  // IWYU pragma: keep
 #include "Domain/Direction.hpp"
 #include "Domain/Element.hpp"
-#include "Domain/ElementMap.hpp"
-#include "Domain/Mesh.hpp"
-#include "Domain/Side.hpp"
-#include "Options/Options.hpp"
+#include "Domain/OptionTags.hpp"
 #include "Utilities/GetOutput.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/NoSuchType.hpp"
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
-#include "Utilities/TaggedTuple.hpp"
 #include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 /// \cond
 class DataVector;
+template <size_t VolumeDim>
+class Domain;
+template <size_t VolumeDim>
+class DomainCreator;
+template <size_t VolumeDim, typename Frame>
+class ElementMap;
+template <size_t VolumeDim>
+class Mesh;
 /// \endcond
 
-namespace OptionTags {
-/// \ingroup OptionTagsGroup
+namespace domain {
 /// \ingroup ComputationalDomainGroup
-/// The input file tag for the DomainCreator to use
-template <size_t Dim, typename TargetFrame>
-struct DomainCreator {
-  using type = std::unique_ptr<::DomainCreator<Dim, TargetFrame>>;
-  static constexpr OptionString help = {"The domain to create initially"};
-};
-}  // namespace OptionTags
-
+/// \brief %Tags for the domain.
 namespace Tags {
 /// \ingroup DataBoxTagsGroup
 /// \ingroup ComputationalDomainGroup
 /// The ::Domain.
-template <size_t VolumeDim, typename Frame>
+template <size_t VolumeDim>
 struct Domain : db::SimpleTag {
-  static std::string name() noexcept { return "Domain"; }
-  using type = ::Domain<VolumeDim, Frame>;
-  using option_tags = tmpl::list<::OptionTags::DomainCreator<VolumeDim, Frame>>;
+  using type = ::Domain<VolumeDim>;
+  using option_tags = tmpl::list<domain::OptionTags::DomainCreator<VolumeDim>>;
 
-  static ::Domain<VolumeDim, Frame> create_from_options(
-      const std::unique_ptr<::DomainCreator<VolumeDim, Frame>>&
-          domain_creator) noexcept {
-    return domain_creator->create_domain();
-  }
+  static constexpr bool pass_metavariables = false;
+  static ::Domain<VolumeDim> create_from_options(
+      const std::unique_ptr<::DomainCreator<VolumeDim>>&
+          domain_creator) noexcept;
 };
 
 /// \ingroup DataBoxTagsGroup
@@ -71,16 +66,12 @@ struct Domain : db::SimpleTag {
 /// the initial computational domain
 template <size_t Dim>
 struct InitialExtents : db::SimpleTag {
-  static std::string name() noexcept { return "InitialExtents"; }
   using type = std::vector<std::array<size_t, Dim>>;
-  using option_tags =
-      tmpl::list<::OptionTags::DomainCreator<Dim, Frame::Inertial>>;
+  using option_tags = tmpl::list<domain::OptionTags::DomainCreator<Dim>>;
 
+  static constexpr bool pass_metavariables = false;
   static std::vector<std::array<size_t, Dim>> create_from_options(
-      const std::unique_ptr<::DomainCreator<Dim, Frame::Inertial>>&
-          domain_creator) noexcept {
-    return domain_creator->initial_extents();
-  }
+      const std::unique_ptr<::DomainCreator<Dim>>& domain_creator) noexcept;
 };
 
 /// \ingroup DataBoxTagsGroup
@@ -89,16 +80,12 @@ struct InitialExtents : db::SimpleTag {
 /// the initial computational domain
 template <size_t Dim>
 struct InitialRefinementLevels : db::SimpleTag {
-  static std::string name() noexcept { return "InitialRefinementLevels"; }
   using type = std::vector<std::array<size_t, Dim>>;
-  using option_tags =
-      tmpl::list<::OptionTags::DomainCreator<Dim, Frame::Inertial>>;
+  using option_tags = tmpl::list<domain::OptionTags::DomainCreator<Dim>>;
 
+  static constexpr bool pass_metavariables = false;
   static std::vector<std::array<size_t, Dim>> create_from_options(
-      const std::unique_ptr<::DomainCreator<Dim, Frame::Inertial>>&
-          domain_creator) noexcept {
-    return domain_creator->initial_refinement_levels();
-  }
+      const std::unique_ptr<::DomainCreator<Dim>>& domain_creator) noexcept;
 };
 
 /// \ingroup DataBoxTagsGroup
@@ -106,7 +93,6 @@ struct InitialRefinementLevels : db::SimpleTag {
 /// The ::Element associated with the DataBox
 template <size_t VolumeDim>
 struct Element : db::SimpleTag {
-  static std::string name() noexcept { return "Element"; }
   using type = ::Element<VolumeDim>;
 };
 
@@ -117,24 +103,27 @@ struct Element : db::SimpleTag {
 /// the mesh on the face of the element.
 template <size_t VolumeDim>
 struct Mesh : db::SimpleTag {
-  static std::string name() noexcept { return "Mesh"; }
   using type = ::Mesh<VolumeDim>;
 };
 
 /// \ingroup DataBoxTagsGroup
 /// \ingroup ComputationalDomainGroup
 /// The coordinate map from logical to grid coordinate
-template <size_t VolumeDim, typename Frame = ::Frame::Inertial>
+template <size_t VolumeDim, typename TargetFrame = Frame::Inertial>
 struct ElementMap : db::SimpleTag {
-  static std::string name() noexcept { return "ElementMap"; }
-  using type = ::ElementMap<VolumeDim, Frame>;
+  static constexpr size_t dim = VolumeDim;
+  using target_frame = TargetFrame;
+  using source_frame = Frame::Logical;
+
+  static std::string name() noexcept {
+    return "ElementMap(" + get_output(TargetFrame{}) + ")";
+  }
+  using type = ::ElementMap<VolumeDim, TargetFrame>;
 };
 
 /// \ingroup DataBoxTagsGroup
 /// \ingroup ComputationalDomainGroup
 /// The coordinates in a given frame.
-///
-/// \snippet Test_CoordinatesTag.cpp coordinates_name
 template <size_t Dim, typename Frame>
 struct Coordinates : db::SimpleTag {
   static std::string name() noexcept {
@@ -149,8 +138,7 @@ struct Coordinates : db::SimpleTag {
 /// frame must be the source frame of `MapTag`
 template <class MapTag, class SourceCoordsTag>
 struct MappedCoordinates
-    : Coordinates<db::const_item_type<MapTag>::dim,
-                  typename db::const_item_type<MapTag>::target_frame>,
+    : Coordinates<MapTag::dim, typename MapTag::target_frame>,
       db::ComputeTag {
   static constexpr auto function(
       const db::const_item_type<MapTag>& element_map,
@@ -162,13 +150,31 @@ struct MappedCoordinates
 
 /// \ingroup DataBoxTagsGroup
 /// \ingroup ComputationalDomainGroup
+/// \brief The inverse Jacobian from the source frame to the target frame.
+///
+/// Specifically, \f$\partial x^{\bar{i}} / \partial x^i\f$, where \f$\bar{i}\f$
+/// denotes the source frame and \f$i\f$ denotes the target frame.
+template <size_t Dim, typename SourceFrame, typename TargetFrame>
+struct InverseJacobian : db::SimpleTag {
+  static std::string name() noexcept {
+    return "InverseJacobian(" + get_output(SourceFrame{}) + "," +
+           get_output(TargetFrame{}) + ")";
+  }
+  using type = ::InverseJacobian<DataVector, Dim, SourceFrame, TargetFrame>;
+};
+
+/// \ingroup DataBoxTagsGroup
+/// \ingroup ComputationalDomainGroup
 /// Computes the inverse Jacobian of the map held by `MapTag` at the coordinates
 /// held by `SourceCoordsTag`. The coordinates must be in the source frame of
 /// the map.
 template <typename MapTag, typename SourceCoordsTag>
-struct InverseJacobian : db::ComputeTag, db::PrefixTag {
-  using tag = MapTag;
-  static std::string name() noexcept { return "InverseJacobian"; }
+struct InverseJacobianCompute
+    : InverseJacobian<MapTag::dim, typename MapTag::source_frame,
+                      typename MapTag::target_frame>,
+      db::ComputeTag {
+  using base = InverseJacobian<MapTag::dim, typename MapTag::source_frame,
+                               typename MapTag::target_frame>;
   static constexpr auto function(
       const db::const_item_type<MapTag>& element_map,
       const db::const_item_type<SourceCoordsTag>& source_coords) noexcept {
@@ -281,7 +287,8 @@ template <typename DirectionsTag, typename Tag>
 struct Interface : virtual db::SimpleTag,
                    Interface_detail::GetBaseTagIfPresent<DirectionsTag, Tag> {
   static std::string name() noexcept {
-    return "Interface<" + DirectionsTag::name() + ", " + Tag::name() + ">";
+    return "Interface<" + db::tag_name<DirectionsTag>() + ", " +
+           db::tag_name<Tag>() + ">";
   };
   using tag = Tag;
   // The use of db::const_item_type<Tag> assumes we will never store
@@ -302,6 +309,7 @@ struct Direction : db::SimpleTag {
 };
 
 }  // namespace Tags
+}  // namespace domain
 
 namespace db {
 namespace detail {
@@ -309,9 +317,9 @@ template <typename TagList, typename DirectionsTag, typename VariablesTag>
 struct InterfaceSubitemsImpl {
   using type = tmpl::transform<
       typename const_item_type<VariablesTag>::tags_list,
-      tmpl::bind<Tags::Interface, tmpl::pin<DirectionsTag>, tmpl::_1>>;
+      tmpl::bind<domain::Tags::Interface, tmpl::pin<DirectionsTag>, tmpl::_1>>;
 
-  using tag = Tags::Interface<DirectionsTag, VariablesTag>;
+  using tag = domain::Tags::Interface<DirectionsTag, VariablesTag>;
 
   template <typename Subtag>
   static void create_item(
@@ -363,9 +371,8 @@ struct InterfaceSubitemsImpl {
 
 template <typename TagList, typename DirectionsTag, typename VariablesTag>
 struct Subitems<
-    TagList, Tags::Interface<DirectionsTag, VariablesTag>,
+    TagList, domain::Tags::Interface<DirectionsTag, VariablesTag>,
     Requires<tt::is_a_v<Variables, item_type<VariablesTag, TagList>>>>
-    : detail::InterfaceSubitemsImpl<TagList, DirectionsTag, VariablesTag> {
-};
+    : detail::InterfaceSubitemsImpl<TagList, DirectionsTag, VariablesTag> {};
 
 }  // namespace db

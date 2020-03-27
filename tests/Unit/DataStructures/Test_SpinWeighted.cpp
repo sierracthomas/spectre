@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <complex>
 #include <cstddef>
@@ -10,11 +10,12 @@
 #include "DataStructures/ComplexDataVector.hpp"  // IWYU pragma: keep
 #include "DataStructures/DataVector.hpp"         // IWYU pragma: keep
 #include "DataStructures/SpinWeighted.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
+#include "Utilities/TypeTraits/GetFundamentalType.hpp"
 
 // IWYU pragma: no_forward_declare ComplexDataVector
 // IWYU pragma: no_forward_declare DataVector
@@ -86,6 +87,15 @@ void test_spinweights() {
           make_not_null(&gen), make_not_null(&spin_weighted_dist), size);
   const auto no_spin_weight = make_with_random_values<SpinWeightedType>(
       make_not_null(&gen), make_not_null(&spin_weighted_dist), size);
+
+  const auto exp_spin_weight_0 = exp(spin_weight_0);
+  const auto sqrt_spin_weight_0 = sqrt(spin_weight_0);
+  CHECK_ITERABLE_APPROX(exp_spin_weight_0.data(), exp(spin_weight_0.data()));
+  CHECK_ITERABLE_APPROX(sqrt_spin_weight_0.data(), sqrt(spin_weight_0.data()));
+
+  const auto serialized_and_deserialized_copy =
+      serialize_and_deserialize(spin_weight_0);
+  CHECK(spin_weight_0 == serialized_and_deserialized_copy);
 
   const auto compatible_spin_weight_0 =
       make_with_random_values<SpinWeighted<CompatibleType, 0>>(
@@ -183,9 +193,15 @@ SPECTRE_TEST_CASE("Unit.DataStructures.SpinWeighted",
     test_spinweights<tmpl::front<type_pair>, tmpl::back<type_pair>>();
   });
 
-  SpinWeighted<ComplexDataVector, 1> size_created_spin_weight_1{5};
+  const SpinWeighted<ComplexDataVector, 1> size_created_spin_weight_1{5};
   CHECK(size_created_spin_weight_1.data().size() == 5);
   CHECK(size_created_spin_weight_1.size() == 5);
+
+  const SpinWeighted<ComplexDataVector, 1> const_view;
+  make_const_view(make_not_null(&const_view), size_created_spin_weight_1, 2, 2);
+  CHECK(const_view.size() == 2);
+  CHECK(const_view.data().data() ==
+        size_created_spin_weight_1.data().data() + 2);
 
   SpinWeighted<ComplexDataVector, -2> size_and_value_created_spin_weight_m2{
       5, 4.0};

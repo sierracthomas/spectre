@@ -4,13 +4,17 @@
 set(LIBRARY DiscontinuousGalerkin)
 
 set(LIBRARY_SOURCES
-    MortarHelpers.cpp
-    )
+  Formulation.cpp
+  MortarHelpers.cpp
+  )
 
 add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE DataStructures
-  INTERFACE Spectral
+  PUBLIC
+  Boost::boost
+  DataStructures
+  Options
+  Spectral
   )

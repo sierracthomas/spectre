@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <map>
@@ -10,7 +10,7 @@
 #include <utility>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
@@ -279,23 +279,18 @@ namespace proper{
 /// [proper_databox_tags]
 struct Velocity : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Velocity"; }
 };
 struct Radius : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Radius"; }
 };
 struct Density : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Density"; }
 };
 struct Volume : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Volume"; }
 };
 struct Mass : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Mass"; }
 };
 /// [proper_databox_tags]
 
@@ -315,7 +310,7 @@ return density * volume *  velocity * velocity / radius;
 }
 
 double mass_from_density_and_volume(
-  const double& density, const double& volume) noexcept {
+  const double density, const double volume) noexcept {
   return density * volume;
 }
 /// [compute_tags]
@@ -327,13 +322,12 @@ struct MassCompute : db::ComputeTag, Mass {
 /// [compute_tags]
 
 double acceleration_from_velocity_and_radius(
-  const double& velocity, const double& radius) noexcept {
+  const double velocity, const double radius) noexcept {
   return velocity * velocity / radius;
 }
 
 struct Acceleration : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Acceleration"; }
 };
 
 struct AccelerationCompute : db::ComputeTag, Acceleration {
@@ -345,13 +339,12 @@ struct AccelerationCompute : db::ComputeTag, Acceleration {
 /// [compute_tags_force_compute]
 struct Force : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Force"; }
 };
 
 struct ForceCompute : db::ComputeTag, Force {
   static std::string name() noexcept { return "ForceCompute"; }
   static constexpr auto function(
-    const double& mass, const double& acceleration) noexcept {
+    const double mass, const double acceleration) noexcept {
     return mass * acceleration; }
   using argument_tags = tmpl::list<Mass, Acceleration>;
 };
@@ -361,22 +354,18 @@ struct ForceCompute : db::ComputeTag, Force {
 /// [mutate_tags]
 struct Time : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "Time"; }
 };
 
 struct TimeStep : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "TimeStep"; }
 };
 
 struct EarthGravity : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "EarthGravity"; }
 };
 
 struct FallingSpeed : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "FallingSpeed"; }
 };
 /// [mutate_tags]
 
@@ -489,8 +478,8 @@ db::mutate_apply<
   tmpl::list<TimeStep, EarthGravity>>(
   [](const gsl::not_null<double*> time,
      const gsl::not_null<double*> falling_speed,
-     const double& time_step,
-     const double& earth_gravity) {
+     const double time_step,
+     const double earth_gravity) {
     *time += time_step;
     *falling_speed += time_step * earth_gravity;
   },

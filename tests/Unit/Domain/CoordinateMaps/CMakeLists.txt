@@ -14,8 +14,12 @@ set(LIBRARY_SOURCES
   Test_Frustum.cpp
   Test_Identity.cpp
   Test_ProductMaps.cpp
+  Test_ProductMapsTimeDep.cpp
   Test_Rotation.cpp
+  Test_RotationTimeDep.cpp
   Test_SpecialMobius.cpp
+  Test_Tags.cpp
+  Test_TimeDependentHelpers.cpp
   Test_Translation.cpp
   Test_Wedge2D.cpp
   Test_Wedge3D.cpp
@@ -25,5 +29,5 @@ add_test_library(
   ${LIBRARY}
   "Domain/CoordinateMaps"
   "${LIBRARY_SOURCES}"
-  "CoordinateMaps;ControlSystem"
+  "Boost::boost;CoordinateMaps;FunctionsOfTime"
   )

@@ -10,6 +10,7 @@
 #include <cstddef>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Domain/Tags.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
@@ -125,26 +126,26 @@ void damped_harmonic_h(
 template <size_t SpatialDim, typename Frame>
 struct DampedHarmonicHCompute : Tags::GaugeH<SpatialDim, Frame>,
                                 db::ComputeTag {
+  using base = Tags::GaugeH<SpatialDim, Frame>;
   using argument_tags = tmpl::list<
       Tags::InitialGaugeH<SpatialDim, Frame>, ::gr::Tags::Lapse<DataVector>,
       ::gr::Tags::Shift<SpatialDim, Frame, DataVector>,
       ::gr::Tags::SqrtDetSpatialMetric<DataVector>,
       ::gr::Tags::SpacetimeMetric<SpatialDim, Frame, DataVector>, ::Tags::Time,
       Tags::GaugeHRollOnStartTime, Tags::GaugeHRollOnTimeWindow,
-      ::Tags::Coordinates<SpatialDim, Frame>,
+      domain::Tags::Coordinates<SpatialDim, Frame>,
       Tags::GaugeHSpatialWeightDecayWidth<Frame>>;
 
   static constexpr db::const_item_type<Tags::GaugeH<SpatialDim, Frame>>
-  function(
-      const db::const_item_type<Tags::InitialGaugeH<SpatialDim, Frame>>&
-          gauge_h_init,
-      const Scalar<DataVector>& lapse,
-      const tnsr::I<DataVector, SpatialDim, Frame>& shift,
-      const Scalar<DataVector>& sqrt_det_spatial_metric,
-      const tnsr::aa<DataVector, SpatialDim, Frame>& spacetime_metric,
-      const double& time, const double& t_start, const double& sigma_t,
-      const tnsr::I<DataVector, SpatialDim, Frame>& coords,
-      const double& sigma_r) noexcept {
+  function(const db::const_item_type<Tags::InitialGaugeH<SpatialDim, Frame>>&
+               gauge_h_init,
+           const Scalar<DataVector>& lapse,
+           const tnsr::I<DataVector, SpatialDim, Frame>& shift,
+           const Scalar<DataVector>& sqrt_det_spatial_metric,
+           const tnsr::aa<DataVector, SpatialDim, Frame>& spacetime_metric,
+           const double time, const double t_start, const double sigma_t,
+           const tnsr::I<DataVector, SpatialDim, Frame>& coords,
+           const double sigma_r) noexcept {
     db::item_type<Tags::GaugeH<SpatialDim, Frame>> gauge_h{
         get_size(get(lapse))};
     GeneralizedHarmonic::damped_harmonic_h<SpatialDim, Frame>(
@@ -267,6 +268,7 @@ template <size_t SpatialDim, typename Frame>
 struct SpacetimeDerivDampedHarmonicHCompute
     : Tags::SpacetimeDerivGaugeH<SpatialDim, Frame>,
       db::ComputeTag {
+  using base = Tags::SpacetimeDerivGaugeH<SpatialDim, Frame>;
   using argument_tags = tmpl::list<
       Tags::InitialGaugeH<SpatialDim, Frame>,
       Tags::SpacetimeDerivInitialGaugeH<SpatialDim, Frame>,
@@ -278,7 +280,7 @@ struct SpacetimeDerivDampedHarmonicHCompute
       ::gr::Tags::SpacetimeMetric<SpatialDim, Frame, DataVector>,
       Tags::Pi<SpatialDim, Frame>, Tags::Phi<SpatialDim, Frame>, ::Tags::Time,
       Tags::GaugeHRollOnStartTime, Tags::GaugeHRollOnTimeWindow,
-      ::Tags::Coordinates<SpatialDim, Frame>,
+      domain::Tags::Coordinates<SpatialDim, Frame>,
       Tags::GaugeHSpatialWeightDecayWidth<Frame>>;
 
   static constexpr db::item_type<Tags::SpacetimeDerivGaugeH<SpatialDim, Frame>>
@@ -294,10 +296,10 @@ struct SpacetimeDerivDampedHarmonicHCompute
       const tnsr::II<DataVector, SpatialDim, Frame>& inverse_spatial_metric,
       const tnsr::aa<DataVector, SpatialDim, Frame>& spacetime_metric,
       const tnsr::aa<DataVector, SpatialDim, Frame>& pi,
-      const tnsr::iaa<DataVector, SpatialDim, Frame>& phi, const double& time,
-      const double& t_start, const double& sigma_t,
+      const tnsr::iaa<DataVector, SpatialDim, Frame>& phi, const double time,
+      const double t_start, const double sigma_t,
       const tnsr::I<DataVector, SpatialDim, Frame>& coords,
-      const double& sigma_r) noexcept {
+      const double sigma_r) noexcept {
     db::item_type<Tags::SpacetimeDerivGaugeH<SpatialDim, Frame>> d4_gauge_h{
         get_size(get(lapse))};
     GeneralizedHarmonic::spacetime_deriv_damped_harmonic_h(

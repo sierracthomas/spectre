@@ -4,7 +4,7 @@
 // Need CATCH_CONFIG_RUNNER to avoid linking errors with Catch2
 #define CATCH_CONFIG_RUNNER
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <functional>
@@ -18,10 +18,12 @@
 #include "AlgorithmSingleton.hpp"
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "ErrorHandling/Error.hpp"
 #include "ErrorHandling/FloatingPointExceptions.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
+#include "Parallel/InboxInserters.hpp"
 #include "Parallel/InitializationFunctions.hpp"
 #include "Parallel/Invoke.hpp"
 #include "Parallel/Main.hpp"
@@ -301,7 +303,7 @@ struct test_args {
             typename ArrayIndex>
   static void apply(db::DataBox<DbTags>& /*box*/,
                     const Parallel::ConstGlobalCache<Metavariables>& /*cache*/,
-                    const ArrayIndex& /*array_index*/, const double& v0,
+                    const ArrayIndex& /*array_index*/, const double v0,
                     std::vector<double>&& v1) noexcept {
     SPECTRE_PARALLEL_REQUIRE(v0 == 4.82937);
     SPECTRE_PARALLEL_REQUIRE(v1 == (std::vector<double>{3.2, -8.4, 7.5}));
@@ -395,10 +397,13 @@ struct MutateComponent {
 //////////////////////////////////////////////////////////////////////
 
 namespace receive_data_test {
-struct IntReceiveTag {
+/// [int receive tag insert]
+struct IntReceiveTag
+    : public Parallel::InboxInserters::MemberInsert<IntReceiveTag> {
   using temporal_id = TestAlgorithmArrayInstance;
   using type = std::unordered_map<temporal_id, std::unordered_multiset<int>>;
 };
+/// [int receive tag insert]
 
 struct add_int0_from_receive {
   using inbox_tags = tmpl::list<IntReceiveTag>;

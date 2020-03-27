@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <limits>
 #include <string>
@@ -9,19 +9,25 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "PointwiseFunctions/Hydro/SpecificEnthalpy.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
 
 namespace {
 
 template <typename DataType>
-void test_specific_enthalpy(const DataType& used_for_size) noexcept {
-  pypp::check_with_random_values<1>(&hydro::specific_enthalpy<DataType>,
-                                    "TestFunctions", "specific_enthalpy",
-                                    {{{0.01, 1.0}}}, used_for_size);
+void test_relativistic_specific_enthalpy(
+    const DataType& used_for_size) noexcept {
+  pypp::check_with_random_values<1>(
+      static_cast<Scalar<DataType> (*)(const Scalar<DataType>&,
+                                       const Scalar<DataType>&,
+                                       const Scalar<DataType>&) noexcept>(
+          &hydro::relativistic_specific_enthalpy<DataType>),
+      "TestFunctions", "relativistic_specific_enthalpy", {{{0.01, 1.0}}},
+      used_for_size);
 }
 }  // namespace
 
@@ -31,12 +37,13 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.Hydro.SpecificEnthalpy",
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/Hydro"};
 
-  test_specific_enthalpy(std::numeric_limits<double>::signaling_NaN());
-  test_specific_enthalpy(DataVector(5));
+  test_relativistic_specific_enthalpy(
+      std::numeric_limits<double>::signaling_NaN());
+  test_relativistic_specific_enthalpy(DataVector(5));
 
   // Check compute item works correctly in DataBox
-  CHECK(Tags::SpecificEnthalpyCompute<DataVector>::name() ==
-        "SpecificEnthalpy");
+  TestHelpers::db::test_compute_tag<Tags::SpecificEnthalpyCompute<DataVector>>(
+      "SpecificEnthalpy");
   Scalar<DataVector> rest_mass_density{{{DataVector{5, 0.2}}}};
   Scalar<DataVector> specific_internal_energy{{{DataVector{5, 0.23}}}};
   Scalar<DataVector> pressure{{{DataVector{5, 0.234}}}};
@@ -47,8 +54,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.Hydro.SpecificEnthalpy",
                                    Tags::Pressure<DataVector>>,
                  db::AddComputeTags<Tags::SpecificEnthalpyCompute<DataVector>>>(
           rest_mass_density, specific_internal_energy, pressure);
-  CHECK(
-      db::get<Tags::SpecificEnthalpy<DataVector>>(box) ==
-      specific_enthalpy(rest_mass_density, specific_internal_energy, pressure));
+  CHECK(db::get<Tags::SpecificEnthalpy<DataVector>>(box) ==
+        relativistic_specific_enthalpy(rest_mass_density,
+                                       specific_internal_energy, pressure));
 }
 }  // namespace hydro

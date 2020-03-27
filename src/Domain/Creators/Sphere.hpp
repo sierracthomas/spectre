@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "Domain/Creators/DomainCreator.hpp"  // IWYU pragma: keep
 #include "Domain/Domain.hpp"
 #include "Options/Options.hpp"
 #include "Utilities/TMPL.hpp"
@@ -18,19 +19,48 @@
 // IWYU pragma: no_include "DataStructures/Tensor/Tensor.hpp" // Not needed
 
 /// \cond
-template <size_t Dim, typename Frame>
-class DomainCreator;  // IWYU pragma: keep
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+class EquatorialCompression;
+class Equiangular;
+template <size_t VolumeDim>
+class Identity;
+template <typename Map1, typename Map2>
+class ProductOf2Maps;
+template <typename Map1, typename Map2, typename Map3>
+class ProductOf3Maps;
+class Wedge3D;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
 /// \endcond
 
 namespace domain {
 namespace creators {
-
 /// Create a 3D Domain in the shape of a sphere consisting of six wedges
 /// and a central cube. For an image showing how the wedges are aligned in
 /// this Domain, see the documentation for Shell.
-template <typename TargetFrame>
-class Sphere : public DomainCreator<3, TargetFrame> {
+class Sphere : public DomainCreator<3> {
  public:
+  using maps_list = tmpl::list<
+      domain::CoordinateMap<Frame::Logical, Frame::Inertial,
+                            CoordinateMaps::ProductOf3Maps<
+                                CoordinateMaps::Affine, CoordinateMaps::Affine,
+                                CoordinateMaps::Affine>>,
+      domain::CoordinateMap<
+          Frame::Logical, Frame::Inertial,
+          CoordinateMaps::ProductOf3Maps<CoordinateMaps::Equiangular,
+                                         CoordinateMaps::Equiangular,
+                                         CoordinateMaps::Equiangular>>,
+      domain::CoordinateMap<
+          Frame::Logical, Frame::Inertial, CoordinateMaps::Wedge3D,
+          CoordinateMaps::EquatorialCompression,
+          CoordinateMaps::ProductOf2Maps<CoordinateMaps::Affine,
+                                         CoordinateMaps::Identity<2>>>>;
+
   struct InnerRadius {
     using type = double;
     static constexpr OptionString help = {
@@ -87,7 +117,7 @@ class Sphere : public DomainCreator<3, TargetFrame> {
   Sphere& operator=(Sphere&&) noexcept = default;
   ~Sphere() noexcept override = default;
 
-  Domain<3, TargetFrame> create_domain() const noexcept override;
+  Domain<3> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, 3>> initial_extents() const noexcept override;
 

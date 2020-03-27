@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <boost/functional/hash.hpp>  // IWYU pragma: keep
@@ -17,12 +17,15 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Direction.hpp"
 #include "Domain/Element.hpp"
 #include "Domain/ElementId.hpp"
@@ -33,25 +36,23 @@
 #include "Domain/OrientationMap.hpp"
 #include "Domain/Tags.hpp"
 #include "Evolution/DiscontinuousGalerkin/Limiters/LimiterActions.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/LinearOperators/MeanValue.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
 // IWYU pragma: no_forward_declare Tensor
 
 namespace {
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; }
   using type = int;
 };
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
@@ -68,7 +69,7 @@ class DummyLimiterForTest {
     double mean_;
     Mesh<2> mesh_;
   };
-  using package_argument_tags = tmpl::list<Var, Tags::Mesh<2>>;
+  using package_argument_tags = tmpl::list<Var, domain::Tags::Mesh<2>>;
   void package_data(const gsl::not_null<PackagedData*> packaged_data,
                     const Scalar<DataVector>& var, const Mesh<2>& mesh,
                     const OrientationMap<2>& orientation_map) const noexcept {
@@ -77,7 +78,8 @@ class DummyLimiterForTest {
   }
 
   using limit_tags = tmpl::list<Var>;
-  using limit_argument_tags = tmpl::list<Tags::Mesh<2>, Tags::Element<2>>;
+  using limit_argument_tags =
+      tmpl::list<domain::Tags::Mesh<2>, domain::Tags::Element<2>>;
   void operator()(const gsl::not_null<db::item_type<Var>*> var,
                   const Mesh<2>& /*mesh*/, const Element<2>& /*element*/,
                   const std::unordered_map<
@@ -105,9 +107,9 @@ struct component {
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = ElementIndex<Dim>;
   using const_global_cache_tags = tmpl::list<LimiterTag>;
-  using simple_tags =
-      db::AddSimpleTags<TemporalId, Tags::Mesh<Dim>, Tags::Element<Dim>,
-                        Tags::ElementMap<Dim>, Var>;
+  using simple_tags = db::AddSimpleTags<TemporalId, domain::Tags::Mesh<Dim>,
+                                        domain::Tags::Element<Dim>,
+                                        domain::Tags::ElementMap<Dim>, Var>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
@@ -215,7 +217,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.Generic",
   emplace_neighbor(west_id, Direction<2>::lower_eta(),
                    block_orientation.inverse_map(),
                    test_data.var.at(Direction<2>::lower_xi()));
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   // Call SendDataForLimiter on self, sending data to neighbors
   runner.next_action<my_component>(self_id);
@@ -258,7 +261,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.Generic",
         const double expected_mean_data,
         const Mesh<2>& expected_mesh) noexcept {
       const auto received_package =
-          tuples::get<limiter_comm_tag>(runner.inboxes<my_component>()[self_id])
+          tuples::get<limiter_comm_tag>(
+              runner.inboxes<my_component>().at(self_id))
               .at(0)
               .at(std::make_pair(direction, id));
       CHECK(received_package.mean_ == approx(expected_mean_data));
@@ -289,8 +293,9 @@ SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.Generic",
   // Check that data for this time (t=0) was deleted from the inbox after the
   // limiter call. Note that we only put in t=0 data, so the whole inbox should
   // be empty.
-  CHECK(tuples::get<limiter_comm_tag>(runner.inboxes<my_component>()[self_id])
-            .empty());
+  CHECK(
+      tuples::get<limiter_comm_tag>(runner.inboxes<my_component>().at(self_id))
+          .empty());
 }
 
 SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.NoNeighbors",
@@ -324,15 +329,17 @@ SPECTRE_TEST_CASE("Unit.Evolution.DG.Limiters.LimiterActions.NoNeighbors",
   ActionTesting::emplace_component_and_initialize<my_component>(
       &runner, self_id,
       {0, mesh, element, std::move(map), std::move(input_var)});
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   // Call SendDataForLimiter on self. Expect empty inboxes all around.
   runner.next_action<my_component>(self_id);
 
   CHECK(runner.nonempty_inboxes<my_component, limiter_comm_tag>().empty());
   CHECK(runner.is_ready<my_component>(self_id));
-  CHECK(tuples::get<limiter_comm_tag>(runner.inboxes<my_component>()[self_id])
-            .empty());
+  CHECK(
+      tuples::get<limiter_comm_tag>(runner.inboxes<my_component>().at(self_id))
+          .empty());
 
   // Now we run the ApplyLimiter action, checking pre and post values.
   const auto& var_to_limit =

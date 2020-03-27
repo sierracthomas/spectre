@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -9,7 +9,8 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Options/Options.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "Utilities/ConstantExpressions.hpp"
@@ -78,9 +79,14 @@ SPECTRE_TEST_CASE("Unit.Parallel.ConstGlobalCacheDataBox", "[Unit][Parallel]") {
   CHECK(&Parallel::get<Tags::UniquePtrIntegerList>(cache2) ==
         &db::get<Tags::UniquePtrIntegerList>(box));
 
-  CHECK(Tags::FromConstGlobalCache<Tags::IntegerList>::name() ==
-        "FromConstGlobalCache(IntegerList)");
-  CHECK(Tags::FromConstGlobalCache<Tags::UniquePtrIntegerList>::name() ==
-        "FromConstGlobalCache(UniquePtrIntegerList)");
+  TestHelpers::db::test_base_tag<Tags::ConstGlobalCache>("ConstGlobalCache");
+  TestHelpers::db::test_simple_tag<Tags::ConstGlobalCacheImpl<Metavars>>(
+      "ConstGlobalCache");
+  TestHelpers::db::test_compute_tag<
+      Tags::FromConstGlobalCache<Tags::IntegerList>>(
+      "FromConstGlobalCache(IntegerList)");
+  TestHelpers::db::test_compute_tag<
+      Tags::FromConstGlobalCache<Tags::UniquePtrIntegerList>>(
+      "FromConstGlobalCache(UniquePtrIntegerList)");
 }
 }  // namespace Parallel

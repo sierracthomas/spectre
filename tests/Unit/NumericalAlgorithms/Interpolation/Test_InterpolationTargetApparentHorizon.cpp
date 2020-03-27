@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -16,7 +16,9 @@
 #include "Domain/BlockLogicalCoordinates.hpp"
 #include "Domain/Creators/Shell.hpp"
 #include "Domain/Domain.hpp"
-#include "Informer/Tags.hpp" // IWYU pragma: keep
+#include "Framework/TestCreation.hpp"
+#include "Helpers/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
+#include "Informer/Tags.hpp"  // IWYU pragma: keep
 #include "Informer/Verbosity.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTargetApparentHorizon.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
@@ -24,8 +26,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Spherepack.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace {
 struct MockMetavariables {
@@ -67,18 +67,18 @@ SPECTRE_TEST_CASE(
       Verbosity::Verbose);
 
   // Test creation of options
-  const auto created_opts =
-      test_creation<intrp::OptionHolders::ApparentHorizon<Frame::Inertial>>(
-          "  FastFlow:\n"
-          "  Verbosity: Verbose\n"
-          "  InitialGuess:\n"
-          "    Center: [0.05, 0.06, 0.07]\n"
-          "    Radius: 2.0\n"
-          "    Lmax: 12");
+  const auto created_opts = TestHelpers::test_creation<
+      intrp::OptionHolders::ApparentHorizon<Frame::Inertial>>(
+      "FastFlow:\n"
+      "Verbosity: Verbose\n"
+      "InitialGuess:\n"
+      "  Center: [0.05, 0.06, 0.07]\n"
+      "  Radius: 2.0\n"
+      "  Lmax: 12");
   CHECK(created_opts == apparent_horizon_opts);
 
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(1.8, 2.2, 1, {{5, 5}}, false);
+      domain::creators::Shell(1.8, 2.2, 1, {{5, 5}}, false);
 
   const auto expected_block_coord_holders =
       [&domain_creator, &center, &radius ]() noexcept {

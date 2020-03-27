@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -15,6 +15,7 @@
 #include "Domain/BlockNeighbor.hpp"  // IWYU pragma: keep
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/DiscreteRotation.hpp"
 #include "Domain/Creators/DomainCreator.hpp"
 #include "Domain/Creators/RotatedIntervals.hpp"
@@ -22,14 +23,16 @@
 #include "Domain/DirectionMap.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/OrientationMap.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/Domain/DomainTestHelpers.hpp"
+#include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "Utilities/MakeVector.hpp"
-#include "tests/Unit/Domain/DomainTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace domain {
 namespace {
 void test_rotated_intervals_construction(
-    const creators::RotatedIntervals<Frame::Inertial>& rotated_intervals,
+    const creators::RotatedIntervals& rotated_intervals,
     const std::array<double, 1>& lower_bound,
     const std::array<double, 1>& midpoint,
     const std::array<double, 1>& upper_bound,
@@ -57,6 +60,10 @@ void test_rotated_intervals_construction(
                   std::array<Direction<1>, 1>{{Direction<1>::lower_xi()}}}},
               CoordinateMaps::Affine{-1., 1., midpoint[0], upper_bound[0]})));
   test_initial_domain(domain, rotated_intervals.initial_refinement_levels());
+
+  Parallel::register_classes_in_list<
+      typename domain::creators::RotatedIntervals::maps_list>();
+  test_serialization(domain);
 }
 
 void test_rotated_intervals() {
@@ -68,7 +75,7 @@ void test_rotated_intervals() {
   const OrientationMap<1> flipped{
       std::array<Direction<1>, 1>{{Direction<1>::lower_xi()}}};
 
-  const creators::RotatedIntervals<Frame::Inertial> rotated_intervals{
+  const creators::RotatedIntervals rotated_intervals{
       lower_bound,         midpoint,
       upper_bound,         std::array<bool, 1>{{false}},
       refinement_level[0], {{{{grid_points[0][0], grid_points[1][0]}}}}};
@@ -82,7 +89,7 @@ void test_rotated_intervals() {
           {Direction<1>::lower_xi()}, {Direction<1>::lower_xi()}});
   test_physical_separation(rotated_intervals.create_domain().blocks());
 
-  const creators::RotatedIntervals<Frame::Inertial> periodic_rotated_intervals{
+  const creators::RotatedIntervals periodic_rotated_intervals{
       lower_bound,         midpoint,
       upper_bound,         std::array<bool, 1>{{true}},
       refinement_level[0], {{{{grid_points[0][0], grid_points[1][0]}}}}};
@@ -102,17 +109,16 @@ void test_rotated_intervals_factory() {
   const OrientationMap<1> flipped{
       std::array<Direction<1>, 1>{{Direction<1>::lower_xi()}}};
   const auto domain_creator =
-      test_factory_creation<DomainCreator<1, Frame::Inertial>>(
-          "  RotatedIntervals:\n"
-          "    LowerBound: [0.0]\n"
-          "    Midpoint:   [0.5]\n"
-          "    UpperBound: [1.0]\n"
-          "    IsPeriodicIn: [True]\n"
-          "    InitialGridPoints: [[3,2]]\n"
-          "    InitialRefinement: [2]\n");
+      TestHelpers::test_factory_creation<DomainCreator<1>>(
+          "RotatedIntervals:\n"
+          "  LowerBound: [0.0]\n"
+          "  Midpoint:   [0.5]\n"
+          "  UpperBound: [1.0]\n"
+          "  IsPeriodicIn: [True]\n"
+          "  InitialGridPoints: [[3,2]]\n"
+          "  InitialRefinement: [2]\n");
   const auto* rotated_intervals_creator =
-      dynamic_cast<const creators::RotatedIntervals<Frame::Inertial>*>(
-          domain_creator.get());
+      dynamic_cast<const creators::RotatedIntervals*>(domain_creator.get());
   test_rotated_intervals_construction(
       *rotated_intervals_creator, {{0.0}}, {{0.5}}, {{1.0}}, {{{3}}, {{2}}},
       {{{2}}, {{2}}},

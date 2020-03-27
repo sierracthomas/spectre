@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -19,12 +19,19 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/GaugeSourceFunctions/DampedHarmonic.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Options/ParseOptions.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/KerrSchild.hpp"
@@ -37,10 +44,6 @@
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -2929,11 +2932,12 @@ void test_damped_harmonic_compute_tags(const size_t grid_size_each_dimension,
   // Check that compute items work correctly in the DataBox
   //
   // First, check that the names are correct
-  CHECK(
-      GeneralizedHarmonic::DampedHarmonicHCompute<3, Frame::Inertial>::name() ==
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::DampedHarmonicHCompute<3, Frame::Inertial>>(
       "GaugeH");
-  CHECK(GeneralizedHarmonic::SpacetimeDerivDampedHarmonicHCompute<
-            3, Frame::Inertial>::name() == "SpacetimeDerivGaugeH");
+  TestHelpers::db::test_compute_tag<
+      GeneralizedHarmonic::SpacetimeDerivDampedHarmonicHCompute<
+          3, Frame::Inertial>>("SpacetimeDerivGaugeH");
 
   const auto box = db::create<
       db::AddSimpleTags<
@@ -2948,7 +2952,7 @@ void test_damped_harmonic_compute_tags(const size_t grid_size_each_dimension,
           gr::Tags::SpacetimeMetric<3, Frame::Inertial, DataVector>,
           GeneralizedHarmonic::Tags::Pi<3, Frame::Inertial>,
           GeneralizedHarmonic::Tags::Phi<3, Frame::Inertial>, ::Tags::Time,
-          ::Tags::Coordinates<3, Frame::Inertial>,
+          domain::Tags::Coordinates<3, Frame::Inertial>,
           GeneralizedHarmonic::Tags::GaugeHRollOnStartTime,
           GeneralizedHarmonic::Tags::GaugeHRollOnTimeWindow,
           GeneralizedHarmonic::Tags::GaugeHSpatialWeightDecayWidth<

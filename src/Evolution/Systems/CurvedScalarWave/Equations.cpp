@@ -5,6 +5,7 @@
 
 #include <array>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"  // IWYU pragma: keep
 #include "DataStructures/Variables.hpp"      // IWYU pragma: keep
@@ -87,7 +88,7 @@ using derivative_frame = Frame::Inertial;
 #define INSTANTIATION(_, data)                                               \
   template class CurvedScalarWave::ComputeDuDt<DIM(data)>;                   \
   template Variables<                                                        \
-      db::wrap_tags_in<Tags::deriv, derivative_tags<DIM(data)>,              \
+      db::wrap_tags_in<::Tags::deriv, derivative_tags<DIM(data)>,            \
                        tmpl::size_t<DIM(data)>, derivative_frame>>           \
   partial_derivatives<derivative_tags<DIM(data)>, variables_tags<DIM(data)>, \
                       DIM(data), derivative_frame>(                          \

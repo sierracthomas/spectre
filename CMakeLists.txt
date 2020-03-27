@@ -23,12 +23,16 @@ endif (DOCS_ONLY)
 
 include(CheckCompilerVersion)
 include(ProhibitInSourceBuild)
+include(SpectreSetupFlagsTarget)
 include(SetupNinjaColors)
 include(SetOutputDirectory)
+# We need yapf before we set up the git hooks
+include(SetupYapf)
 include(SetupGitHooks)
 include(SetBuildType)
 include(SetupPic)
 include(SetCxxStandard)
+include(StripSymbols)
 include(SetupBuildInfo)
 include(SetupCCache)
 include(SetupVersionFile)
@@ -54,7 +58,12 @@ include(CheckBrokenArray0)
 # Need to load python libs before boost.python.
 include(SetupPythonLibs)
 
+# Blaze depends on both Blas and Lapack, since LIBXSMM is a Blas
+# alternative we set it up early too.
 include(SetupBlas)
+include(SetupLapack)
+include(SetupLIBXSMM)
+
 include(SetupBlaze)
 include(SetupBoost)
 include(SetupBrigand)
@@ -63,16 +72,15 @@ include(SetupGoogleBenchmark)
 include(SetupGsl)
 include(SetupHdf5)
 include(SetupAllocator)
-include(SetupLIBXSMM)
-include(SetupLapack)
 include(SetupNumPy)
 include(SetupPapi)
+include(SetupPybind11)
 include(SetupSciPy)
 include(SetupLibsharp)
 include(SetupYamlCpp)
 
 include(SetupLIBCXXCharm)
-include(SpectreSetupPython)
+include(SpectreSetupPythonPackage)
 # The precompiled header must be setup after all libraries have been found
 include(SetupPch)
 
@@ -105,7 +113,7 @@ include(SetupCompilationFailureTests)
 
 include_directories(${CMAKE_SOURCE_DIR}/external)
 include_directories(${CMAKE_SOURCE_DIR}/src)
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/tests/Unit)
 
 # Charm++ generated headers are created in the build directory
 spectre_include_directories(${CMAKE_BINARY_DIR})
@@ -115,8 +123,5 @@ spectre_include_directories(${CMAKE_BINARY_DIR}/src/Parallel)
 add_subdirectory(external)
 add_subdirectory(src)
 add_subdirectory(tests)
-
-# Set up stages for compiling test libraries in subsets.
-include(SetupBuildStageTargets)
 
 include(PrintUsefulCMakeInfo)

@@ -14,14 +14,21 @@
 #include "Utilities/MakeArray.hpp"
 
 /// \cond
-template <size_t, typename>
+template <size_t>
 class Block;
 namespace domain {
 template <typename, typename, size_t>
 class CoordinateMapBase;
+
+namespace FunctionsOfTime {
+class FunctionOfTime;
+}  // namespace FunctionsOfTime
 }  // namespace domain
-template <size_t, typename>
+template <size_t>
 class Domain;
+namespace Frame {
+struct Grid;
+}  // namespace Frame
 /// \endcond
 
 namespace domain {
@@ -29,29 +36,19 @@ namespace domain {
 /// \brief Defines classes that create Domains.
 namespace creators {
 /// \cond
-template <size_t VolumeDim, typename TargetFrame>
+template <size_t VolumeDim>
 class AlignedLattice;
-template <typename TargetFrame>
+class BinaryCompactObject;
 class Brick;
-template <typename TargetFrame>
 class Cylinder;
-template <typename TargetFrame>
 class Disk;
-template <typename TargetFrame>
 class Interval;
-template <typename TargetFrame>
 class Rectangle;
-template <typename TargetFrame>
 class RotatedBricks;
-template <typename TargetFrame>
 class RotatedIntervals;
-template <typename TargetFrame>
 class RotatedRectangles;
-template <typename TargetFrame>
 class Shell;
-template <typename TargetFrame>
 class Sphere;
-template <typename TargetFrame>
 class FrustalCloak;
 /// \endcond
 }  // namespace creators
@@ -63,48 +60,45 @@ struct domain_creators;
 
 template <>
 struct domain_creators<1> {
-  template <typename Frame>
-  using creators = tmpl::list<domain::creators::AlignedLattice<1, Frame>,
-                              domain::creators::Interval<Frame>,
-                              domain::creators::RotatedIntervals<Frame>>;
+  using creators = tmpl::list<domain::creators::AlignedLattice<1>,
+                              domain::creators::Interval,
+                              domain::creators::RotatedIntervals>;
 };
 template <>
 struct domain_creators<2> {
-  template <typename Frame>
-  using creators = tmpl::list<domain::creators::AlignedLattice<2, Frame>,
-                              domain::creators::Disk<Frame>,
-                              domain::creators::Rectangle<Frame>,
-                              domain::creators::RotatedRectangles<Frame>>;
+  using creators =
+      tmpl::list<domain::creators::AlignedLattice<2>, domain::creators::Disk,
+                 domain::creators::Rectangle,
+                 domain::creators::RotatedRectangles>;
 };
 template <>
 struct domain_creators<3> {
-  template <typename Frame>
-  using creators = tmpl::list<
-      domain::creators::AlignedLattice<3, Frame>,
-      domain::creators::Brick<Frame>, domain::creators::Cylinder<Frame>,
-      domain::creators::RotatedBricks<Frame>, domain::creators::Shell<Frame>,
-      domain::creators::Sphere<Frame>, domain::creators::FrustalCloak<Frame>>;
+  using creators =
+      tmpl::list<domain::creators::AlignedLattice<3>,
+                 domain::creators::BinaryCompactObject, domain::creators::Brick,
+                 domain::creators::Cylinder, domain::creators::RotatedBricks,
+                 domain::creators::Shell, domain::creators::Sphere,
+                 domain::creators::FrustalCloak>;
 };
 }  // namespace DomainCreators_detail
 
 /// \ingroup ComputationalDomainGroup
 /// \brief Base class for creating Domains from an option string.
-template <size_t VolumeDim, typename TargetFrame>
+template <size_t VolumeDim>
 class DomainCreator {
  public:
-  using creatable_classes = typename DomainCreators_detail::domain_creators<
-      VolumeDim>::template creators<TargetFrame>;
+  using creatable_classes =
+      typename DomainCreators_detail::domain_creators<VolumeDim>::creators;
 
   DomainCreator() = default;
-  DomainCreator(const DomainCreator<VolumeDim, TargetFrame>&) = delete;
-  DomainCreator(DomainCreator<VolumeDim, TargetFrame>&&) noexcept = default;
-  DomainCreator<VolumeDim, TargetFrame>& operator=(
-      const DomainCreator<VolumeDim, TargetFrame>&) = delete;
-  DomainCreator<VolumeDim, TargetFrame>& operator=(
-      DomainCreator<VolumeDim, TargetFrame>&&) noexcept = default;
+  DomainCreator(const DomainCreator<VolumeDim>&) = delete;
+  DomainCreator(DomainCreator<VolumeDim>&&) noexcept = default;
+  DomainCreator<VolumeDim>& operator=(const DomainCreator<VolumeDim>&) = delete;
+  DomainCreator<VolumeDim>& operator=(DomainCreator<VolumeDim>&&) noexcept =
+      default;
   virtual ~DomainCreator() = default;
 
-  virtual Domain<VolumeDim, TargetFrame> create_domain() const = 0;
+  virtual Domain<VolumeDim> create_domain() const = 0;
 
   /// Obtain the initial grid extents of the Element%s in each block.
   virtual std::vector<std::array<size_t, VolumeDim>> initial_extents() const
@@ -113,9 +107,16 @@ class DomainCreator {
   /// Obtain the initial refinement levels of the blocks.
   virtual std::vector<std::array<size_t, VolumeDim>> initial_refinement_levels()
       const noexcept = 0;
+
+  /// Retrieve the functions of time used for moving meshes.
+  virtual auto functions_of_time() const noexcept -> std::unordered_map<
+      std::string, std::unique_ptr<domain::FunctionsOfTime::FunctionOfTime>> {
+    return {};
+  }
 };
 
 #include "Domain/Creators/AlignedLattice.hpp"
+#include "Domain/Creators/BinaryCompactObject.hpp"
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Creators/Cylinder.hpp"
 #include "Domain/Creators/Disk.hpp"

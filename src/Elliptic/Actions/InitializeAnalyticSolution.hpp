@@ -9,9 +9,11 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
-#include "DataStructures/Variables.hpp"
+#include "DataStructures/VariablesTag.hpp"
+#include "Domain/ElementIndex.hpp"
 #include "Domain/Tags.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
@@ -56,7 +58,7 @@ struct InitializeAnalyticSolution {
                            ::Tags::Variables<AnalyticSolutionFields>>;
 
     const auto& inertial_coords =
-        get<::Tags::Coordinates<Dim, Frame::Inertial>>(box);
+        get<domain::Tags::Coordinates<Dim, Frame::Inertial>>(box);
     db::item_type<analytic_fields_tag> analytic_fields{
         variables_from_tagged_tuple(get<AnalyticSolutionTag>(cache).variables(
             inertial_coords, AnalyticSolutionFields{}))};

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -12,9 +12,11 @@
 #include "DataStructures/Variables.hpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
+#include "Evolution/Conservative/ConservativeDuDt.hpp"
 #include "Evolution/Systems/Burgers/Fluxes.hpp"
 #include "Evolution/Systems/Burgers/System.hpp"
 #include "Evolution/Systems/Burgers/Tags.hpp"
+#include "NumericalAlgorithms/DiscontinuousGalerkin/Formulation.hpp"
 #include "NumericalAlgorithms/LinearOperators/Divergence.tpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
@@ -39,6 +41,9 @@ SPECTRE_TEST_CASE("Unit.Burgers.Fluxes", "[Unit][Burgers]") {
                                                                        1.);
 
   Variables<tmpl::list<Burgers::Tags::U>> vars(num_points);
+  Variables<tmpl::list<Tags::dt<Burgers::Tags::U>>> dt_vars(num_points);
+  const Variables<tmpl::list<Tags::Source<Burgers::Tags::U>>> sources(
+      num_points);
   // Arbitrary polynomial whose square is exactly representable.
   get(get<Burgers::Tags::U>(vars)) =
       pow<num_points / 2 - 1>(coords) + pow<num_points / 4>(coords) + 5.;
@@ -56,8 +61,9 @@ SPECTRE_TEST_CASE("Unit.Burgers.Fluxes", "[Unit][Burgers]") {
   Variables<tmpl::list<flux_tag>> flux(num_points);
   Burgers::Fluxes::apply(&get<flux_tag>(flux), get<Burgers::Tags::U>(vars));
   const auto div_flux = divergence(flux, mesh, identity);
-  auto dudt = make_with_value<Scalar<DataVector>>(coords, 0.);
-  Burgers::System::compute_time_derivative::apply(
-      &dudt, get<Tags::div<flux_tag>>(div_flux));
-  CHECK_ITERABLE_APPROX(dudt, dudt_expected);
+  evolution::dg::
+      ConservativeDuDt<Burgers::System, dg::Formulation::StrongInertial>::apply(
+          make_not_null(&dt_vars), mesh, identity, flux, sources);
+  CHECK_ITERABLE_APPROX(get<Tags::dt<Burgers::Tags::U>>(dt_vars),
+                        dudt_expected);
 }

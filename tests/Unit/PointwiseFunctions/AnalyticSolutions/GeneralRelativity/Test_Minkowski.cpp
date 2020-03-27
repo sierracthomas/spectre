@@ -1,21 +1,23 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GeneralRelativity/VerifyGrSolution.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/TestHelpers.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GeneralRelativity/Minkowski.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tags::deriv
 
@@ -112,11 +114,23 @@ void test_minkowski(const T& value) {
   test_serialization(minkowski);
   // test operator !=
   CHECK_FALSE(minkowski != minkowski);
+
+  TestHelpers::AnalyticSolutions::test_tag_retrieval(
+      minkowski, x, t,
+      typename gr::Solutions::Minkowski<Dim>::template tags<T>{});
+}
+
+void test_einstein_solution() noexcept {
+  gr::Solutions::Minkowski<3> solution{};
+  TestHelpers::VerifyGrSolution::verify_consistency(
+      solution, 1.234, tnsr::I<double, 3>{{{1.2, 2.3, 3.4}}}, 0.01, 1.0e-10);
+  TestHelpers::VerifyGrSolution::verify_time_independent_einstein_solution(
+      solution, 8, {{1.2, 2.3, 3.4}}, {{1.22, 2.32, 3.42}}, 1.0e-10);
 }
 
 template <size_t Dim>
 void test_option_creation() {
-  test_creation<gr::Solutions::Minkowski<Dim>>("");
+  TestHelpers::test_creation<gr::Solutions::Minkowski<Dim>>("");
 }
 }  // namespace
 
@@ -131,6 +145,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.AnalyticSolutions.Gr.Minkowski",
   test_minkowski<2>(x_dv);
   test_minkowski<3>(x);
   test_minkowski<3>(x_dv);
+
+  test_einstein_solution();
 
   test_option_creation<1>();
   test_option_creation<2>();

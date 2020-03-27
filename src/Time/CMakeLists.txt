@@ -7,6 +7,7 @@ set(LIBRARY_SOURCES
     Slab.cpp
     Time.cpp
     TimeStepId.cpp
+    Utilities.cpp
     )
 
 add_subdirectory(StepChoosers)
@@ -17,6 +18,9 @@ add_spectre_library(${LIBRARY} ${LIBRARY_SOURCES})
 
 target_link_libraries(
   ${LIBRARY}
-  INTERFACE ErrorHandling
-  INTERFACE Utilities
+  PUBLIC
+  Boost::boost
+  ErrorHandling
+  Options
+  Utilities
   )

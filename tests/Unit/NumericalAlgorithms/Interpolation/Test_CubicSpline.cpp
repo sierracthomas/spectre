@@ -1,15 +1,15 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cmath>
 #include <cstddef>
 #include <random>
 #include <vector>
 
+#include "Framework/TestHelpers.hpp"
 #include "NumericalAlgorithms/Interpolation/CubicSpline.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 template <class F>
@@ -68,7 +68,7 @@ void test_cubic_spline(const F& function, const double lower_bound,
     CHECK(deserialized_interpolant(x_value) == interpolated_y_value);
     // Record max error for better test failure reports
     const double error = abs(interpolated_y_value - y_value);
-    if (error > max_error) {
+    if (error >= max_error) {
       max_error = error;
       max_error_x_value = x_value;
     }
@@ -79,7 +79,7 @@ void test_cubic_spline(const F& function, const double lower_bound,
     if (i > 10 * size * boundary_fraction and
         i < 10 * size * (1. - boundary_fraction)) {
       CHECK(interpolated_y_value == custom_approx_interior(y_value));
-      if (error > max_error_interior) {
+      if (error >= max_error_interior) {
         max_error_interior = error;
         max_error_interior_x_value = x_value;
       }

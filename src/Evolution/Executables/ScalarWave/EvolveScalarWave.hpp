@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <vector>
 
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "Domain/Creators/RegisterDerivedWithCharm.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/Error.hpp"
@@ -51,6 +52,7 @@
 #include "PointwiseFunctions/AnalyticSolutions/WaveEquation/PlaneWave.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
 #include "Time/Actions/AdvanceTime.hpp"            // IWYU pragma: keep
+#include "Time/Actions/ChangeSlabSize.hpp"         // IWYU pragma: keep
 #include "Time/Actions/ChangeStepSize.hpp"         // IWYU pragma: keep
 #include "Time/Actions/RecordTimeStepperData.hpp"  // IWYU pragma: keep
 #include "Time/Actions/SelfStartActions.hpp"       // IWYU pragma: keep
@@ -59,7 +61,9 @@
 #include "Time/StepChoosers/Cfl.hpp"               // IWYU pragma: keep
 #include "Time/StepChoosers/Constant.hpp"          // IWYU pragma: keep
 #include "Time/StepChoosers/Increase.hpp"          // IWYU pragma: keep
+#include "Time/StepChoosers/PreventRapidIncrease.hpp"          // IWYU pragma: keep
 #include "Time/StepChoosers/StepChooser.hpp"
+#include "Time/StepChoosers/StepToTimes.hpp"
 #include "Time/StepControllers/StepController.hpp"
 #include "Time/Tags.hpp"
 #include "Time/TimeSteppers/TimeStepper.hpp"
@@ -91,6 +95,25 @@ struct EvolutionMetavars {
   using normal_dot_numerical_flux =
       Tags::NumericalFlux<ScalarWave::UpwindFlux<Dim>>;
 
+  using step_choosers_common =
+      tmpl::list<StepChoosers::Registrars::ByBlock<volume_dim>,
+                 StepChoosers::Registrars::Cfl<volume_dim, Frame::Inertial>,
+                 StepChoosers::Registrars::Constant,
+                 StepChoosers::Registrars::Increase>;
+  using step_choosers_for_step_only =
+      tmpl::list<StepChoosers::Registrars::PreventRapidIncrease>;
+  using step_choosers_for_slab_only =
+      tmpl::list<StepChoosers::Registrars::StepToTimes>;
+  using step_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only>,
+      tmpl::list<>>;
+  using slab_choosers = tmpl::conditional_t<
+      local_time_stepping,
+      tmpl::append<step_choosers_common, step_choosers_for_slab_only>,
+      tmpl::append<step_choosers_common, step_choosers_for_step_only,
+                   step_choosers_for_slab_only>>;
+
   // public for use by the Charm++ registration code
   using observe_fields =
       db::get_variables_tags_list<typename system::variables_tag>;
@@ -99,7 +122,8 @@ struct EvolutionMetavars {
       tmpl::list<dg::Events::Registrars::ObserveFields<
                      Dim, Tags::Time, observe_fields, analytic_solution_fields>,
                  dg::Events::Registrars::ObserveErrorNorms<
-                     Tags::Time, analytic_solution_fields>>;
+                     Tags::Time, analytic_solution_fields>,
+                 Events::Registrars::ChangeSlabSize<slab_choosers>>;
   using triggers = Triggers::time_triggers;
 
   // A tmpl::list of tags to be added to the ConstGlobalCache by the
@@ -116,12 +140,6 @@ struct EvolutionMetavars {
   using observed_reduction_data_tags = observers::collect_reduction_data_tags<
       typename Event<events>::creatable_classes>;
 
-  using step_choosers =
-      tmpl::list<StepChoosers::Registrars::ByBlock<Dim>,
-                 StepChoosers::Registrars::Cfl<Dim, Frame::Inertial>,
-                 StepChoosers::Registrars::Constant,
-                 StepChoosers::Registrars::Increase>;
-
   // The scalar wave system generally does not require filtering, except
   // possibly on certain deformed domains.  Here a filter is added in 2D for
   // testing purposes.  When performing numerical experiments with the scalar
@@ -130,20 +148,20 @@ struct EvolutionMetavars {
 
   using step_actions = tmpl::flatten<tmpl::list<
       dg::Actions::ComputeNonconservativeBoundaryFluxes<
-          Tags::InternalDirections<Dim>>,
+          domain::Tags::InternalDirections<Dim>>,
       dg::Actions::SendDataForFluxes<EvolutionMetavars>,
-      Actions::ComputeTimeDerivative,
+      Actions::ComputeTimeDerivative<ScalarWave::ComputeDuDt<Dim>>,
       dg::Actions::ComputeNonconservativeBoundaryFluxes<
-          Tags::BoundaryDirectionsInterior<Dim>>,
+          domain::Tags::BoundaryDirectionsInterior<Dim>>,
       dg::Actions::ImposeDirichletBoundaryConditions<EvolutionMetavars>,
       dg::Actions::ReceiveDataForFluxes<EvolutionMetavars>,
       tmpl::conditional_t<local_time_stepping, tmpl::list<>,
                           dg::Actions::ApplyFluxes>,
-      Actions::RecordTimeStepperData,
+      Actions::RecordTimeStepperData<>,
       tmpl::conditional_t<local_time_stepping,
                           dg::Actions::ApplyBoundaryFluxesLocalTimeStepping,
                           tmpl::list<>>,
-      Actions::UpdateU,
+      Actions::UpdateU<>,
       tmpl::conditional_t<
           use_filtering,
           dg::Actions::Filter<Filters::Exponential<0>,
@@ -160,14 +178,15 @@ struct EvolutionMetavars {
   };
 
   using initialization_actions = tmpl::list<
+      Initialization::Actions::TimeAndTimeStep<EvolutionMetavars>,
       dg::Actions::InitializeDomain<system::volume_dim>,
       Initialization::Actions::NonconservativeSystem,
+      Initialization::Actions::TimeStepperHistory<EvolutionMetavars>,
       dg::Actions::InitializeInterfaces<
           system,
           dg::Initialization::slice_tags_to_face<
               typename system::variables_tag>,
           dg::Initialization::slice_tags_to_exterior<>>,
-      Initialization::Actions::Evolution<EvolutionMetavars>,
       Initialization::Actions::AddComputeTags<
           tmpl::list<evolution::Tags::AnalyticCompute<
               Dim, initial_data_tag, analytic_solution_fields>>>,
@@ -197,12 +216,13 @@ struct EvolutionMetavars {
 
               Parallel::PhaseActions<
                   Phase, Phase::Evolve,
-                  tmpl::flatten<tmpl::list<
+                  tmpl::list<
                       Actions::RunEventsAndTriggers,
+                      Actions::ChangeSlabSize,
                       tmpl::conditional_t<
                           local_time_stepping,
                           Actions::ChangeStepSize<step_choosers>, tmpl::list<>>,
-                      step_actions, Actions::AdvanceTime>>>>>>;
+                      step_actions, Actions::AdvanceTime>>>>>;
 
   static constexpr OptionString help{
       "Evolve a Scalar Wave in Dim spatial dimension.\n\n"
@@ -240,6 +260,8 @@ static const std::vector<void (*)()> charm_init_node_funcs{
     &Parallel::register_derived_classes_with_charm<
         Event<metavariables::events>>,
     &Parallel::register_derived_classes_with_charm<MathFunction<1>>,
+    &Parallel::register_derived_classes_with_charm<
+        StepChooser<metavariables::slab_choosers>>,
     &Parallel::register_derived_classes_with_charm<
         StepChooser<metavariables::step_choosers>>,
     &Parallel::register_derived_classes_with_charm<StepController>,

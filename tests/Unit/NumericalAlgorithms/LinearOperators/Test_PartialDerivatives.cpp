@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -13,19 +13,24 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Index.hpp"
 #include "DataStructures/IndexIterator.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"  // IWYU pragma: keep
-#include "DataStructures/VariablesHelpers.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Utilities/Gsl.hpp"
@@ -42,7 +47,6 @@ using Affine3D = domain::CoordinateMaps::ProductOf3Maps<Affine, Affine, Affine>;
 template <size_t Dim, class Frame = ::Frame::Grid>
 struct Var1 : db::SimpleTag {
   using type = tnsr::i<DataVector, Dim, Frame>;
-  static std::string name() noexcept { return "Var1"; }
   static auto f(const std::array<size_t, Dim>& coeffs,
                 const tnsr::I<DataVector, Dim, Frame>& x) {
     tnsr::i<DataVector, Dim, Frame> result(x.begin()->size(), 0.);
@@ -80,7 +84,6 @@ struct Var1 : db::SimpleTag {
 
 struct Var2 : db::SimpleTag {
   using type = Scalar<DataVector>;
-  static std::string name() noexcept { return "Var2"; }
   template <size_t Dim, class Frame>
   static auto f(const std::array<size_t, Dim>& coeffs,
                 const tnsr::I<DataVector, Dim, Frame>& x) {
@@ -457,18 +460,27 @@ SPECTRE_TEST_CASE("Unit.Numerical.LinearOperators.PartialDerivs",
   test_partial_derivatives_3d<two_vars<3>>(mesh_3d);
   test_partial_derivatives_3d<two_vars<3>, one_var<3>>(mesh_3d);
 
-  CHECK(Tags::deriv<Var1<3>, tmpl::size_t<3>, Frame::Grid>::name() ==
-        "deriv(" + Var1<3>::name() + ")");
-  CHECK(Tags::deriv<Tags::Variables<tmpl::list<Var1<3>>>, tmpl::size_t<3>,
-                    Frame::Grid>::name() ==
-        "deriv(" + Tags::Variables<tmpl::list<Var1<3>>>::name() + ")");
+  TestHelpers::db::test_prefix_tag<
+      Tags::deriv<Var1<3>, tmpl::size_t<3>, Frame::Grid>>("deriv(Var1)");
+  TestHelpers::db::test_prefix_tag<Tags::deriv<
+      Tags::Variables<tmpl::list<Var1<3>>>, tmpl::size_t<3>, Frame::Grid>>(
+      "deriv(Variables(Var1))");
+  TestHelpers::db::test_prefix_tag<
+      Tags::spacetime_deriv<Var1<3>, tmpl::size_t<3>, Frame::Grid>>(
+      "spacetime_deriv(Var1)");
+  TestHelpers::db::test_prefix_tag<Tags::spacetime_deriv<
+      Tags::Variables<tmpl::list<Var1<3>>>, tmpl::size_t<3>, Frame::Grid>>(
+      "spacetime_deriv(Variables(Var1))");
 }
 
 namespace {
 template <class MapType>
 struct MapTag : db::SimpleTag {
+  static constexpr size_t dim = MapType::dim;
+  using target_frame = typename MapType::target_frame;
+  using source_frame = typename MapType::source_frame;
+
   using type = MapType;
-  static std::string name() noexcept { return "MapTag"; }
 };
 
 template <typename Tag>
@@ -476,7 +488,7 @@ struct SomePrefix : db::PrefixTag, db::SimpleTag {
   using type = db::item_type<Tag>;
   using tag = Tag;
   static std::string name() noexcept {
-    return "SomePrefix(" + Tag::name() + ")";
+    return "SomePrefix(" + db::tag_name<Tag>() + ")";
   }
 };
 
@@ -485,14 +497,17 @@ void test_partial_derivatives_compute_item(
     const std::array<size_t, Dim> extents_array, const T& map) noexcept {
   using vars_tags = tmpl::list<Var1<Dim>, Var2>;
   using map_tag = MapTag<std::decay_t<decltype(map)>>;
-  using inv_jac_tag =
-      Tags::InverseJacobian<map_tag, Tags::LogicalCoordinates<Dim>>;
+  using inv_jac_tag = domain::Tags::InverseJacobianCompute<
+      map_tag, domain::Tags::LogicalCoordinates<Dim>>;
   using deriv_tag = Tags::DerivCompute<Tags::Variables<vars_tags>, inv_jac_tag>;
   using prefixed_variables_tag =
       db::add_tag_prefix<SomePrefix, Tags::Variables<vars_tags>>;
   using deriv_prefixed_tag =
       Tags::DerivCompute<prefixed_variables_tag, inv_jac_tag,
                          tmpl::list<SomePrefix<Var1<Dim>>>>;
+
+  TestHelpers::db::test_compute_tag<deriv_tag>(
+      "deriv(Variables(deriv(Var1),deriv(Var2)))");
 
   const std::array<size_t, Dim> array_to_functions{extents_array -
                                                    make_array<Dim>(size_t{1})};
@@ -519,12 +534,12 @@ void test_partial_derivatives_compute_item(
         get<DerivativeTag>(expected_du) = Tag::df(array_to_functions, x);
       });
 
-  auto box =
-      db::create<db::AddSimpleTags<Tags::Mesh<Dim>, Tags::Variables<vars_tags>,
-                                   prefixed_variables_tag, map_tag>,
-                 db::AddComputeTags<Tags::LogicalCoordinates<Dim>, inv_jac_tag,
-                                    deriv_tag, deriv_prefixed_tag>>(
-          mesh, u, prefixed_vars, map);
+  auto box = db::create<
+      db::AddSimpleTags<domain::Tags::Mesh<Dim>, Tags::Variables<vars_tags>,
+                        prefixed_variables_tag, map_tag>,
+      db::AddComputeTags<domain::Tags::LogicalCoordinates<Dim>, inv_jac_tag,
+                         deriv_tag, deriv_prefixed_tag>>(mesh, u, prefixed_vars,
+                                                         map);
 
   const auto& du = db::get<deriv_tag>(box);
 

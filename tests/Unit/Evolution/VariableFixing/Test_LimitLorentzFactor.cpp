@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -10,12 +10,12 @@
 #include "DataStructures/Tensor/EagerMath/DotProduct.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/VariableFixing/LimitLorentzFactor.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/Hydro/LorentzFactor.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -80,9 +80,10 @@ SPECTRE_TEST_CASE("Unit.Evolution.VariableFixing.LimitLorentzFactor",
     test_serialization(variable_fixer);
     test_variable_fixer(serialize_and_deserialize(variable_fixer));
 
-    const auto fixer_from_options = test_creation<LimitLorentzFactor>(
-        "  MaxDensityCutoff: 1.0e-4\n"
-        "  LorentzFactorCap: 50.0\n");
+    const auto fixer_from_options =
+        TestHelpers::test_creation<LimitLorentzFactor>(
+            "MaxDensityCutoff: 1.0e-4\n"
+            "LorentzFactorCap: 50.0\n");
     test_variable_fixer(fixer_from_options);
   }
 }

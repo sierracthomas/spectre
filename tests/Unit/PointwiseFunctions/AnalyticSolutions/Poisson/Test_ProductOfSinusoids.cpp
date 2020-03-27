@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -13,15 +13,25 @@
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "Domain/CoordinateMaps/Affine.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
+#include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
+#include "Domain/Mesh.hpp"
+#include "Elliptic/Systems/Poisson/FirstOrderSystem.hpp"
+#include "Elliptic/Systems/Poisson/Geometry.hpp"
 #include "Elliptic/Systems/Poisson/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/FirstOrderEllipticSolutionsTestHelpers.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
+#include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Poisson/ProductOfSinusoids.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 
@@ -65,8 +75,8 @@ void test_solution(const std::array<double, Dim>& wave_numbers,
       std::make_tuple(wave_numbers), DataVector(5));
 
   Poisson::Solutions::ProductOfSinusoids<Dim> created_solution =
-      test_creation<Poisson::Solutions::ProductOfSinusoids<Dim>>(
-          "  WaveNumbers: " + options);
+      TestHelpers::test_creation<Poisson::Solutions::ProductOfSinusoids<Dim>>(
+          "WaveNumbers: " + options);
   CHECK(created_solution == solution);
   test_serialization(solution);
 }
@@ -78,7 +88,47 @@ SPECTRE_TEST_CASE(
     "[PointwiseFunctions][Unit]") {
   pypp::SetupLocalPythonEnvironment local_python_env{
       "PointwiseFunctions/AnalyticSolutions/Poisson"};
-  test_solution<1>({{0.5}}, "[0.5]");
-  test_solution<2>({{0.5, 3.}}, "[0.5, 3]");
-  test_solution<3>({{1., 0.5, 3.}}, "[1, 0.5, 3]");
+
+  using AffineMap = domain::CoordinateMaps::Affine;
+  {
+    INFO("1D");
+    test_solution<1>({{0.5}}, "[0.5]");
+
+    using system = Poisson::FirstOrderSystem<1, Poisson::Geometry::Euclidean>;
+    const Poisson::Solutions::ProductOfSinusoids<1> solution{{{0.5}}};
+    const typename system::fluxes fluxes_computer{};
+    const domain::CoordinateMap<Frame::Logical, Frame::Inertial, AffineMap>
+        coord_map{{-1., 1., 0., M_PI}};
+    FirstOrderEllipticSolutionsTestHelpers::verify_smooth_solution<system>(
+        solution, fluxes_computer, coord_map, 1.e5, 3.);
+  }
+  {
+    INFO("2D");
+    test_solution<2>({{0.5, 1.}}, "[0.5, 1.]");
+
+    using system = Poisson::FirstOrderSystem<2, Poisson::Geometry::Euclidean>;
+    const Poisson::Solutions::ProductOfSinusoids<2> solution{{{0.5, 0.5}}};
+    const typename system::fluxes fluxes_computer{};
+    using AffineMap2D =
+        domain::CoordinateMaps::ProductOf2Maps<AffineMap, AffineMap>;
+    const domain::CoordinateMap<Frame::Logical, Frame::Inertial, AffineMap2D>
+        coord_map{{{-1., 1., 0., M_PI}, {-1., 1., 0., M_PI}}};
+    FirstOrderEllipticSolutionsTestHelpers::verify_smooth_solution<system>(
+        solution, fluxes_computer, coord_map, 1.e5, 3.);
+  }
+  {
+    INFO("3D");
+    test_solution<3>({{1., 0.5, 1.5}}, "[1., 0.5, 1.5]");
+
+    using system = Poisson::FirstOrderSystem<3, Poisson::Geometry::Euclidean>;
+    const Poisson::Solutions::ProductOfSinusoids<3> solution{{{0.5, 0.5, 0.5}}};
+    const typename system::fluxes fluxes_computer{};
+    using AffineMap3D =
+        domain::CoordinateMaps::ProductOf3Maps<AffineMap, AffineMap, AffineMap>;
+    const domain::CoordinateMap<Frame::Logical, Frame::Inertial, AffineMap3D>
+        coord_map{
+            {{-1., 1., 0., M_PI}, {-1., 1., 0., M_PI}, {-1., 1., 0., M_PI}}};
+    FirstOrderEllipticSolutionsTestHelpers::verify_smooth_solution<system>(
+        solution, fluxes_computer, coord_map, 1.e5, 3.);
+  }
 }

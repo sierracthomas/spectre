@@ -2,7 +2,7 @@
 # See LICENSE.txt for details.
 
 # Executable: EvolveStandaloneM1
-# Check: execute
+# Check: parse;execute
 # ExpectedOutput:
 #   M1Reductions.h5
 
@@ -35,7 +35,7 @@ Limiter:
     # DisableForDebugging: True
     Type: LambdaPiN
     # Recommended value from minmod papers:
-    TvbmConstant: 50.0
+    TvbConstant: 50.0
 
 EventsAndTriggers:
   ? EveryNSlabs:

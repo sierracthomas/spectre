@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -9,14 +9,15 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"  // IWYU pragma: keep
 #include "DataStructures/Matrix.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
-#include "DataStructures/VariablesHelpers.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
+#include "Framework/TestCreation.hpp"
 #include "NumericalAlgorithms/LinearOperators/ApplyMatrices.hpp"
 #include "NumericalAlgorithms/LinearOperators/ExponentialFilter.hpp"
 #include "NumericalAlgorithms/LinearOperators/FilterAction.hpp"
@@ -27,8 +28,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 // IWYU pragma: no_forward_declare ActionTesting::InitializeDataBox
 // IWYU pragma: no_forward_declare dg::Actions::ExponentialFilter
@@ -36,13 +35,11 @@
 namespace {
 namespace Tags {
 struct ScalarVar : db::SimpleTag {
-  static std::string name() noexcept { return "Scalar"; }
   using type = Scalar<DataVector>;
 };
 
 template <size_t Dim>
 struct VectorVar : db::SimpleTag {
-  static std::string name() noexcept { return "Vector"; }
   using type = tnsr::I<DataVector, Dim>;
 };
 }  // namespace Tags
@@ -62,7 +59,7 @@ struct Component {
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = int;
   using simple_tags =
-      db::AddSimpleTags<::Tags::Mesh<dim>,
+      db::AddSimpleTags<domain::Tags::Mesh<dim>,
                         typename metavariables::system::variables_tag>;
 
   using phase_dependent_action_list = tmpl::list<
@@ -121,6 +118,9 @@ void test_exponential_filter_action(const double alpha,
   CAPTURE(QuadratureType);
   CAPTURE(disable_for_debugging);
 
+  // Need to increase approx slightly on some hardware
+  Approx custom_approx = Approx::custom().epsilon(5.0e-13);
+
   using metavariables = Metavariables<Dim, FilterIndividually>;
   using component = Component<metavariables>;
 
@@ -147,7 +147,8 @@ void test_exponential_filter_action(const double alpha,
                                           disable_for_debugging));
     ActionTesting::emplace_component_and_initialize<component>(
         &runner, 0, {mesh, initial_vars});
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
 
     ActionTesting::next_action<component>(make_not_null(&runner), 0);
     if (FilterIndividually) {
@@ -181,14 +182,15 @@ void test_exponential_filter_action(const double alpha,
                      get<Tags::VectorVar<Dim>>(initial_vars).get(d),
                      mesh.extents());
     }
-    CHECK_ITERABLE_APPROX(
+    CHECK_ITERABLE_CUSTOM_APPROX(
         expected_scalar,
-        (ActionTesting::get_databox_tag<component, Tags::ScalarVar>(runner,
-                                                                    0)));
-    CHECK_ITERABLE_APPROX(
+        (ActionTesting::get_databox_tag<component, Tags::ScalarVar>(runner, 0)),
+        custom_approx);
+    CHECK_ITERABLE_CUSTOM_APPROX(
         expected_vector,
         (ActionTesting::get_databox_tag<component, Tags::VectorVar<Dim>>(runner,
-                                                                         0)));
+                                                                         0)),
+        custom_approx);
   }
 }
 
@@ -218,9 +220,9 @@ template <size_t Dim>
 void test_exponential_filter_creation() noexcept {
   using Filter = Filters::Exponential<0>;
 
-  const Filter filter = test_creation<Filter>(
-      "  Alpha: 36\n"
-      "  HalfPower: 32\n");
+  const Filter filter = TestHelpers::test_creation<Filter>(
+      "Alpha: 36\n"
+      "HalfPower: 32\n");
 
   CHECK(filter == Filter{36.0, 32, false});
   CHECK_FALSE(filter == Filter{35.0, 32, false});

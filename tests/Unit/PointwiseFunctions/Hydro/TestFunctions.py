@@ -16,8 +16,8 @@ def lorentz_factor(spatial_velocity, spatial_velocity_one_form):
 # Functions for testing MassFlux.cpp
 
 
-def mass_flux(rest_mass_density, spatial_velocity,
-              lorentz_factor, lapse, shift, sqrt_det_spatial_metric):
+def mass_flux(rest_mass_density, spatial_velocity, lorentz_factor, lapse,
+              shift, sqrt_det_spatial_metric):
     return rest_mass_density * lorentz_factor * sqrt_det_spatial_metric * \
         (lapse * spatial_velocity - shift)
 
@@ -27,7 +27,8 @@ def mass_flux(rest_mass_density, spatial_velocity,
 # Functions for testing SpecificEnthalpy.cpp
 
 
-def specific_enthalpy(rest_mass_density, specific_internal_energy, pressure):
+def relativistic_specific_enthalpy(rest_mass_density, specific_internal_energy,
+                                   pressure):
     return pressure / rest_mass_density + 1.0 + specific_internal_energy
 
 

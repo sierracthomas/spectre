@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -9,6 +9,7 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Time/Actions/AdvanceTime.hpp"           // IWYU pragma: keep
 #include "Time/Slab.hpp"
@@ -19,7 +20,6 @@
 #include "Time/TimeSteppers/RungeKutta3.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <initializer_list>
 // IWYU pragma: no_include <unordered_map>
@@ -68,7 +68,8 @@ void check_rk3(const Time& start, const TimeDelta& time_step) {
        TimeStepId(time_step.is_positive(), 8, start, 1,
                   start + substep_offsets[1]),
        time_step, start.value()});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   for (const auto& step_start : {start, start + time_step}) {
     for (size_t substep = 0; substep < 3; ++substep) {
@@ -109,7 +110,8 @@ void check_abn(const Time& start, const TimeDelta& time_step) {
       {TimeStepId(time_step.is_positive(), 8, start),
        TimeStepId(time_step.is_positive(), 8, start + time_step), time_step,
        start.value()});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   for (const auto& step_start : {start, start + time_step}) {
     const auto& box =

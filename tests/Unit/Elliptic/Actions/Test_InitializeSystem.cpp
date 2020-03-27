@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -9,13 +9,15 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
 #include "Domain/CoordinateMaps/Affine.hpp"
 #include "Domain/CoordinateMaps/CoordinateMap.hpp"
 #include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Creators/Interval.hpp"
 #include "Domain/Creators/Rectangle.hpp"
@@ -23,23 +25,21 @@
 #include "Domain/Tags.hpp"
 #include "Elliptic/Actions/InitializeSystem.hpp"
 #include "Elliptic/Tags.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/LinearOperators/Divergence.tpp"
 #include "ParallelAlgorithms/DiscontinuousGalerkin/InitializeDomain.hpp"
 #include "ParallelAlgorithms/LinearSolver/Tags.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/Tags.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 
 struct ScalarFieldTag : db::SimpleTag {
-  static std::string name() noexcept { return "ScalarFieldTag"; };
   using type = Scalar<DataVector>;
 };
 
 template <size_t Dim>
 struct AuxiliaryFieldTag : db::SimpleTag {
-  static std::string name() noexcept { return "AuxiliaryFieldTag"; };
   using type = tnsr::i<DataVector, Dim>;
 };
 
@@ -109,13 +109,12 @@ struct ElementArray {
   using metavariables = Metavariables;
   using chare_type = ActionTesting::MockArrayChare;
   using array_index = ElementIndex<Dim>;
-  using const_global_cache_tags =
-      tmpl::list<::Tags::Domain<Dim, Frame::Inertial>>;
+  using const_global_cache_tags = tmpl::list<domain::Tags::Domain<Dim>>;
   using phase_dependent_action_list = tmpl::list<
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<ActionTesting::InitializeDataBox<
-                         tmpl::list<::Tags::InitialExtents<Dim>>>,
+                         tmpl::list<domain::Tags::InitialExtents<Dim>>>,
                      dg::Actions::InitializeDomain<Dim>>>,
 
       Parallel::PhaseActions<typename Metavariables::Phase,
@@ -173,7 +172,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
     INFO("1D");
     // Which element we work with does not matter for this test
     const ElementId<1> element_id{0, {{SegmentId{2, 1}}}};
-    const domain::creators::Interval<Frame::Inertial> domain_creator{
+    const domain::creators::Interval domain_creator{
         {{-0.5}}, {{1.5}}, {{false}}, {{2}}, {{4}}};
     // Register the coordinate map for serialization
     PUPable_reg(
@@ -188,7 +187,8 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
         &runner, element_id, {domain_creator.initial_extents()});
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -205,7 +205,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
           Scalar<DataVector>{{{{4, 0.}}}});
     // Test the analytic source
     const auto& inertial_coords =
-        get_tag(Tags::Coordinates<1, Frame::Inertial>{});
+        get_tag(domain::Tags::Coordinates<1, Frame::Inertial>{});
     CHECK(get(get_tag(Tags::FixedSource<ScalarFieldTag>{})) ==
           // This check is against the source computed by the
           // analytic solution above
@@ -221,7 +221,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
     INFO("2D");
     // Which element we work with does not matter for this test
     const ElementId<2> element_id{0, {{SegmentId{2, 1}, SegmentId{0, 0}}}};
-    const domain::creators::Rectangle<Frame::Inertial> domain_creator{
+    const domain::creators::Rectangle domain_creator{
         {{-0.5, 0.}}, {{1.5, 2.}}, {{false, false}}, {{2, 0}}, {{4, 3}}};
     // Register the coordinate map for serialization
     PUPable_reg(
@@ -238,7 +238,8 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
         &runner, element_id, {domain_creator.initial_extents()});
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -255,7 +256,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
           Scalar<DataVector>{{{{12, 0.}}}});
     // Test the analytic source
     const auto& inertial_coords =
-        get_tag(Tags::Coordinates<2, Frame::Inertial>{});
+        get_tag(domain::Tags::Coordinates<2, Frame::Inertial>{});
     CHECK(get(get_tag(Tags::FixedSource<ScalarFieldTag>{})) ==
           // This check is against the source computed by the
           // analytic solution above
@@ -271,12 +272,11 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
     // Which element we work with does not matter for this test
     const ElementId<3> element_id{
         0, {{SegmentId{2, 1}, SegmentId{0, 0}, SegmentId{1, 1}}}};
-    const domain::creators::Brick<Frame::Inertial> domain_creator{
-        {{-0.5, 0., -1.}},
-        {{1.5, 2., 3.}},
-        {{false, false, false}},
-        {{2, 0, 1}},
-        {{4, 3, 2}}};
+    const domain::creators::Brick domain_creator{{{-0.5, 0., -1.}},
+                                                 {{1.5, 2., 3.}},
+                                                 {{false, false, false}},
+                                                 {{2, 0, 1}},
+                                                 {{4, 3, 2}}};
     // Register the coordinate map for serialization
     PUPable_reg(SINGLE_ARG(
         domain::CoordinateMap<
@@ -293,7 +293,8 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
         &runner, element_id, {domain_creator.initial_extents()});
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
-    runner.set_phase(metavariables::Phase::Testing);
+    ActionTesting::set_phase(make_not_null(&runner),
+                             metavariables::Phase::Testing);
     ActionTesting::next_action<element_array>(make_not_null(&runner),
                                               element_id);
     const auto get_tag = [&runner, &element_id](auto tag_v) -> decltype(auto) {
@@ -310,7 +311,7 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Actions.InitializeSystem",
           Scalar<DataVector>{{{{24, 0.}}}});
     // Test the analytic source
     const auto& inertial_coords =
-        get_tag(Tags::Coordinates<3, Frame::Inertial>{});
+        get_tag(domain::Tags::Coordinates<3, Frame::Inertial>{});
     CHECK(get(get_tag(Tags::FixedSource<ScalarFieldTag>{})) ==
           // This check is against the source computed by the
           // analytic solution above

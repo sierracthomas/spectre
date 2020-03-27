@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -11,11 +11,13 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
+#include "DataStructures/SliceVariables.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
-#include "DataStructures/VariablesHelpers.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"  // IWYU pragma: keep
@@ -23,11 +25,12 @@
 #include "Domain/LogicalCoordinates.hpp"
 #include "Domain/Mesh.hpp"
 #include "Domain/Tags.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Actions/ApplyFluxes.hpp"  // IWYU pragma: keep
 #include "NumericalAlgorithms/DiscontinuousGalerkin/FluxCommunicationTypes.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/LiftFlux.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/MortarHelpers.hpp"
-#include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleBoundaryData.hpp"
+#include "NumericalAlgorithms/DiscontinuousGalerkin/SimpleMortarData.hpp"
 #include "NumericalAlgorithms/DiscontinuousGalerkin/Tags.hpp"
 #include "NumericalAlgorithms/LinearOperators/DefiniteIntegral.hpp"
 #include "NumericalAlgorithms/Spectral/Projection.hpp"
@@ -38,7 +41,6 @@
 #include "Utilities/MakeArray.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <unordered_map>
 
@@ -54,21 +56,18 @@ class er;
 
 namespace {
 struct TemporalId : db::SimpleTag {
-  static std::string name() noexcept { return "TemporalId"; }
   using type = size_t;
   template <typename Tag>
   using step_prefix = Tags::dt<Tag>;
 };
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = Scalar<DataVector>;
 };
 
 class NumericalFlux {
  public:
   struct ExtraData : db::SimpleTag {
-    static std::string name() noexcept { return "ExtraData"; }
     using type = tnsr::I<DataVector, 1>;
   };
 
@@ -105,8 +104,9 @@ struct component {
   using array_index = ElementIndex<Dim>;
   using const_global_cache_tags = tmpl::list<NumericalFluxTag<Flux>>;
   using simple_tags =
-      db::AddSimpleTags<Tags::Mesh<Dim>, Tags::Coordinates<Dim, Frame::Logical>,
-                        Tags::Mortars<Tags::Mesh<Dim - 1>, Dim>,
+      db::AddSimpleTags<domain::Tags::Mesh<Dim>,
+                        domain::Tags::Coordinates<Dim, Frame::Logical>,
+                        Tags::Mortars<domain::Tags::Mesh<Dim - 1>, Dim>,
                         Tags::Mortars<Tags::MortarSize<Dim - 1>, Dim>,
                         Tags::dt<Tags::Variables<tmpl::list<Tags::dt<Var>>>>,
                         typename dg::FluxCommunicationTypes<
@@ -141,7 +141,7 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes",
   using LocalData = typename flux_comm_types::LocalData;
   using PackagedData = typename flux_comm_types::PackagedData;
   using mortar_data_tag = typename flux_comm_types::simple_mortar_data_tag;
-  using mortar_meshes_tag = Tags::Mortars<Tags::Mesh<1>, 2>;
+  using mortar_meshes_tag = Tags::Mortars<domain::Tags::Mesh<1>, 2>;
   using mortar_sizes_tag = Tags::Mortars<Tags::MortarSize<1>, 2>;
 
   const Mesh<2> mesh{3, Spectral::Basis::Legendre,
@@ -165,7 +165,7 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes",
       const tnsr::I<DataVector, 1>& remote_extra_data,
       const Scalar<DataVector>& local_flux,
       const Scalar<DataVector>& local_magnitude_face_normal) noexcept {
-    dg::SimpleBoundaryData<size_t, LocalData, PackagedData> data;
+    dg::SimpleMortarData<size_t, LocalData, PackagedData> data;
 
     LocalData local_data{};
     local_data.mortar_data.initialize(3);
@@ -207,7 +207,8 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes",
       &runner, id,
       {mesh, logical_coordinates(mesh), std::move(mortar_meshes),
        std::move(mortar_sizes), initial_dt, std::move(mortar_data)});
-  runner.set_phase(Metavariables<2, NumericalFlux>::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables<2, NumericalFlux>::Phase::Testing);
 
   runner.next_action<my_component>(id);
 
@@ -280,15 +281,14 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes.p-refinement",
   using mortar_data_tag = typename flux_comm_types::simple_mortar_data_tag;
   using LocalData = typename flux_comm_types::LocalData;
   using PackagedData = typename flux_comm_types::PackagedData;
-  using mortar_meshes_tag = Tags::Mortars<Tags::Mesh<2>, 3>;
+  using mortar_meshes_tag = Tags::Mortars<domain::Tags::Mesh<2>, 3>;
   using mortar_sizes_tag = Tags::Mortars<Tags::MortarSize<2>, 3>;
   using dt_variables_tag =
       db::add_tag_prefix<Tags::dt, typename System<3>::variables_tag>;
 
-  using simple_tags =
-      db::AddSimpleTags<Tags::Mesh<3>, Tags::Coordinates<3, Frame::Logical>,
-                        mortar_meshes_tag, mortar_sizes_tag, dt_variables_tag,
-                        mortar_data_tag>;
+  using simple_tags = db::AddSimpleTags<
+      domain::Tags::Mesh<3>, domain::Tags::Coordinates<3, Frame::Logical>,
+      mortar_meshes_tag, mortar_sizes_tag, dt_variables_tag, mortar_data_tag>;
 
   const ElementId<3> id_0(0);
   const ElementId<3> id_1(1);
@@ -311,21 +311,24 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes.p-refinement",
   };
   emplace_component(id_0, {{3, 4, 5}});
   emplace_component(id_1, {{4, 2, 6}});
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   auto& box1 = ActionTesting::get_databox<my_component, simple_tags>(
       make_not_null(&runner), id_0);
   auto& box2 = ActionTesting::get_databox<my_component, simple_tags>(
       make_not_null(&runner), id_1);
 
-  const auto set_boundary_data =
-      [&direction, &id_0 ](const auto local, const auto remote, const auto flux,
-                           const auto magnitude_of_face_normal) noexcept {
-    const auto& volume_mesh = get<Tags::Mesh<3>>(*local);
+  const auto set_boundary_data = [&direction, &id_0](
+                                     const auto local, const auto remote,
+                                     const auto flux,
+                                     const auto
+                                         magnitude_of_face_normal) noexcept {
+    const auto& volume_mesh = get<domain::Tags::Mesh<3>>(*local);
     const auto face_mesh =
-        get<Tags::Mesh<3>>(*local).slice_away(direction.dimension());
+        get<domain::Tags::Mesh<3>>(*local).slice_away(direction.dimension());
     const auto remote_mesh =
-        get<Tags::Mesh<3>>(*remote).slice_away(direction.dimension());
+        get<domain::Tags::Mesh<3>>(*remote).slice_away(direction.dimension());
     const auto mortar_mesh = dg::mortar_mesh(face_mesh, remote_mesh);
     const auto face_coords = logical_coordinates(face_mesh);
     const auto mortar_coords = logical_coordinates(mortar_mesh);
@@ -399,13 +402,13 @@ SPECTRE_TEST_CASE("Unit.DG.Actions.ApplyFluxes.p-refinement",
   const double average_dt1 = definite_integral(
       get(get<Tags::dt<Var>>(out_box1)) *
           get(determinant_of_jacobian1(
-              logical_coordinates(get<Tags::Mesh<3>>(out_box1)))),
-      get<Tags::Mesh<3>>(out_box1));
+              logical_coordinates(get<domain::Tags::Mesh<3>>(out_box1)))),
+      get<domain::Tags::Mesh<3>>(out_box1));
   const double average_dt2 = definite_integral(
       get(get<Tags::dt<Var>>(out_box2)) *
           get(determinant_of_jacobian2(
-              logical_coordinates(get<Tags::Mesh<3>>(out_box2)))),
-      get<Tags::Mesh<3>>(out_box2));
+              logical_coordinates(get<domain::Tags::Mesh<3>>(out_box2)))),
+      get<domain::Tags::Mesh<3>>(out_box2));
   CHECK(average_dt1 == approx(-average_dt2));
 }
 
@@ -419,7 +422,7 @@ SPECTRE_TEST_CASE(
   using flux_comm_types = dg::FluxCommunicationTypes<metavariables>;
   using mortar_data_tag = typename flux_comm_types::simple_mortar_data_tag;
   using LocalData = typename flux_comm_types::LocalData;
-  using mortar_meshes_tag = Tags::Mortars<Tags::Mesh<2>, 3>;
+  using mortar_meshes_tag = Tags::Mortars<domain::Tags::Mesh<2>, 3>;
   using mortar_sizes_tag = Tags::Mortars<Tags::MortarSize<2>, 3>;
   using dt_variables_tag =
       db::add_tag_prefix<Tags::dt, typename System<3>::variables_tag>;
@@ -549,7 +552,8 @@ SPECTRE_TEST_CASE(
                {{0.5, 0.5}}, ElementId<3>{12});
   add_neighbor({{MortarSize::LowerHalf, MortarSize::LowerHalf}}, {{-0.5, -0.5}},
                {{0.5, 0.5}}, ElementId<3>{13});
-  runner.set_phase(metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           metavariables::Phase::Testing);
 
   runner.next_action<my_component>(self_id);
 
@@ -569,7 +573,8 @@ SPECTRE_TEST_CASE(
                                   const auto& det_jacobian) noexcept {
     return definite_integral(
         get(get<Tags::dt<Var>>(box)) *
-            get(det_jacobian(get<Tags::Coordinates<3, Frame::Logical>>(box))),
+            get(det_jacobian(
+                get<domain::Tags::Coordinates<3, Frame::Logical>>(box))),
         mesh);
   };
   const double self_average_dt =

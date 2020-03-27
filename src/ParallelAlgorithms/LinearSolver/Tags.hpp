@@ -12,13 +12,16 @@
 #include <vector>
 
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/PrefixHelpers.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagName.hpp"
 #include "DataStructures/DenseMatrix.hpp"
 #include "Informer/Verbosity.hpp"
 #include "NumericalAlgorithms/Convergence/Criteria.hpp"
 #include "NumericalAlgorithms/Convergence/HasConverged.hpp"
 #include "Utilities/Requires.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 /// \cond
 namespace LinearSolver {
@@ -50,7 +53,7 @@ template <typename Tag>
 struct Operand : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearOperand(" + Tag::name() + ")";
+    return "LinearOperand(" + db::tag_name<Tag>() + ")";
   }
   using type = typename Tag::type;
   using tag = Tag;
@@ -63,7 +66,7 @@ template <typename Tag>
 struct OperatorAppliedTo : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearOperatorAppliedTo(" + Tag::name() + ")";
+    return "LinearOperatorAppliedTo(" + db::tag_name<Tag>() + ")";
   }
   using type = typename Tag::type;
   using tag = Tag;
@@ -90,7 +93,7 @@ template <typename Tag>
 struct Residual : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearResidual(" + Tag::name() + ")";
+    return "LinearResidual(" + db::tag_name<Tag>() + ")";
   }
   using type = typename Tag::type;
   using tag = Tag;
@@ -98,7 +101,9 @@ struct Residual : db::PrefixTag, db::SimpleTag {
 
 template <typename Tag>
 struct Initial : db::PrefixTag, db::SimpleTag {
-  static std::string name() noexcept { return "Initial(" + Tag::name() + ")"; }
+  static std::string name() noexcept {
+    return "Initial(" + db::tag_name<Tag>() + ")";
+  }
   using type = typename Tag::type;
   using tag = Tag;
 };
@@ -111,7 +116,7 @@ template <typename Tag>
 struct MagnitudeSquare : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearMagnitudeSquare(" + Tag::name() + ")";
+    return "LinearMagnitudeSquare(" + db::tag_name<Tag>() + ")";
   }
   using type = double;
   using tag = Tag;
@@ -125,7 +130,7 @@ template <typename Tag>
 struct Magnitude : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearMagnitude(" + Tag::name() + ")";
+    return "LinearMagnitude(" + db::tag_name<Tag>() + ")";
   }
   using type = double;
   using tag = Tag;
@@ -140,7 +145,7 @@ template <typename MagnitudeSquareTag,
 struct MagnitudeCompute
     : db::add_tag_prefix<Magnitude, db::remove_tag_prefix<MagnitudeSquareTag>>,
       db::ComputeTag {
-  static constexpr double function(const double& magnitude_square) noexcept {
+  static constexpr double function(const double magnitude_square) noexcept {
     return sqrt(magnitude_square);
   }
   using argument_tags = tmpl::list<MagnitudeSquareTag>;
@@ -153,7 +158,7 @@ template <typename Tag>
 struct Orthogonalization : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearOrthogonalization(" + Tag::name() + ")";
+    return "LinearOrthogonalization(" + db::tag_name<Tag>() + ")";
   }
   using type = typename Tag::type;
   using tag = Tag;
@@ -166,7 +171,7 @@ template <typename Tag>
 struct OrthogonalizationHistory : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // Add "Linear" prefix to abbreviate the namespace for uniqueness
-    return "LinearOrthogonalizationHistory(" + Tag::name() + ")";
+    return "LinearOrthogonalizationHistory(" + db::tag_name<Tag>() + ")";
   }
   using type = DenseMatrix<double>;
   using tag = Tag;
@@ -190,7 +195,7 @@ struct KrylovSubspaceBasis : db::PrefixTag, db::SimpleTag {
   static std::string name() noexcept {
     // No "Linear" prefix since a Krylov subspace always refers to a linear
     // operator
-    return "KrylovSubspaceBasis(" + Tag::name() + ")";
+    return "KrylovSubspaceBasis(" + db::tag_name<Tag>() + ")";
   }
   using type =
       std::vector<db::const_item_type<db::add_tag_prefix<Operand, Tag>>>;
@@ -226,8 +231,8 @@ struct HasConvergedCompute : LinearSolver::Tags::HasConverged, db::ComputeTag {
                  initial_residual_magnitude_tag>;
   static db::const_item_type<LinearSolver::Tags::HasConverged> function(
       const Convergence::Criteria& convergence_criteria,
-      const size_t& iteration_id, const double& residual_magnitude,
-      const double& initial_residual_magnitude) noexcept {
+      const size_t iteration_id, const double residual_magnitude,
+      const double initial_residual_magnitude) noexcept {
     return Convergence::HasConverged(convergence_criteria, iteration_id,
                                      residual_magnitude,
                                      initial_residual_magnitude);
@@ -292,8 +297,9 @@ namespace Tags {
  */
 struct ConvergenceCriteria : db::SimpleTag {
   using type = Convergence::Criteria;
-  static std::string name() noexcept { return "ConvergenceCriteria"; }
   using option_tags = tmpl::list<LinearSolver::OptionTags::ConvergenceCriteria>;
+
+  static constexpr bool pass_metavariables = false;
   static Convergence::Criteria create_from_options(
       const Convergence::Criteria& convergence_criteria) noexcept {
     return convergence_criteria;
@@ -301,9 +307,10 @@ struct ConvergenceCriteria : db::SimpleTag {
 };
 
 struct Verbosity : db::SimpleTag {
-  static std::string name() noexcept { return "Verbosity"; }
   using type = ::Verbosity;
   using option_tags = tmpl::list<LinearSolver::OptionTags::Verbosity>;
+
+  static constexpr bool pass_metavariables = false;
   static ::Verbosity create_from_options(
       const ::Verbosity& verbosity) noexcept {
     return verbosity;
@@ -318,7 +325,7 @@ template <>
 struct NextCompute<LinearSolver::Tags::IterationId>
     : Next<LinearSolver::Tags::IterationId>, db::ComputeTag {
   using argument_tags = tmpl::list<LinearSolver::Tags::IterationId>;
-  static size_t function(const size_t& iteration_id) noexcept {
+  static size_t function(const size_t iteration_id) noexcept {
     return iteration_id + 1;
   }
 };

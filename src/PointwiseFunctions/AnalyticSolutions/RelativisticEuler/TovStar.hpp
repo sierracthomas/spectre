@@ -8,13 +8,11 @@
 #include <limits>
 
 #include "DataStructures/Tensor/TypeAliases.hpp"
-#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "Options/Options.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/AnalyticSolution.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"  // IWYU pragma: keep
-#include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/PolytropicFluid.hpp"  // IWYU pragma: keep
-#include "PointwiseFunctions/Hydro/Tags.hpp"  // IWYU pragma: keep
+#include "PointwiseFunctions/Hydro/TagsDeclarations.hpp"  // IWYU pragma: keep
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
@@ -173,13 +171,9 @@ class TovStar : public MarkAsAnalyticSolution {
   }
 
  private:
-  friend bool operator==(const TovStar& lhs, const TovStar& rhs) noexcept {
-    // there is no comparison operator for the EoS, but should be okay as
-    // the `polytropic_exponent`s and `polytropic_constant`s are compared
-    return lhs.central_rest_mass_density_ == rhs.central_rest_mass_density_ and
-           lhs.polytropic_constant_ == rhs.polytropic_constant_ and
-           lhs.polytropic_exponent_ == rhs.polytropic_exponent_;
-  }
+  template <typename LocalRadialSolution>
+  friend bool operator==(const TovStar<LocalRadialSolution>& lhs,
+                         const TovStar<LocalRadialSolution>& rhs) noexcept;
 
   const RadialSolution& radial_tov_solution() const noexcept;
 

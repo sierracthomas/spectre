@@ -18,12 +18,20 @@ FROM ubuntu:18.04
 ARG PARALLEL_MAKE_ARG=-j2
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Add ubuntu test repo for GCC9
+# Add ubuntu test repo for GCC9 and newer versions of git
 RUN apt-get update -y \
     && apt-get install -y software-properties-common \
-    && add-apt-repository ppa:ubuntu-toolchain-r/test
+    && add-apt-repository ppa:ubuntu-toolchain-r/test \
+    && add-apt-repository ppa:git-core/ppa
 
 # Install required packages for SpECTRE
+#
+# We intentionally don't install libboost-all-dev because that installs
+# Boost.MPI, which installs OpenMPI into the container. When MPI is
+# installed inside the container it makes it very difficult to use
+# Singularity on HPC systems to interface with the system MPI library.
+# The system MPI libraries are usually configured to take advantage of
+# InfiniBand or various other networking layers.
 RUN apt-get update -y \
     && apt-get install -y gcc-6 g++-6 gfortran-6 \
                           gcc-7 g++-7 gfortran-7 \
@@ -36,12 +44,16 @@ RUN apt-get update -y \
                           clang-5.0 clang-format-5.0 clang-tidy-5.0 \
                           libclang-5.0-dev wget libncurses-dev \
                           lcov cppcheck \
-                          libboost-all-dev libssl-dev libbenchmark-dev
+                          libboost-dev libboost-program-options-dev \
+                          libboost-python-dev libboost-thread-dev \
+                          libboost-tools-dev libssl-dev \
+                          libbenchmark-dev
 
 # Add clang 4 and 8
 RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - \
+    && add-apt-repository 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main' \
     && apt-get update -y \
-    && apt-get install -y clang-4.0 clang-8
+    && apt-get install -y clang-4.0 clang-8 clang-9
 
 # Update is needed to get libc++ correctly
 # Install jemalloc
@@ -54,10 +66,21 @@ RUN apt-get update -y \
 RUN apt-get install -y ccache doxygen
 
 # Install Python packages
-RUN apt-get install -y python-pip \
-    && pip install autopep8 flake8 \
-    && pip install numpy scipy \
-    && pip install coverxygen beautifulsoup4 pybtex
+# We only install packages that are needed by the build system (e.g. to compile
+# Python bindings or build documentation) or used by Python code that is
+# unit-tested. Any other packages can be installed on-demand.
+# - We need `coverxygen`, `beautifulsoup4` and `pybtex` for both Python 2 and
+# Python 3 so that people can build the documentation with either.
+# - We need `yapf` so the CI can check Python formatting. We use a specific
+# version of it in order to avoid formatting differences between versions.
+# `futures` is needed for `yapf` parallelization on Python 2.
+RUN apt-get install -y python-pip python3-pip \
+    && pip2 install numpy scipy h5py \
+    && pip3 install numpy scipy h5py \
+    && pip2 install coverxygen beautifulsoup4 pybtex \
+    && pip3 install coverxygen beautifulsoup4 pybtex \
+    && pip2 install yapf==0.29.0 futures \
+    && pip3 install yapf==0.29.0
 
 # Add ruby gems and install coveralls using gem
 RUN apt-get update -y \
@@ -84,8 +107,13 @@ RUN wget https://bitbucket.org/blaze-lib/blaze/downloads/blaze-3.2.tar.gz -O bla
     && git clone https://github.com/edouarda/brigand.git \
     && mv brigand/include/brigand /usr/local/include \
     && rm -rf brigand \
-    && wget https://github.com/catchorg/Catch2/releases/download/v2.2.1/catch.hpp -O catch.hpp \
+    && wget https://github.com/catchorg/Catch2/releases/download/v2.11.1/catch.hpp -O catch.hpp \
     && mv catch.hpp /usr/local/include \
+    && wget https://github.com/pybind/pybind11/archive/v2.4.3.tar.gz -O pybind11.tar.gz \
+    && tar -xzf pybind11.tar.gz \
+    && mv pybind11-* pybind11 \
+    && mv pybind11/include/pybind11 /usr/local/include \
+    && rm -rf pybind11* \
     && wget https://github.com/Libsharp/libsharp/archive/v1.0.0.tar.gz -O libsharp.tar.gz \
     && tar -xzf libsharp.tar.gz \
     && mv libsharp-* libsharp_build \
@@ -93,7 +121,7 @@ RUN wget https://bitbucket.org/blaze-lib/blaze/downloads/blaze-3.2.tar.gz -O bla
     && sed -i 's/march=native/march=x86-64/' configure.ac \
     && autoconf \
     && ./configure --prefix=/usr/local --disable-openmp \
-    && make -j4 \
+    && make $PARALLEL_MAKE_ARG \
     && mv auto/bin/* /usr/local/bin \
     && mv auto/include/* /usr/local/include \
     && mv auto/lib/* /usr/local/lib \
@@ -106,7 +134,7 @@ RUN wget https://bitbucket.org/blaze-lib/blaze/downloads/blaze-3.2.tar.gz -O bla
     && make $PARALLEL_MAKE_ARG PREFIX=/usr/local/ install \
     && cd .. \
     && rm -rf libxsmm libxsmm.tar.gz \
-    && wget https://github.com/jbeder/yaml-cpp/archive/yaml-cpp-0.6.2.tar.gz -O yaml-cpp.tar.gz \
+    && wget https://github.com/jbeder/yaml-cpp/archive/yaml-cpp-0.6.3.tar.gz -O yaml-cpp.tar.gz \
     && tar -xzf yaml-cpp.tar.gz \
     && mv yaml-cpp-* yaml-cpp-build \
     && cd yaml-cpp-build \
@@ -115,8 +143,9 @@ RUN wget https://bitbucket.org/blaze-lib/blaze/downloads/blaze-3.2.tar.gz -O bla
     && cmake -D CMAKE_BUILD_TYPE=Release -D YAML_CPP_BUILD_TESTS=OFF \
              -D YAML_CPP_BUILD_CONTRIB=OFF \
              -D YAML_CPP_BUILD_TOOLS=ON \
-             -D CMAKE_INSTALL_PREFIX=/usr/local/ .. \
-    && make -j4 \
+             -D CMAKE_INSTALL_PREFIX=/usr/local/ \
+             -D YAML_BUILD_SHARED_LIBS=ON .. \
+    && make $PARALLEL_MAKE_ARG \
     && make install \
     && cd ../.. \
     && rm -rf yaml-cpp*
@@ -134,7 +163,7 @@ RUN wget https://github.com/include-what-you-use/include-what-you-use/archive/cl
     && cmake -D CMAKE_CXX_COMPILER=clang++-5.0 \
         -D CMAKE_C_COMPILER=clang-5.0 \
         -D IWYU_LLVM_ROOT_PATH=/usr/lib/llvm-5.0 .. \
-    && make -j2 \
+    && make $PARALLEL_MAKE_ARG \
     && make install \
     && cd /work \
     && rm -rf /work/include-what-you-use-clang_5.0
@@ -181,7 +210,6 @@ RUN wget http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz \
     && wget https://raw.githubusercontent.com/sxs-collaboration/spectre/develop/support/TeXLive/texlive.profile \
     && install-tl-*/install-tl -profile=texlive.profile \
     && rm -r install-tl-* texlive.profile install-tl.log \
-    && echo "export PATH=\$PATH:/work/texlive/bin/x86_64-linux" \
-            >> /root/.bashrc \
     && /work/texlive/bin/x86_64-linux/tlmgr install bibtex
+ENV PATH="${PATH}:/work/texlive/bin/x86_64-linux"
 WORKDIR /work

@@ -19,6 +19,7 @@
 /// \cond
 namespace Frame {
 struct Logical;
+struct Inertial;
 }  // namespace Frame
 namespace PUP {
 class er;
@@ -37,16 +38,16 @@ class er;
 /// dimension.  The global coordinates are obtained from the logical
 /// coordinates from the Coordinatemap:  CoordinateMap::operator() takes
 /// Points in the Logical Frame (i.e., logical coordinates) and
-/// returns Points in the Grid Frame (i.e., global coordinates).
-template <size_t VolumeDim, typename TargetFrame>
+/// returns Points in the Inertial Frame (i.e., global coordinates).
+template <size_t VolumeDim>
 class Block {
  public:
-  /// \param map the CoordinateMap.
+  /// \param stationary_map the CoordinateMap.
   /// \param id a unique ID.
   /// \param neighbors info about the Blocks that share a codimension 1
   /// boundary with this Block.
-  Block(std::unique_ptr<domain::CoordinateMapBase<Frame::Logical, TargetFrame,
-                                                  VolumeDim>>&& map,
+  Block(std::unique_ptr<domain::CoordinateMapBase<
+            Frame::Logical, Frame::Inertial, VolumeDim>>&& stationary_map,
         size_t id,
         DirectionMap<VolumeDim, BlockNeighbor<VolumeDim>> neighbors) noexcept;
 
@@ -57,10 +58,36 @@ class Block {
   Block& operator=(const Block&) = delete;
   Block& operator=(Block&&) = default;
 
-  const domain::CoordinateMapBase<Frame::Logical, TargetFrame, VolumeDim>&
-  coordinate_map() const noexcept {
-    return *map_;
-  }
+  /// \brief The map used when the coordinate map is time-independent.
+  ///
+  /// \see is_time_dependent()
+  const domain::CoordinateMapBase<Frame::Logical, Frame::Inertial, VolumeDim>&
+  stationary_map() const noexcept;
+
+  /// \brief The map going from the block logical frame to the last time
+  /// independent frame. Only used when the coordinate map is time-dependent.
+  ///
+  /// \see is_time_dependent() moving_mesh_grid_to_inertial_map()
+  const domain::CoordinateMapBase<Frame::Logical, Frame::Grid, VolumeDim>&
+  moving_mesh_logical_to_grid_map() const noexcept;
+
+  /// \brief The map going from the last time independent frame to the frame in
+  /// which the equations are solved. Only used when the coordinate map is
+  /// time-dependent.
+  ///
+  /// \see is_time_dependent() moving_mesh_logical_to_grid_map()
+  const domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, VolumeDim>&
+  moving_mesh_grid_to_inertial_map() const noexcept;
+
+  /// \brief Returns `true` if the block has time-dependent maps.
+  bool is_time_dependent() const noexcept { return stationary_map_ == nullptr; }
+
+  /// \brief Given a Block that has a time-independent map, injects the
+  /// time-dependent map into the Block.
+  void inject_time_dependent_map(
+      std::unique_ptr<
+          domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, VolumeDim>>
+          moving_mesh_inertial_map) noexcept;
 
   /// A unique identifier for the Block that is in the range
   /// [0, number_of_blocks -1] where number_of_blocks is the number
@@ -83,22 +110,30 @@ class Block {
   void pup(PUP::er& p) noexcept;  // NOLINT
 
  private:
+  template <size_t LocalVolumeDim>
+  // NOLINTNEXTLINE(readability-redundant-declaration)
+  friend bool operator==(const Block<LocalVolumeDim>& lhs,
+                         const Block<LocalVolumeDim>& rhs) noexcept;
+
   std::unique_ptr<
-      domain::CoordinateMapBase<Frame::Logical, TargetFrame, VolumeDim>>
-      map_;
+      domain::CoordinateMapBase<Frame::Logical, Frame::Inertial, VolumeDim>>
+      stationary_map_{nullptr};
+  std::unique_ptr<
+      domain::CoordinateMapBase<Frame::Logical, Frame::Grid, VolumeDim>>
+      moving_mesh_grid_map_{nullptr};
+  std::unique_ptr<
+      domain::CoordinateMapBase<Frame::Grid, Frame::Inertial, VolumeDim>>
+      moving_mesh_inertial_map_{nullptr};
+
   size_t id_{0};
   DirectionMap<VolumeDim, BlockNeighbor<VolumeDim>> neighbors_;
   std::unordered_set<Direction<VolumeDim>> external_boundaries_;
 };
 
-template <size_t VolumeDim, typename TargetFrame>
+template <size_t VolumeDim>
 std::ostream& operator<<(std::ostream& os,
-                         const Block<VolumeDim, TargetFrame>& block) noexcept;
+                         const Block<VolumeDim>& block) noexcept;
 
-template <size_t VolumeDim, typename TargetFrame>
-bool operator==(const Block<VolumeDim, TargetFrame>& lhs,
-                const Block<VolumeDim, TargetFrame>& rhs) noexcept;
-
-template <size_t VolumeDim, typename TargetFrame>
-bool operator!=(const Block<VolumeDim, TargetFrame>& lhs,
-                const Block<VolumeDim, TargetFrame>& rhs) noexcept;
+template <size_t VolumeDim>
+bool operator!=(const Block<VolumeDim>& lhs,
+                const Block<VolumeDim>& rhs) noexcept;

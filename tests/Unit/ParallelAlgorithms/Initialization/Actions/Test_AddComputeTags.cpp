@@ -1,33 +1,31 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "ParallelAlgorithms/Initialization/Actions/AddComputeTags.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 namespace {
 struct SomeNumber : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "SomeNumber"; }
 };
 
 struct SquareNumber : db::SimpleTag {
   using type = double;
-  static std::string name() noexcept { return "SquareNumber"; }
 };
 
 struct SquareNumberCompute : SquareNumber, db::ComputeTag {
-  static double function(const double& some_number) noexcept {
+  static double function(const double some_number) noexcept {
     return square(some_number);
   }
   using argument_tags = tmpl::list<SomeNumber>;
@@ -65,7 +63,8 @@ SPECTRE_TEST_CASE("Unit.ParallelAlgorithms.Initialization.AddComputeTags",
   ActionTesting::MockRuntimeSystem<Metavariables> runner{{}};
   ActionTesting::emplace_component_and_initialize<component>(&runner, 0, {2.});
 
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
   runner.template next_action<component>(0);
 
   CHECK(ActionTesting::tag_is_retrievable<component, SquareNumber>(runner, 0));

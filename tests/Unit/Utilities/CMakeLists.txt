@@ -9,6 +9,7 @@ set(LIBRARY_SOURCES
   Test_Blas.cpp
   Test_BoostHelpers.cpp
   Test_CachedFunction.cpp
+  Test_CloneUniquePtrs.cpp
   Test_ConstantExpressions.cpp
   Test_ContainerHelpers.cpp
   Test_DereferenceWrapper.cpp
@@ -29,6 +30,7 @@ set(LIBRARY_SOURCES
   Test_Numeric.cpp
   Test_Overloader.cpp
   Test_PrettyType.cpp
+  Test_ProtocolHelpers.cpp
   Test_Rational.cpp
   Test_Registration.cpp
   Test_Requires.cpp
@@ -42,9 +44,11 @@ set(LIBRARY_SOURCES
   Test_VectorAlgebra.cpp
   )
 
+add_subdirectory(TypeTraits)
+
 add_test_library(
   ${LIBRARY}
   "Utilities"
   "${LIBRARY_SOURCES}"
-  "DataStructures;Utilities"
+  "Boost::boost;DataStructures;Options;Utilities"
   )

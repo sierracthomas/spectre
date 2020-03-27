@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <initializer_list>
@@ -10,15 +10,15 @@
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Elliptic/Triggers/EveryNIterations.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Parallel/PupStlCpp11.hpp"
 #include "Parallel/RegisterDerivedClassesWithCharm.hpp"
 #include "ParallelAlgorithms/EventsAndTriggers/Trigger.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 namespace {
 struct IterationIdTag : db::SimpleTag {
@@ -32,10 +32,10 @@ SPECTRE_TEST_CASE("Unit.Elliptic.Triggers.EveryNIterations",
       elliptic::Triggers::Registrars::EveryNIterations<IterationIdTag>>>;
   Parallel::register_derived_classes_with_charm<TriggerType>();
 
-  const auto trigger = test_factory_creation<TriggerType>(
-      "  EveryNIterations:\n"
-      "    N: 3\n"
-      "    Offset: 5");
+  const auto trigger = TestHelpers::test_factory_creation<TriggerType>(
+      "EveryNIterations:\n"
+      "  N: 3\n"
+      "  Offset: 5");
 
   const auto sent_trigger = serialize_and_deserialize(trigger);
 

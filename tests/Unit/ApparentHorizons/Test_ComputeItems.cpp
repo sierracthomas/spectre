@@ -1,17 +1,20 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 #include <random>
 
-#include "ApparentHorizons/ComputeItems.hpp"    // IWYU pragma: keep
+#include "ApparentHorizons/ComputeItems.hpp"  // IWYU pragma: keep
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Christoffel.hpp"
 #include "PointwiseFunctions/GeneralRelativity/ComputeGhQuantities.hpp"
 #include "PointwiseFunctions/GeneralRelativity/ComputeSpacetimeQuantities.hpp"
@@ -19,8 +22,6 @@
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 namespace {
 template <size_t Dim, typename Frame, typename T>
@@ -112,4 +113,13 @@ SPECTRE_TEST_CASE("Unit.ApparentHorizons.ComputeItems",
   const DataVector used_for_size(20);
   // Need only Dim=3 and DataVectors for apparent horizons.
   test_strahlkorper_compute_items<3, Frame::Inertial>(used_for_size);
+  TestHelpers::db::test_compute_tag<
+      ah::Tags::InverseSpatialMetricCompute<3, Frame::Inertial>>(
+      "InverseSpatialMetric");
+  TestHelpers::db::test_compute_tag<
+      ah::Tags::ExtrinsicCurvatureCompute<3, Frame::Inertial>>(
+      "ExtrinsicCurvature");
+  TestHelpers::db::test_compute_tag<
+      ah::Tags::SpatialChristoffelSecondKindCompute<3, Frame::Inertial>>(
+      "SpatialChristoffelSecondKind");
 }

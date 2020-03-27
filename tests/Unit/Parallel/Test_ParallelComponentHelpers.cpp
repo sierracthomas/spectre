@@ -1,12 +1,14 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <vector>
 
 #include "Options/ParseOptions.hpp"
+#include "Parallel/CreateFromOptions.hpp"
 #include "Parallel/ParallelComponentHelpers.hpp"  // IWYU pragma: keep
+#include "Utilities/NoSuchType.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
 #include "Utilities/TypeTraits.hpp"
@@ -260,10 +262,14 @@ struct Name {
 }  // namespace OptionTags
 
 namespace Initialization {
+struct MetavariablesGreeting {};
+
 namespace Tags {
 struct Yards {
   using option_tags = tmpl::list<OptionTags::Yards>;
   using type = double;
+
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double yards) noexcept {
     return yards;
   }
@@ -271,6 +277,8 @@ struct Yards {
 struct Feet {
   using option_tags = tmpl::list<OptionTags::Yards>;
   using type = double;
+
+  static constexpr bool pass_metavariables = false;
   static double create_from_options(const double yards) noexcept {
     return 3.0 * yards;
   }
@@ -278,6 +286,8 @@ struct Feet {
 struct Sides {
   using option_tags = tmpl::list<OptionTags::Yards, OptionTags::Dim>;
   using type = std::vector<double>;
+
+  static constexpr bool pass_metavariables = false;
   static std::vector<double> create_from_options(const double yards,
                                                  const size_t dim) noexcept {
     return std::vector<double>(dim, yards);
@@ -286,10 +296,16 @@ struct Sides {
 struct FullGreeting {
   using option_tags = tmpl::list<OptionTags::Greeting, OptionTags::Name>;
   using type = std::string;
-  template <typename... Tags>
+
+  static constexpr bool pass_metavariables = true;
+  template <typename Metavariables, typename... Tags>
   static std::string create_from_options(const std::string& greeting,
                                          const std::string& name) noexcept {
-    return greeting + ' ' + name;
+    if (std::is_same<Metavariables, MetavariablesGreeting>::value) {
+      return "A special " +  greeting + ' ' + name;
+    } else {
+      return greeting + ' ' + name;
+    }
   }
 };
 }  // namespace Tags
@@ -322,8 +338,9 @@ static_assert(
 using all_option_tags = tmpl::list<OptionTags::Yards, OptionTags::Dim,
                                    OptionTags::Greeting, OptionTags::Name>;
 
-template <typename... InitializationTags>
-void check_initialization_items(const Options<all_option_tags>& all_options,
+template <typename Metavariables, typename... InitializationTags>
+void check_initialization_items(
+    const Options<all_option_tags>& all_options,
     const tuples::TaggedTuple<InitializationTags...>& expected_items) {
   using initialization_tags = tmpl::list<InitializationTags...>;
   using option_tags = Parallel::get_option_tags<initialization_tags>;
@@ -331,8 +348,8 @@ void check_initialization_items(const Options<all_option_tags>& all_options,
       auto... args) noexcept {
     return tuples::tagged_tuple_from_typelist<option_tags>(std::move(args)...);
   });
-  CHECK(Parallel::create_from_options(options, initialization_tags{}) ==
-        expected_items);
+  CHECK(Parallel::create_from_options<Metavariables>(
+            options, initialization_tags{}) == expected_items);
 }
 }  // namespace
 
@@ -344,14 +361,19 @@ SPECTRE_TEST_CASE("Unit.Parallel.ComponentHelpers", "[Unit][Parallel]") {
       "Dim: 3\n"
       "Greeting: Hello\n"
       "Name: World\n");
-  check_initialization_items(all_options,
-                             tuples::TaggedTuple<Initialization::Tags::Yards,
-                                                 Initialization::Tags::Feet,
-                                                 Initialization::Tags::Sides>{
-                                 2.0, 6.0, std::vector<double>{2.0, 2.0, 2.0}});
-  check_initialization_items(
+  check_initialization_items<NoSuchType>(
+      all_options, tuples::TaggedTuple<Initialization::Tags::Yards,
+                                       Initialization::Tags::Feet,
+                                       Initialization::Tags::Sides>{
+                       2.0, 6.0, std::vector<double>{2.0, 2.0, 2.0}});
+  check_initialization_items<NoSuchType>(
       all_options, tuples::TaggedTuple<Initialization::Tags::Yards,
                                        Initialization::Tags::Feet,
                                        Initialization::Tags::FullGreeting>{
                        2.0, 6.0, "Hello World"});
+  check_initialization_items<Initialization::MetavariablesGreeting>(
+      all_options, tuples::TaggedTuple<Initialization::Tags::Yards,
+                                       Initialization::Tags::Feet,
+                                       Initialization::Tags::FullGreeting>{
+                       2.0, 6.0, "A special Hello World"});
 }

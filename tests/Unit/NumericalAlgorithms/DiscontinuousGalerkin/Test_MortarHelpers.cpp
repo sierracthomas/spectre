@@ -1,15 +1,15 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
 #include <initializer_list>  // IWYU pragma: keep
 #include <utility>
 
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
@@ -180,6 +180,59 @@ SPECTRE_TEST_CASE("Unit.DG.MortarHelpers.projections",
   using Spectral::MortarSize;
   const auto all_mortar_sizes = {MortarSize::Full, MortarSize::LowerHalf,
                                  MortarSize::UpperHalf};
+
+  {
+    INFO("needs_projection");
+    CHECK_FALSE(
+        dg::needs_projection(Mesh<0>{}, Mesh<0>{}, dg::MortarSize<0>{}));
+    CHECK_FALSE(
+        dg::needs_projection(Mesh<1>{3, Spectral::Basis::Legendre,
+                                     Spectral::Quadrature::GaussLobatto},
+                             Mesh<1>{3, Spectral::Basis::Legendre,
+                                     Spectral::Quadrature::GaussLobatto},
+                             dg::MortarSize<1>{{MortarSize::Full}}));
+    CHECK_FALSE(dg::needs_projection(
+        Mesh<2>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        Mesh<2>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        dg::MortarSize<2>{{MortarSize::Full, MortarSize::Full}}));
+    CHECK_FALSE(dg::needs_projection(
+        Mesh<3>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        Mesh<3>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        dg::MortarSize<3>{
+            {MortarSize::Full, MortarSize::Full, MortarSize::Full}}));
+    CHECK(dg::needs_projection(Mesh<1>{3, Spectral::Basis::Legendre,
+                                       Spectral::Quadrature::GaussLobatto},
+                               Mesh<1>{4, Spectral::Basis::Legendre,
+                                       Spectral::Quadrature::GaussLobatto},
+                               dg::MortarSize<1>{{MortarSize::Full}}));
+    CHECK(dg::needs_projection(
+        Mesh<1>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        Mesh<1>{3, Spectral::Basis::Legendre, Spectral::Quadrature::Gauss},
+        dg::MortarSize<1>{{MortarSize::Full}}));
+    CHECK(dg::needs_projection(Mesh<1>{3, Spectral::Basis::Legendre,
+                                       Spectral::Quadrature::GaussLobatto},
+                               Mesh<1>{3, Spectral::Basis::Legendre,
+                                       Spectral::Quadrature::GaussLobatto},
+                               dg::MortarSize<1>{{MortarSize::LowerHalf}}));
+    CHECK(dg::needs_projection(
+        Mesh<2>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        Mesh<2>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        dg::MortarSize<2>{{MortarSize::Full, MortarSize::LowerHalf}}));
+    CHECK(dg::needs_projection(
+        Mesh<3>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        Mesh<3>{3, Spectral::Basis::Legendre,
+                Spectral::Quadrature::GaussLobatto},
+        dg::MortarSize<3>{
+            {MortarSize::Full, MortarSize::Full, MortarSize::UpperHalf}}));
+  }
 
   // Check 0D
   {

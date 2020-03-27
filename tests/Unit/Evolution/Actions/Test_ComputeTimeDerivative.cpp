@@ -1,20 +1,20 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <string>
 
 #include "DataStructures/DataBox/DataBox.hpp"
-#include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
 #include "Domain/ElementId.hpp"
 #include "Domain/ElementIndex.hpp"
 #include "Evolution/Actions/ComputeTimeDerivative.hpp"  // IWYU pragma: keep
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <unordered_map>
 
@@ -29,10 +29,11 @@ struct TemporalId {
 
 struct var_tag : db::SimpleTag {
   using type = int;
-  static std::string name() noexcept { return "var_tag"; }
 };
 
 struct ComputeDuDt {
+  template <template <class> class StepPrefix>
+  using return_tags = db::split_tag<db::add_tag_prefix<StepPrefix, var_tag>>;
   using argument_tags = tmpl::list<var_tag>;
   static void apply(const gsl::not_null<int*> dt_var, const int& var) {
     *dt_var = var * 2;
@@ -41,7 +42,6 @@ struct ComputeDuDt {
 
 struct System {
   using variables_tag = var_tag;
-  using compute_time_derivative = ComputeDuDt;
 };
 
 using ElementIndexType = ElementIndex<2>;
@@ -57,9 +57,9 @@ struct component {
       Parallel::PhaseActions<
           typename Metavariables::Phase, Metavariables::Phase::Initialization,
           tmpl::list<ActionTesting::InitializeDataBox<simple_tags>>>,
-      Parallel::PhaseActions<typename Metavariables::Phase,
-                             Metavariables::Phase::Testing,
-                             tmpl::list<Actions::ComputeTimeDerivative>>>;
+      Parallel::PhaseActions<
+          typename Metavariables::Phase, Metavariables::Phase::Testing,
+          tmpl::list<Actions::ComputeTimeDerivative<ComputeDuDt>>>>;
 };
 
 struct Metavariables {
@@ -81,7 +81,8 @@ SPECTRE_TEST_CASE("Unit.Evolution.ComputeTimeDerivative",
   MockRuntimeSystem runner{{}};
   ActionTesting::emplace_component_and_initialize<component<Metavariables>>(
       &runner, self_id, {3, -100});
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
 
   {
     const auto& box =

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <memory>
 #include <string>
@@ -10,6 +10,8 @@
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
 #include "DataStructures/DataBox/Prefixes.hpp"  // IWYU pragma: keep
+#include "DataStructures/DataBox/Tag.hpp"
+#include "Framework/ActionTesting.hpp"
 #include "Parallel/PhaseDependentActionList.hpp"  // IWYU pragma: keep
 #include "Time/Actions/ChangeStepSize.hpp"
 #include "Time/History.hpp"
@@ -25,7 +27,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeVector.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/ActionTesting.hpp"
 
 // IWYU pragma: no_include <pup.h>
 // IWYU pragma: no_include <unordered_map>
@@ -37,11 +38,10 @@ using step_choosers = tmpl::list<StepChoosers::Registrars::Constant>;
 using change_step_size = Actions::ChangeStepSize<step_choosers>;
 
 struct Var : db::SimpleTag {
-  static std::string name() noexcept { return "Var"; }
   using type = double;
 };
 
-using history_tag = Tags::HistoryEvolvedVariables<Var, Tags::dt<Var>>;
+using history_tag = Tags::HistoryEvolvedVariables<Var>;
 
 struct System {
   using variables_tag = Var;
@@ -103,7 +103,8 @@ void check(const bool time_runs_forward,
                initial_step_size),
        initial_step_size, db::item_type<history_tag>{}});
 
-  runner.set_phase(Metavariables::Phase::Testing);
+  ActionTesting::set_phase(make_not_null(&runner),
+                           Metavariables::Phase::Testing);
   runner.next_action<component>(0);
   auto& box =
       ActionTesting::get_databox<component, typename component::simple_tags>(

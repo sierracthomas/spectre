@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cstddef>
@@ -14,16 +14,17 @@
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
+#include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "PointwiseFunctions/GeneralRelativity/ComputeSpacetimeQuantities.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestHelpers.hpp"
-#include "tests/Utilities/MakeWithRandomValues.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -49,22 +50,53 @@ void test_compute_spacetime_metric(const DataType& used_for_size) {
 template <size_t Dim, typename DataType>
 void test_compute_inverse_spacetime_metric(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
-      &gr::inverse_spacetime_metric<Dim, Frame::Inertial, DataType>,
+      static_cast<tnsr::AA<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::II<DataType, Dim, Frame::Inertial>&) noexcept>(
+          &gr::inverse_spacetime_metric<Dim, Frame::Inertial, DataType>),
       "ComputeSpacetimeQuantities", "inverse_spacetime_metric", {{{-10., 10.}}},
+      used_for_size);
+}
+template <size_t Dim, typename DataType>
+void test_compute_time_derivative_of_spacetime_metric(
+    const DataType& used_for_size) {
+  pypp::check_with_random_values<1>(
+      static_cast<tnsr::aa<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&, const Scalar<DataType>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&)>(
+          &gr::time_derivative_of_spacetime_metric<Dim, Frame::Inertial,
+                                                   DataType>),
+      "ComputeSpacetimeQuantities", "dt_spacetime_metric", {{{-10., 10.}}},
       used_for_size);
 }
 template <size_t Dim, typename DataType>
 void test_compute_derivatives_of_spacetime_metric(
     const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
-      &gr::derivatives_of_spacetime_metric<Dim, Frame::Inertial, DataType>,
+      static_cast<tnsr::abb<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&, const Scalar<DataType>&,
+          const tnsr::i<DataType, Dim, Frame::Inertial>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::iJ<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ijj<DataType, Dim, Frame::Inertial>&) noexcept>(
+          &gr::derivatives_of_spacetime_metric<Dim, Frame::Inertial, DataType>),
       "ComputeSpacetimeQuantities", "derivatives_of_spacetime_metric",
       {{{-10., 10.}}}, used_for_size);
 }
 template <size_t Dim, typename DataType>
 void test_compute_spacetime_normal_vector(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
-      &gr::spacetime_normal_vector<Dim, Frame::Inertial, DataType>,
+      static_cast<tnsr::A<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&)>(
+          &gr::spacetime_normal_vector<Dim, Frame::Inertial, DataType>),
       "ComputeSpacetimeQuantities", "spacetime_normal_vector", {{{-10., 10.}}},
       used_for_size);
 }
@@ -86,7 +118,14 @@ void test_compute_spacetime_normal_one_form(const DataType& used_for_size) {
 template <size_t Dim, typename DataType>
 void test_compute_extrinsic_curvature(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(
-      &gr::extrinsic_curvature<Dim, Frame::Inertial, DataType>,
+      static_cast<tnsr::ii<DataType, Dim, Frame::Inertial> (*)(
+          const Scalar<DataType>&,
+          const tnsr::I<DataType, Dim, Frame::Inertial>&,
+          const tnsr::iJ<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ii<DataType, Dim, Frame::Inertial>&,
+          const tnsr::ijj<DataType, Dim, Frame::Inertial>&) noexcept>(
+          &gr::extrinsic_curvature<Dim, Frame::Inertial, DataType>),
       "ComputeSpacetimeQuantities", "extrinsic_curvature", {{{-10., 10.}}},
       used_for_size);
 }
@@ -145,6 +184,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.SpacetimeDecomp",
                                     (1, 2, 3));
   CHECK_FOR_DOUBLES_AND_DATAVECTORS(
       test_compute_derivatives_of_spacetime_metric, (1, 2, 3));
+  CHECK_FOR_DOUBLES_AND_DATAVECTORS(
+      test_compute_time_derivative_of_spacetime_metric, (1, 2, 3));
   CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_compute_spacetime_normal_vector,
                                     (1, 2, 3));
   CHECK_FOR_DOUBLES_AND_DATAVECTORS(test_compute_spacetime_normal_one_form,
@@ -156,35 +197,37 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.SpacetimeDecomp",
 
   // Check that compute items work correctly in the DataBox
   // First, check that the names are correct
-  CHECK(gr::Tags::SpacetimeNormalOneFormCompute<3, Frame::Inertial,
-                                                DataVector>::name() ==
-        "SpacetimeNormalOneForm");
-  CHECK(gr::Tags::SpacetimeNormalVectorCompute<3, Frame::Inertial,
-                                               DataVector>::name() ==
-        "SpacetimeNormalVector");
-  CHECK(gr::Tags::SpacetimeMetricCompute<3, Frame::Inertial,
-                                         DataVector>::name() ==
-        "SpacetimeMetric");
-  CHECK(gr::Tags::InverseSpacetimeMetricCompute<3, Frame::Inertial,
-                                                DataVector>::name() ==
-        "InverseSpacetimeMetric");
-  CHECK(
-      gr::Tags::SpatialMetricCompute<3, Frame::Inertial, DataVector>::name() ==
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::SpacetimeNormalOneFormCompute<3, Frame::Inertial, DataVector>>(
+      "SpacetimeNormalOneForm");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::SpacetimeNormalVectorCompute<3, Frame::Inertial, DataVector>>(
+      "SpacetimeNormalVector");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::SpacetimeMetricCompute<3, Frame::Inertial, DataVector>>(
+      "SpacetimeMetric");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::InverseSpacetimeMetricCompute<3, Frame::Inertial, DataVector>>(
+      "InverseSpacetimeMetric");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::SpatialMetricCompute<3, Frame::Inertial, DataVector>>(
       "SpatialMetric");
-  CHECK(gr::Tags::ShiftCompute<3, Frame::Inertial, DataVector>::name() ==
-        "Shift");
-  CHECK(gr::Tags::LapseCompute<3, Frame::Inertial, DataVector>::name() ==
-        "Lapse");
-  CHECK(gr::Tags::SqrtDetSpatialMetricCompute<3, Frame::Inertial,
-                                              DataVector>::name() ==
-        "SqrtDetSpatialMetric");
-  CHECK(gr::Tags::DetAndInverseSpatialMetricCompute<3, Frame::Inertial,
-                                                    DataVector>::name() ==
-        "Variables(DetSpatialMetric,InverseSpatialMetric)");
-  CHECK(gr::Tags::DerivativesOfSpacetimeMetricCompute<
-            3, Frame::Inertial>::name() == "DerivativesOfSpacetimeMetric");
-  CHECK(gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>::name() ==
-        "DerivSpacetimeMetric");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::ShiftCompute<3, Frame::Inertial, DataVector>>("Shift");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::LapseCompute<3, Frame::Inertial, DataVector>>("Lapse");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::SqrtDetSpatialMetricCompute<3, Frame::Inertial, DataVector>>(
+      "SqrtDetSpatialMetric");
+  TestHelpers::db::test_compute_tag<gr::Tags::DetAndInverseSpatialMetricCompute<
+      3, Frame::Inertial, DataVector>>(
+      "Variables(DetSpatialMetric,InverseSpatialMetric)");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::DerivativesOfSpacetimeMetricCompute<3, Frame::Inertial>>(
+      "DerivativesOfSpacetimeMetric");
+  TestHelpers::db::test_compute_tag<
+      gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>>(
+      "DerivSpacetimeMetric");
 
   // Second, put the compute items into a data box and check that they
   // put the correct results
@@ -306,9 +349,10 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.SpacetimeDecomp",
           expected_lapse, dt_lapse, deriv_lapse, expected_shift, dt_shift,
           deriv_shift, expected_spatial_metric, dt_spatial_metric,
           deriv_spatial_metric);
-  const auto expected_deriv_spacetime_metric =
-      gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>::function(
-          expected_derivatives_of_spacetime_metric);
+  tnsr::iaa<DataVector, 3, Frame::Inertial> expected_deriv_spacetime_metric{};
+  gr::Tags::DerivSpacetimeMetricCompute<3, Frame::Inertial>::function(
+      make_not_null(&expected_deriv_spacetime_metric),
+      expected_derivatives_of_spacetime_metric);
 
   const auto third_box = db::create<
       db::AddSimpleTags<

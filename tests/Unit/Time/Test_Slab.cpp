@@ -1,16 +1,16 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <functional>
 #include <string>
 
 #include "ErrorHandling/Error.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "Time/Slab.hpp"
 #include "Time/Time.hpp"
 #include "Utilities/GetOutput.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 SPECTRE_TEST_CASE("Unit.Time.Slab", "[Unit][Time]") {
   const double tstart_d = 0.68138945475734402635;
@@ -74,6 +74,22 @@ SPECTRE_TEST_CASE("Unit.Time.Slab", "[Unit][Time]") {
   CHECK(slab != Slab(tstart_d, tend2_d));
   CHECK(slab != Slab(tend2_d / 2., tend_d));
   CHECK(slab != Slab(tend_d, tend2_d));
+
+  {
+    const auto check_overlaps =
+        [](const Slab& a, const Slab& b, const bool expected) noexcept {
+      CAPTURE(a);
+      CAPTURE(b);
+      CHECK(a.overlaps(b) == expected);
+      CHECK(b.overlaps(a) == expected);
+    };
+    check_overlaps(slab, slab, true);
+    check_overlaps(slab, slab.advance(), false);
+    check_overlaps(slab, slab.advance().advance(), false);
+    check_overlaps(slab, Slab(tstart_d, tend_d + 1.0), true);
+    check_overlaps(slab, Slab(tstart_d - 1.0, tend_d), true);
+    check_overlaps(slab, Slab(tstart_d - 1.0, tend_d + 1.0), true);
+  }
 
   check_cmp(Slab(1, 2), Slab(3, 4));
   check_cmp(Slab(1, 2), Slab(2, 4));

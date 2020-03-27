@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <array>
 #include <cmath>
@@ -10,40 +10,37 @@
 
 #include "DataStructures/DataBox/DataBox.hpp"
 #include "DataStructures/DataBox/DataBoxTag.hpp"
+#include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
 #include "DataStructures/Tensor/EagerMath/Norms.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Utilities/Functional.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Numeric.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
 namespace {
 struct MyScalar : db::SimpleTag {
-  static std::string name() noexcept { return "MyScalar"; }
   using type = Scalar<DataVector>;
 };
 template <size_t Dim, typename Frame>
 struct Vector : db::SimpleTag {
-  static std::string name() noexcept { return "Vector"; }
   using type = tnsr::I<DataVector, Dim, Frame>;
 };
 template <size_t Dim, typename Frame>
 struct Covector : db::SimpleTag {
-  static std::string name() noexcept { return "Covector"; }
   using type = tnsr::i<DataVector, Dim, Frame>;
 };
 template <size_t Dim, typename Frame>
 struct Metric : db::SimpleTag {
-  static std::string name() noexcept { return "Metric"; }
   using type = tnsr::ii<DataVector, Dim, Frame>;
 };
 template <size_t Dim, typename Frame>
 struct InverseMetric : db::SimpleTag {
-  static std::string name() noexcept { return "InverseMetric"; }
   using type = tnsr::II<DataVector, Dim, Frame>;
 };
 
@@ -247,13 +244,13 @@ void test_l2_norm_tag() {
 
   // Check tag names
   using Tag = MyScalar;
-  CHECK(Tags::PointwiseL2Norm<Tag>::name() ==
-        "PointwiseL2Norm(" + db::tag_name<Tag>() + ")");
-  CHECK(Tags::PointwiseL2NormCompute<Tag>::name() ==
-        "PointwiseL2Norm(" + db::tag_name<Tag>() + ")");
-  CHECK(Tags::L2Norm<Tag>::name() == "L2Norm(" + db::tag_name<Tag>() + ")");
-  CHECK(Tags::L2NormCompute<Tag>::name() ==
-        "L2Norm(" + db::tag_name<Tag>() + ")");
+  TestHelpers::db::test_simple_tag<Tags::PointwiseL2Norm<Tag>>(
+      "PointwiseL2Norm(MyScalar)");
+  TestHelpers::db::test_compute_tag<Tags::PointwiseL2NormCompute<Tag>>(
+      "PointwiseL2Norm(MyScalar)");
+  TestHelpers::db::test_simple_tag<Tags::L2Norm<Tag>>("L2Norm(MyScalar)");
+  TestHelpers::db::test_compute_tag<Tags::L2NormCompute<Tag>>(
+      "L2Norm(MyScalar)");
 }
 }  // namespace
 

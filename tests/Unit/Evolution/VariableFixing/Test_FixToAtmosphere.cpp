@@ -1,16 +1,16 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "Evolution/VariableFixing/FixToAtmosphere.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/Hydro/EquationsOfState/EquationOfState.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_include <array>
 
@@ -106,10 +106,10 @@ void test_variable_fixer() noexcept {
   test_serialization(variable_fixer_1d);
 
   const auto fixer_from_options_1d =
-      test_creation<VariableFixing::FixToAtmosphere<Dim, 1>>(
-          "  DensityOfAtmosphere: 1.0e-12\n"
-          "  DensityCutoff: 1.0e-11\n");
-  test_variable_fixer<Dim>(fixer_from_options_1d);
+      TestHelpers::test_creation<VariableFixing::FixToAtmosphere<Dim, 1>>(
+          "DensityOfAtmosphere: 1.0e-12\n"
+          "DensityCutoff: 1.0e-11\n");
+  test_variable_fixer(fixer_from_options_1d);
 
   // Test for representative 2-d equation of state
   VariableFixing::FixToAtmosphere<Dim, 2> variable_fixer_2d{1.e-12, 1.e-11};
@@ -117,9 +117,9 @@ void test_variable_fixer() noexcept {
   test_serialization(variable_fixer_2d);
 
   const auto fixer_from_options_2d =
-      test_creation<VariableFixing::FixToAtmosphere<Dim, 2>>(
-          "  DensityOfAtmosphere: 1.0e-12\n"
-          "  DensityCutoff: 1.0e-11\n");
+      TestHelpers::test_creation<VariableFixing::FixToAtmosphere<Dim, 2>>(
+          "DensityOfAtmosphere: 1.0e-12\n"
+          "DensityCutoff: 1.0e-11\n");
   test_variable_fixer<Dim>(fixer_from_options_2d);
 }
 }  // namespace

@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -12,14 +12,14 @@
 #include "DataStructures/DataVector.hpp"          // IWYU pragma: keep
 #include "DataStructures/Tensor/TypeAliases.hpp"  // IWYU pragma: keep
 #include "ErrorHandling/Error.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
 #include "PointwiseFunctions/AnalyticData/GrMhd/MagneticFieldLoop.hpp"
 #include "PointwiseFunctions/Hydro/Tags.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -60,14 +60,14 @@ struct MagneticFieldLoopProxy : grmhd::AnalyticData::MagneticFieldLoop {
 
 void test_create_from_options() noexcept {
   const auto magnetic_field_loop =
-      test_creation<grmhd::AnalyticData::MagneticFieldLoop>(
-          "  Pressure: 3.0\n"
-          "  RestMassDensity: 1.0\n"
-          "  AdiabaticIndex: 1.66666666666666667\n"
-          "  AdvectionVelocity: [0.5, 0.04166666666666667, 0.0]\n"
-          "  MagFieldStrength: 0.001\n"
-          "  InnerRadius: 0.06\n"
-          "  OuterRadius: 0.3\n");
+      TestHelpers::test_creation<grmhd::AnalyticData::MagneticFieldLoop>(
+          "Pressure: 3.0\n"
+          "RestMassDensity: 1.0\n"
+          "AdiabaticIndex: 1.66666666666666667\n"
+          "AdvectionVelocity: [0.5, 0.04166666666666667, 0.0]\n"
+          "MagFieldStrength: 0.001\n"
+          "InnerRadius: 0.06\n"
+          "OuterRadius: 0.3\n");
   CHECK(magnetic_field_loop ==
         grmhd::AnalyticData::MagneticFieldLoop(
             3.0, 1.0, 1.66666666666666667,

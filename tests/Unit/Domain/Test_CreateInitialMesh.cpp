@@ -1,11 +1,10 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <cstddef>
 
-#include "Domain/CoordinateMaps/CoordinateMap.hpp"
 #include "Domain/CreateInitialMesh.hpp"
 #include "Domain/Direction.hpp"
 #include "Domain/ElementId.hpp"

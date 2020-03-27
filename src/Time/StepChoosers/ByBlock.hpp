@@ -22,10 +22,12 @@ namespace Parallel {
 template <typename Metavariables>
 class ConstGlobalCache;
 }  // namespace Parallel
+namespace domain {
 namespace Tags {
 template <size_t VolumeDim>
 struct Element;
 }  // namespace Tags
+}  // namespace domain
 /// \endcond
 
 namespace StepChoosers {
@@ -64,12 +66,13 @@ class ByBlock : public StepChooser<StepChooserRegistrars> {
   explicit ByBlock(std::vector<double> sizes) noexcept
       : sizes_(std::move(sizes)) {}
 
-  using argument_tags = tmpl::list<Tags::Element<Dim>>;
+  using argument_tags = tmpl::list<domain::Tags::Element<Dim>>;
 
   template <typename Metavariables>
-  double operator()(const Element<Dim>& element,
-                    const Parallel::ConstGlobalCache<Metavariables>& /*cache*/)
-      const noexcept {
+  double operator()(
+      const Element<Dim>& element, const double /*last_step_magnitude*/,
+      const Parallel::ConstGlobalCache<Metavariables>& /*cache*/) const
+      noexcept {
     const size_t block = element.id().block_id();
     if (block >= sizes_.size()) {
       ERROR("Step size not specified for block " << block);

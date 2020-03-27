@@ -53,7 +53,9 @@ class FunctionOfLorentzFactor {
 };
 }  // namespace
 
-namespace VariableFixing {
+/// \cond
+namespace grmhd {
+namespace ValenciaDivClean {
 FixConservatives::FixConservatives(
     const double minimum_rest_mass_density_times_lorentz_factor,
     const double rest_mass_density_times_lorentz_factor_cutoff,
@@ -182,15 +184,33 @@ void FixConservatives::operator()(
       const auto f_of_lorentz_factor = FunctionOfLorentzFactor{
           b_squared_over_d, tau_over_d, normalized_s_dot_b};
       const double upper_bound_of_lorentz_factor = 1.0 + tau_over_d;
-      const double lorentz_factor =
-          (equal_within_roundoff(lower_bound_of_lorentz_factor,
-                                 upper_bound_of_lorentz_factor)
-               ? lower_bound_of_lorentz_factor
-               :
-               // NOLINTNEXTLINE(clang-analyzer-core)
-               RootFinder::toms748(
-                   f_of_lorentz_factor, lower_bound_of_lorentz_factor,
-                   upper_bound_of_lorentz_factor, 1.e-14, 1.e-14, 50));
+
+      double lorentz_factor;
+      try {
+        lorentz_factor =
+            (equal_within_roundoff(lower_bound_of_lorentz_factor,
+                                   upper_bound_of_lorentz_factor)
+                 ? lower_bound_of_lorentz_factor
+                 :
+                 // NOLINTNEXTLINE(clang-analyzer-core)
+                 RootFinder::toms748(
+                     f_of_lorentz_factor, lower_bound_of_lorentz_factor,
+                     upper_bound_of_lorentz_factor, 1.e-14, 1.e-14, 50));
+      } catch (std::exception& exception) {
+        ERROR(
+            "Failed to fix conserved variables because the root finder failed "
+            "to find the lorentz factor.\n"
+            "  Upper bound: "
+            << upper_bound_of_lorentz_factor
+            << "\n  Lower bound: " << lower_bound_of_lorentz_factor
+            << "\n  s_tilde_squared: " << s_tilde_squared
+            << "\n  d_tilde: " << d_tilde << "\n  sqrt_det_g: " << sqrt_det_g
+            << "\n  tau_tilde: " << tau_tilde
+            << "\n  b_tilde_squared: " << b_tilde_squared
+            << "\n  s_tilde_squared: " << s_tilde_squared << "\n"
+            << "The message of the exception thrown by the root finder is:\n"
+            << exception.what());
+      }
 
       const double upper_bound_for_s_tilde_squared =
           square(lorentz_factor + b_squared_over_d) *
@@ -228,4 +248,6 @@ bool operator!=(const FixConservatives& lhs,
                 const FixConservatives& rhs) noexcept {
   return not(lhs == rhs);
 }
-}  // namespace VariableFixing
+}  // namespace ValenciaDivClean
+}  // namespace grmhd
+/// \endcond

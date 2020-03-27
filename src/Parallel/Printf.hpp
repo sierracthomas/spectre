@@ -8,13 +8,15 @@
 
 #include <charm++.h>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <utility>
 
 #include "ErrorHandling/FloatingPointExceptions.hpp"
 #include "Utilities/Requires.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TypeTraits/IsStreamable.hpp"
 
 namespace Parallel {
 namespace detail {
@@ -72,6 +74,7 @@ inline const typename std::string::value_type* get_printable_type(
 template <typename Printer, typename... Ts>
 inline void print_helper(Printer&& printer, const std::string& format,
                          Ts&&... t) {
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
   printer(format.c_str(), get_printable_type(std::forward<Ts>(t))...);
 }
 

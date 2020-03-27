@@ -3,14 +3,23 @@
 
 #pragma once
 
+#include <cstddef>
 #include <deque>
 #include <iterator>
-#include <pup.h>
 #include <tuple>
 #include <utility>
 
-#include "Parallel/PupStlCpp11.hpp"
+#include "Parallel/PupStlCpp11.hpp"  // IWYU pragma: keep  // p | deque, tuple
 #include "Time/Time.hpp"
+#include "Time/TimeStepId.hpp"
+
+// IWYU pragma: no_include <unordered_set>  // for swap?
+
+/// \cond
+namespace PUP {
+class er;
+}  // namespace PUP
+/// \endcond
 
 namespace TimeSteppers {
 
@@ -38,16 +47,14 @@ class History {
   History& operator=(History&&) = default;
   ~History() = default;
 
-  /// Add a new set of values to the end of the history.  `deriv` is
-  /// either left unchanged or set to a previously inserted `deriv`
-  /// value.  The different argument types for `value` and `deriv`
-  /// reflect the common use of this class, which wants `value` to
-  /// remain unchanged but does not care about `deriv`.
-  void insert(Time time, const Vars& value, DerivVars&& deriv) noexcept;
+  /// Add a new set of values to the end of the history.
+  void insert(const TimeStepId& time_step_id, const Vars& value,
+              const DerivVars& deriv) noexcept;
 
   /// Add a new set of values to the front of the history.  This is
   /// often convenient for setting initial data.
-  void insert_initial(Time time, Vars value, DerivVars deriv) noexcept;
+  void insert_initial(TimeStepId time_step_id, Vars value,
+                      DerivVars deriv) noexcept;
 
   /// Mark all data before the passed point in history as unneeded so
   /// it can be removed.  Calling this directly should not often be
@@ -80,7 +87,9 @@ class History {
   }
 
   const_reference front() const noexcept { return *begin(); }
-  const_reference back() const noexcept { return std::get<0>(data_.back()); }
+  const_reference back() const noexcept {
+    return std::get<0>(data_.back()).substep_time();
+  }
   //@}
 
   // clang-tidy: google-runtime-references
@@ -93,7 +102,7 @@ class History {
   }
 
  private:
-  std::deque<std::tuple<Time, Vars, DerivVars>> data_;
+  std::deque<std::tuple<TimeStepId, Vars, DerivVars>> data_;
   size_t first_needed_entry_{0};
 };
 
@@ -102,8 +111,8 @@ class History {
 /// details.
 template <typename Vars, typename DerivVars>
 class HistoryIterator {
-  using Base =
-      typename std::deque<std::tuple<Time, Vars, DerivVars>>::const_iterator;
+  using Base = typename std::deque<
+      std::tuple<TimeStepId, Vars, DerivVars>>::const_iterator;
 
  public:
   using iterator_category =
@@ -115,10 +124,12 @@ class HistoryIterator {
 
   HistoryIterator() = default;
 
-  reference operator*() const noexcept { return std::get<0>(*base_); }
-  pointer operator->() const noexcept { return &std::get<0>(*base_); }
-  reference operator[](difference_type n) const noexcept {
-    return std::get<0>(base_[n]);
+  reference operator*() const noexcept {
+    return std::get<0>(*base_).substep_time();
+  }
+  pointer operator->() const noexcept { return &**this; }
+  reference operator[](const difference_type n) const noexcept {
+    return std::get<0>(base_[n]).substep_time();
   }
   HistoryIterator& operator++() noexcept { ++base_; return *this; }
   // clang-tidy: return const... Really? What?
@@ -135,6 +146,9 @@ class HistoryIterator {
     return *this;
   }
 
+  const TimeStepId& time_step_id() const noexcept {
+    return std::get<0>(*base_);
+  }
   const Vars& value() const noexcept { return std::get<1>(*base_); }
   const DerivVars& derivative() const noexcept { return std::get<2>(*base_); }
 
@@ -168,20 +182,18 @@ class HistoryIterator {
 // ================================================================
 
 template <typename Vars, typename DerivVars>
-void History<Vars, DerivVars>::insert(Time time, const Vars& value,
-                                      DerivVars&& deriv) noexcept {
+void History<Vars, DerivVars>::insert(const TimeStepId& time_step_id,
+                                      const Vars& value,
+                                      const DerivVars& deriv) noexcept {
   if (first_needed_entry_ == 0) {
-    // clang-tidy: move of trivially-copyable type
-    data_.emplace_back(std::move(time), value, deriv);  // NOLINT
+    data_.emplace_back(time_step_id, value, deriv);
   } else {
-    // Move an unneeded entry into the arguments so the caller can
-    // reuse any resources the entry contained.
-    using std::swap;
+    // Reuse resources from an old entry.
     auto& old_entry = data_.front();
-    // clang-tidy: move of trivially-copyable type
-    std::get<0>(old_entry) = std::move(time);  // NOLINT
+    // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
+    std::get<0>(old_entry) = time_step_id;
     std::get<1>(old_entry) = value;
-    swap(std::get<2>(old_entry), deriv);
+    std::get<2>(old_entry) = deriv;
     data_.push_back(std::move(old_entry));
     data_.pop_front();
     --first_needed_entry_;
@@ -189,11 +201,12 @@ void History<Vars, DerivVars>::insert(Time time, const Vars& value,
 }
 
 template <typename Vars, typename DerivVars>
-inline void History<Vars, DerivVars>::insert_initial(Time time, Vars value,
+inline void History<Vars, DerivVars>::insert_initial(TimeStepId time_step_id,
+                                                     Vars value,
                                                      DerivVars deriv) noexcept {
-  // clang-tidy: move of trivially-copyable type
-  data_.emplace_front(std::move(time), // NOLINT
-                      std::move(value), std::move(deriv));
+  // NOLINTNEXTLINE(hicpp-move-const-arg,performance-move-const-arg)
+  data_.emplace_front(std::move(time_step_id), std::move(value),
+                      std::move(deriv));
 }
 
 template <typename Vars, typename DerivVars>

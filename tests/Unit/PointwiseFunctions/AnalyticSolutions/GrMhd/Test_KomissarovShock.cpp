@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,6 +14,11 @@
 #include "Domain/Creators/Brick.hpp"
 #include "Domain/Domain.hpp"
 #include "Domain/Mesh.hpp"
+#include "Framework/CheckWithRandomValues.hpp"
+#include "Framework/SetupLocalPythonEnvironment.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Framework/TestHelpers.hpp"
+#include "Helpers/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
 #include "NumericalAlgorithms/Spectral/Spectral.hpp"
 #include "Options/Options.hpp"  // IWYU pragma: keep
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/KomissarovShock.hpp"
@@ -21,11 +26,6 @@
 #include "Utilities/StdArrayHelpers.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TaggedTuple.hpp"
-#include "tests/Unit/PointwiseFunctions/AnalyticSolutions/GrMhd/VerifyGrMhdSolution.hpp"
-#include "tests/Unit/Pypp/CheckWithRandomValues.hpp"
-#include "tests/Unit/Pypp/SetupLocalPythonEnvironment.hpp"
-#include "tests/Unit/TestCreation.hpp"
-#include "tests/Unit/TestHelpers.hpp"
 
 // IWYU pragma: no_forward_declare Tensor
 
@@ -68,17 +68,17 @@ struct KomissarovShockProxy : grmhd::Solutions::KomissarovShock {
 
 void test_create_from_options() noexcept {
   const auto komissarov_shock =
-      test_creation<grmhd::Solutions::KomissarovShock>(
-          "  AdiabaticIndex: 1.33\n"
-          "  LeftDensity: 1.\n"
-          "  RightDensity: 3.323\n"
-          "  LeftPressure: 10.\n"
-          "  RightPressure: 55.36\n"
-          "  LeftVelocity: [0.83, 0., 0.]\n"
-          "  RightVelocity: [0.62, -0.44, 0.]\n"
-          "  LeftMagneticField: [10., 18.28, 0.]\n"
-          "  RightMagneticField: [10., 14.49, 0.]\n"
-          "  ShockSpeed: 0.5\n");
+      TestHelpers::test_creation<grmhd::Solutions::KomissarovShock>(
+          "AdiabaticIndex: 1.33\n"
+          "LeftDensity: 1.\n"
+          "RightDensity: 3.323\n"
+          "LeftPressure: 10.\n"
+          "RightPressure: 55.36\n"
+          "LeftVelocity: [0.83, 0., 0.]\n"
+          "RightVelocity: [0.62, -0.44, 0.]\n"
+          "LeftMagneticField: [10., 18.28, 0.]\n"
+          "RightMagneticField: [10., 14.49, 0.]\n"
+          "ShockSpeed: 0.5\n");
   CHECK(komissarov_shock == grmhd::Solutions::KomissarovShock(
                                 1.33, 1., 3.323, 10., 55.36,
                                 std::array<double, 3>{{0.83, 0., 0.}},
@@ -201,8 +201,8 @@ void test_solution() noexcept {
   const std::array<double, 3> x{{1.0, 2.3, -0.4}};
   const std::array<double, 3> dx{{1.e-1, 1.e-1, 1.e-1}};
 
-  domain::creators::Brick<Frame::Inertial> brick(
-      x - dx, x + dx, {{false, false, false}}, {{0, 0, 0}}, {{6, 6, 6}});
+  domain::creators::Brick brick(x - dx, x + dx, {{false, false, false}},
+                                {{0, 0, 0}}, {{6, 6, 6}});
   Mesh<3> mesh{brick.initial_extents()[0], Spectral::Basis::Legendre,
                Spectral::Quadrature::GaussLobatto};
   const auto domain = brick.create_domain();

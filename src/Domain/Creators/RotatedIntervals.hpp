@@ -11,25 +11,36 @@
 #include <limits>
 #include <vector>
 
+#include "Domain/Creators/DomainCreator.hpp"  // IWYU pragma: keep
 #include "Domain/Domain.hpp"
 #include "Options/Options.hpp"
 #include "Utilities/TMPL.hpp"
 
 /// \cond
-template <size_t Dim, typename Frame>
-class DomainCreator;  // IWYU pragma: keep
+namespace domain {
+namespace CoordinateMaps {
+class Affine;
+template <size_t VolumeDim>
+class DiscreteRotation;
+}  // namespace CoordinateMaps
+
+template <typename SourceFrame, typename TargetFrame, typename... Maps>
+class CoordinateMap;
+}  // namespace domain
 /// \endcond
 
 namespace domain {
 namespace creators {
-
 /// Create a 1D Domain consisting of two rotated Blocks.
 /// The left block has its logical \f$\xi\f$-axis aligned with the grid x-axis.
 /// The right block has its logical \f$\xi\f$-axis opposite to the grid x-axis.
 /// This is useful for testing code that deals with unaligned blocks.
-template <typename TargetFrame>
-class RotatedIntervals : public DomainCreator<1, TargetFrame> {
+class RotatedIntervals : public DomainCreator<1> {
  public:
+  using maps_list = tmpl::list<domain::CoordinateMap<
+      Frame::Logical, Frame::Inertial,
+      domain::CoordinateMaps::DiscreteRotation<1>, CoordinateMaps::Affine>>;
+
   struct LowerBound {
     using type = std::array<double, 1>;
     static constexpr OptionString help = {
@@ -91,7 +102,7 @@ class RotatedIntervals : public DomainCreator<1, TargetFrame> {
   RotatedIntervals& operator=(RotatedIntervals&&) noexcept = default;
   ~RotatedIntervals() override = default;
 
-  Domain<1, TargetFrame> create_domain() const noexcept override;
+  Domain<1> create_domain() const noexcept override;
 
   std::vector<std::array<size_t, 1>> initial_extents() const noexcept override;
 

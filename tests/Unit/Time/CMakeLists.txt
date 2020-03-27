@@ -7,8 +7,10 @@ set(LIBRARY_SOURCES
   Test_EvolutionOrdering.cpp
   Test_History.cpp
   Test_Slab.cpp
+  Test_Tags.cpp
   Test_Time.cpp
   Test_TimeStepId.cpp
+  Test_Utilities.cpp
   )
 
 add_subdirectory(Actions)
@@ -21,7 +23,7 @@ add_test_library(
   ${LIBRARY}
   "Time"
   "${LIBRARY_SOURCES}"
-  "Time"
+  "Boost::boost;Time;TimeStepperHelpers"
   )
 
 add_dependencies(

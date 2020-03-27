@@ -1,7 +1,7 @@
 // Distributed under the MIT License.
 // See LICENSE.txt for details.
 
-#include "tests/Unit/TestingFramework.hpp"
+#include "Framework/TestingFramework.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,6 +14,8 @@
 #include "Domain/BlockLogicalCoordinates.hpp"
 #include "Domain/Creators/Shell.hpp"
 #include "Domain/Domain.hpp"
+#include "Framework/TestCreation.hpp"
+#include "Helpers/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
 #include "NumericalAlgorithms/Interpolation/InterpolationTargetKerrHorizon.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "Time/Tags.hpp"
@@ -21,8 +23,6 @@
 #include "Utilities/Gsl.hpp"
 #include "Utilities/Spherepack.hpp"
 #include "Utilities/TMPL.hpp"
-#include "tests/Unit/NumericalAlgorithms/Interpolation/InterpolationTargetTestHelpers.hpp"
-#include "tests/Unit/TestCreation.hpp"
 
 namespace {
 struct MockMetavariables {
@@ -63,15 +63,16 @@ SPECTRE_TEST_CASE("Unit.NumericalAlgorithms.InterpolationTarget.KerrHorizon",
                                                       dimless_spin);
 
   // Test creation of options
-  const auto created_opts = test_creation<intrp::OptionHolders::KerrHorizon>(
-      "  Center: [0.05, 0.06, 0.07]\n"
-      "  DimensionlessSpin: [0.2, 0.3, 0.4]\n"
-      "  Lmax: 18\n"
-      "  Mass: 1.8");
+  const auto created_opts =
+      TestHelpers::test_creation<intrp::OptionHolders::KerrHorizon>(
+          "Center: [0.05, 0.06, 0.07]\n"
+          "DimensionlessSpin: [0.2, 0.3, 0.4]\n"
+          "Lmax: 18\n"
+          "Mass: 1.8");
   CHECK(created_opts == kerr_horizon_opts);
 
   const auto domain_creator =
-      domain::creators::Shell<Frame::Inertial>(0.9, 4.9, 1, {{5, 5}}, false);
+      domain::creators::Shell(0.9, 4.9, 1, {{5, 5}}, false);
 
   const auto expected_block_coord_holders =
       [&domain_creator, &mass, &center, &dimless_spin ]() noexcept {

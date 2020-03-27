@@ -4,11 +4,13 @@
 #pragma once
 
 #include <tuple>
+#include <type_traits>
 #include <utility>  // for declval
 
 #include "Parallel/PhaseDependentActionList.hpp"
 #include "Utilities/TMPL.hpp"
-#include "Utilities/TypeTraits.hpp"
+#include "Utilities/TaggedTuple.hpp"
+#include "Utilities/TypeTraits/CreateIsCallable.hpp"
 
 namespace Parallel {
 /// \cond

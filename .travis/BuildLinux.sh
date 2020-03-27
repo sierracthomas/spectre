@@ -3,9 +3,12 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
-export PATH=$PATH:/work/texlive/bin/x86_64-linux
-
 ccache -z
+
+BUILD_PYTHON_BINDINGS=ON
+if [ ${BUILD_TYPE} = Release ] && [ ${CC} = clang-8 ]; then
+    BUILD_PYTHON_BINDINGS=OFF
+fi
 
 # We don't need debug symbols during CI, so we turn them off to reduce memory
 # usage (by 1.5x) during compilation.
@@ -19,7 +22,7 @@ cmake -D CMAKE_BUILD_TYPE=${BUILD_TYPE} \
       -D USE_PCH=${USE_PCH} \
       -D DEBUG_SYMBOLS=OFF \
       -D COVERAGE=${COVERAGE} \
-      -D BUILD_PYTHON_BINDINGS=ON \
+      -D BUILD_PYTHON_BINDINGS=${BULID_PYTHON_BINDINGS} \
       ../spectre/
 
 # Build all Charm++ modules
@@ -87,7 +90,10 @@ if [ -z "${RUN_CLANG_TIDY}" ] \
 fi
 
 # Build documentation and doc coverage and deploy to GitHub pages.
+# Disabled since this is done with GitHub actions instead of Travis.
+DEPLOY_DOC=false
 if [ ${BUILD_DOC} ] \
+       && [ ${DEPLOY_DOC} = true ] \
        && [ ${TRAVIS_SECURE_ENV_VARS} = true ] \
        && [ ${TRAVIS_BRANCH} = ${GH_PAGES_SOURCE_BRANCH} ] \
        && [ ${TRAVIS_PULL_REQUEST} == false ]; then

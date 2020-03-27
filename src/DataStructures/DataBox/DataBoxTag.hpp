@@ -11,6 +11,9 @@
 #include <ostream>
 #include <string>
 
+#include "DataStructures/DataBox/Tag.hpp"
+#include "DataStructures/DataBox/TagTraits.hpp"
+#include "DataStructures/VariablesTag.hpp"
 #include "ErrorHandling/Assert.hpp"
 #include "Utilities/ConstantExpressions.hpp"
 #include "Utilities/NoSuchType.hpp"
@@ -18,13 +21,8 @@
 #include "Utilities/Requires.hpp"
 #include "Utilities/TMPL.hpp"
 #include "Utilities/TypeTraits.hpp"
-
-/// \cond
-namespace Tags {
-template <typename TagsList>
-struct Variables;
-}  // namespace Tags
-/// \endcond
+#include "Utilities/TypeTraits/CreateIsCallable.hpp"
+#include "Utilities/TypeTraits/IsA.hpp"
 
 namespace Tags {
 /*!
@@ -45,113 +43,6 @@ struct DataBox {
 }  // namespace Tags
 
 namespace db {
-/*!
- * \ingroup DataBoxGroup
- * \brief Tags for the DataBox inherit from this type
- *
- * \details
- * Used to mark a type as being a SimpleTag so that it can be used in a
- * DataBox.
- *
- * \derivedrequires
- * - type alias `type` of the type this SimpleTag represents
- *
- * \example
- * \snippet Test_DataBox.cpp databox_tag_example
- *
- * \see DataBox PrefixTag tag_name
- */
-struct SimpleTag {};
-
-/*!
- * \ingroup DataBoxGroup
- * \brief Tags that are base tags, i.e. a simple or compute tag must derive
- * off them for them to be useful
- *
- * Base tags do not need to contain type information, unlike simple
- * tags which must contain the type information. Base tags are designed so
- * that retrieving items from the DataBox or setting argument tags in compute
- * items can be done without any knowledge of the type of the item.
- *
- * To use the base mechanism the base tag must inherit off of
- * `BaseTag` and NOT `SimpleTag`. This is very important for the
- * implementation. Inheriting off both and not making the tag either a simple
- * item or compute item is undefined behavior and is likely to end in extremely
- * complicated compiler errors.
- */
-struct BaseTag {};
-
-/*!
- * \ingroup DataBoxGroup
- * \brief Marks an item as being a prefix to another tag
- *
- * \details
- * Used to mark a type as being a DataBoxTag where the `label` is a prefix to
- * the DataBoxTag that is a member type alias `tag`. A prefix tag must contain a
- * type alias named `type` with the type of the Tag it is a prefix to, as well
- * as a type alias `tag` that is the type of the Tag that this prefix tag is
- * a prefix for. A prefix tag must also have a `label` equal to the name of
- * the struct (tag).
- *
- * \derivedrequires
- * - type alias `tag` of the DataBoxTag that this tag is a prefix to
- * - type alias `type` that is the type that this PrefixTag holds
- * - static `std::string name()` method that returns a runtime name for the tag.
- *
- * \example
- * A PrefixTag tag has the structure:
- * \snippet Test_DataBox.cpp databox_prefix_tag_example
- *
- * The name used to retrieve a prefix tag from the DataBox is:
- * \snippet Test_DataBox.cpp databox_name_prefix
- *
- *
- * \see DataBox DataBoxTag tag_name ComputeTag
- */
-struct PrefixTag {};
-
-/*!
- * \ingroup DataBoxGroup
- * \brief Marks a DataBoxTag as being a compute item that executes a function
- *
- * \details
- * Compute items come in two forms: mutating and non-mutating. Mutating
- * compute items modify a stored value in order to reduce the number of memory
- * allocations done. For example, if a function would return a `Variables` or
- * `Tensor<DataVector...>` and is called every time step, then it would be
- * preferable to use a mutating compute item so that the values in the already
- * allocated memory can just be changed.
- * In contrast, non-mutating compute items simply return the new value after a
- * call (if the value is out-of-date), which is fine for infrequently called
- * compute items or ones that do not allocate data on the heap.
- *
- * A compute item tag contains a member named `function` that is either a
- * function pointer, or a static constexpr function. The compute item tag
- * must also have a `label`, same as the DataBox tags, and a type alias
- * `argument_tags` that is a typelist of the tags that will
- * be retrieved from the DataBox and whose data will be passed to the function
- * (pointer). Mutating compute item tags must also contain a type alias named
- * `return_type` that is the type the function is mutating. The type must be
- * default constructible.
- *
- * \example
- * Most non-mutating compute item tags will look similar to:
- * \snippet Test_DataBox.cpp databox_compute_item_tag_example
- * Note that the arguments can be empty:
- * \snippet Test_DataBox.cpp compute_item_tag_no_tags
- *
- * Mutating compute item tags are of the form:
- * \snippet Test_DataBox.cpp databox_mutating_compute_item_tag
- * where the function is:
- * \snippet Test_DataBox.cpp databox_mutating_compute_item_function
- *
- * You can also have `function` be a function instead of a function pointer,
- * which offers a lot of simplicity for very simple compute items.
- * \snippet Test_DataBox.cpp compute_item_tag_function
- *
- * \see DataBox SimpleTag tag_name PrefixTag
- */
-struct ComputeTag {};
 
 namespace DataBox_detail {
 template <typename TagList, typename Tag>
@@ -207,127 +98,7 @@ template <typename TagList, typename Tag>
 constexpr bool has_no_matching_tag_v = has_no_matching_tag<TagList, Tag>::value;
 }  // namespace DataBox_detail
 
-// @{
-/*!
- * \ingroup DataBoxGroup
- * \brief Check if `Tag` derives off of db::ComputeTag
- */
-template <typename Tag, typename = std::nullptr_t>
-struct is_compute_item : std::false_type {};
-/// \cond HIDDEN_SYMBOLS
-template <typename Tag>
-struct is_compute_item<Tag, Requires<cpp17::is_base_of_v<db::ComputeTag, Tag>>>
-    : std::true_type {};
-/// \endcond
 
-template <typename Tag>
-constexpr bool is_compute_item_v = is_compute_item<Tag>::value;
-// @}
-
-// @{
-/*!
- * \ingroup DataBoxGroup
- * \brief Check if `Tag` is a non-base DataBox tag. I.e. a SimpleTag or a
- * ComputeTag
- */
-template <typename Tag, typename = std::nullptr_t>
-struct is_non_base_tag : std::false_type {};
-/// \cond
-template <typename Tag>
-struct is_non_base_tag<Tag, Requires<cpp17::is_base_of_v<db::ComputeTag, Tag> or
-                                     cpp17::is_base_of_v<db::SimpleTag, Tag>>>
-    : std::true_type {};
-/// \endcond
-
-template <typename Tag>
-constexpr bool is_non_base_tag_v = is_non_base_tag<Tag>::value;
-// @}
-
-// @{
-/*!
- * \ingroup DataBoxGroup
- * \brief Check if `Tag` is a BaseTag, SimpleTag, or ComputeTag
- */
-template <typename Tag, typename = std::nullptr_t>
-struct is_tag : std::false_type {};
-/// \cond
-template <typename Tag>
-struct is_tag<Tag, Requires<cpp17::is_base_of_v<db::ComputeTag, Tag> or
-                            cpp17::is_base_of_v<db::SimpleTag, Tag> or
-                            cpp17::is_base_of_v<db::BaseTag, Tag>>>
-    : std::true_type {};
-/// \endcond
-
-template <typename Tag>
-constexpr bool is_tag_v = is_tag<Tag>::value;
-// @}
-
-// @{
-/*!
- * \ingroup DataBoxGroup
- * \brief Check if `Tag` is a base DataBox tag
- */
-template <typename Tag, typename = std::nullptr_t>
-struct is_base_tag : std::false_type {};
-/// \cond HIDDEN_SYMBOLS
-template <typename Tag>
-struct is_base_tag<Tag, Requires<cpp17::is_base_of_v<db::BaseTag, Tag> and
-                                 not cpp17::is_base_of_v<db::SimpleTag, Tag> and
-                                 not is_compute_item_v<Tag>>> : std::true_type {
-};
-/// \endcond
-
-template <typename Tag>
-constexpr bool is_base_tag_v = is_base_tag<Tag>::value;
-// @}
-
-namespace DataBox_detail {
-template <typename Tag, typename = cpp17::void_t<>>
-struct tag_name_impl;
-
-template <typename Tag, typename = std::nullptr_t, typename = cpp17::void_t<>>
-struct tag_name_impl2 {
-  static_assert(not is_compute_item_v<Tag>,
-                "Compute tags must have a name function or a base alias.");
-  static std::string name() noexcept { return pretty_type::short_name<Tag>(); }
-};
-
-template <typename Tag>
-struct tag_name_impl2<Tag, Requires<is_compute_item_v<Tag>>,
-                      cpp17::void_t<typename Tag::base>>
-    : tag_name_impl<typename Tag::base> {};
-
-template <typename Tag>
-struct tag_name_impl2<Tag, Requires<cpp17::is_base_of_v<db::PrefixTag, Tag> and
-                                    not is_compute_item_v<Tag>>> {
-  static std::string name() noexcept {
-    return pretty_type::short_name<Tag>() + "(" +
-           tag_name_impl<typename Tag::tag>::name() + ")";
-  }
-};
-
-template <typename Tag, typename>
-struct tag_name_impl : tag_name_impl2<Tag> {};
-
-template <typename Tag>
-struct tag_name_impl<Tag, cpp17::void_t<decltype(Tag::name())>> : public Tag {};
-}  // namespace DataBox_detail
-
-/*!
- * \ingroup DataBoxGroup
- * \brief Get the name of a DataBoxTag, including prefixes
- *
- * \details
- * Given a DataBoxTag returns the name of the DataBoxTag as a std::string. If
- * the DataBoxTag is also a PrefixTag then the prefix is added.
- *
- * \tparam Tag the DataBoxTag whose name to get
- * \return string holding the DataBoxTag's name
- */
-template <typename Tag>
-std::string tag_name() noexcept {
-  return DataBox_detail::tag_name_impl<Tag>::name();
-}
 
 template <class T, class = void>
 struct has_return_type_member : std::false_type {};
@@ -411,6 +182,19 @@ struct dispatch_storage_type<3> {
   using f = typename Tag::return_type;
 };
 
+template <typename TagList, typename Tag>
+struct get_first_derived_tag_for_base_tag {
+  static_assert(
+      not cpp17::is_same_v<TagList, NoSuchType>,
+      "Can't retrieve the storage type of a base tag without the full tag "
+      "list. If you're using 'item_type' or 'const_item_type' then make sure "
+      "you pass the DataBox's tag list as the second template parameter to "
+      "those metafunctions. The base tag for which the storage type is being"
+      "retrieved is listed as the second template argument to the "
+      "'get_first_derived_tag_for_base_tag' class below");
+  using type = first_matching_tag<TagList, Tag>;
+};
+
 template <>
 struct dispatch_storage_type<4> {
   // base tag item: retrieve the derived tag from the tag list then call
@@ -422,8 +206,9 @@ struct dispatch_storage_type<4> {
   // same, it is undefined behavior if they are not and the user's
   // responsibility.
   template <typename TagList, typename Tag>
-  using f = typename storage_type_impl<TagList,
-                                       first_matching_tag<TagList, Tag>>::type;
+  using f = typename storage_type_impl<
+      TagList,
+      tmpl::type_from<get_first_derived_tag_for_base_tag<TagList, Tag>>>::type;
 };
 
 // The type internally stored in a simple or compute item.  For
@@ -462,6 +247,7 @@ using item_type = typename DataBox_detail::item_type_impl<TagList, Tag>::type;
 
 namespace DataBox_detail {
 CREATE_IS_CALLABLE(function)
+CREATE_IS_CALLABLE_V(function)
 
 template <typename Tag, typename TagList, typename TagTypesList>
 struct check_compute_item_is_invokable;
@@ -489,221 +275,6 @@ struct compute_item_type<tmpl::list<Args...>> {
           tmpl::list<const_item_type<Args, TagList>...>>{},
 #endif  // SPECTRE_DEBUG
       Tag::function(std::declval<const_item_type<Args, TagList>>()...));
-};
-}  // namespace DataBox_detail
-
-/// \ingroup DataBoxTagsGroup
-/// \brief Create a new list of Tags by wrapping each tag in `TagList` using the
-/// `Wrapper`.
-template <template <typename...> class Wrapper, typename TagList,
-          typename... Args>
-using wrap_tags_in =
-    tmpl::transform<TagList, tmpl::bind<Wrapper, tmpl::_1, tmpl::pin<Args>...>>;
-
-namespace DataBox_detail {
-enum class DispatchTagType {
-  Variables,
-  Prefix,
-  Other,
-};
-
-template <typename Tag>
-constexpr DispatchTagType tag_type =
-    tt::is_a_v<Tags::Variables, Tag>
-        ? DispatchTagType::Variables
-        : cpp17::is_base_of_v<db::PrefixTag, Tag> ? DispatchTagType::Prefix
-                                                  : DispatchTagType::Other;
-
-template <DispatchTagType TagType>
-struct add_tag_prefix_impl;
-
-// Call the appropriate impl based on the type of the tag being
-// prefixed.
-template <template <typename...> class Prefix, typename Tag, typename... Args>
-using dispatch_add_tag_prefix_impl =
-    typename add_tag_prefix_impl<tag_type<Tag>>::template f<Prefix, Tag,
-                                                            Args...>;
-
-template <>
-struct add_tag_prefix_impl<DispatchTagType::Other> {
-  template <template <typename...> class Prefix, typename Tag, typename... Args>
-  using f = Tag;
-};
-
-template <>
-struct add_tag_prefix_impl<DispatchTagType::Prefix> {
-  template <template <typename...> class Prefix, typename Tag, typename... Args>
-  struct prefix_wrapper_helper;
-
-  template <template <typename...> class Prefix,
-            template <typename...> class InnerPrefix, typename InnerTag,
-            typename... InnerArgs, typename... Args>
-  struct prefix_wrapper_helper<Prefix, InnerPrefix<InnerTag, InnerArgs...>,
-                               Args...> {
-    static_assert(
-        cpp17::is_same_v<typename InnerPrefix<InnerTag, InnerArgs...>::tag,
-                         InnerTag>,
-        "Inconsistent values of prefixed tag");
-    using type =
-        InnerPrefix<dispatch_add_tag_prefix_impl<Prefix, InnerTag, Args...>,
-                    InnerArgs...>;
-  };
-
-  template <template <typename...> class Prefix, typename Tag, typename... Args>
-  using f = typename prefix_wrapper_helper<Prefix, Tag, Args...>::type;
-};
-
-template <>
-struct add_tag_prefix_impl<DispatchTagType::Variables> {
-  template <template <typename...> class Prefix, typename Tag, typename... Args>
-  using f =
-      Tags::Variables<wrap_tags_in<Prefix, typename Tag::tags_list, Args...>>;
-};
-
-// Implementation of remove_tag_prefix
-template <typename>
-struct remove_tag_prefix_impl;
-
-template <DispatchTagType TagType>
-struct remove_variables_prefix;
-
-template <typename Tag>
-using dispatch_remove_variables_prefix =
-    typename remove_variables_prefix<tag_type<Tag>>::template f<Tag>;
-
-template <>
-struct remove_variables_prefix<DispatchTagType::Other> {
-  template <typename Tag>
-  using f = Tag;
-};
-
-template <>
-struct remove_variables_prefix<DispatchTagType::Prefix> {
-  template <typename Tag>
-  struct helper;
-
-  template <template <typename...> class Prefix, typename Tag, typename... Args>
-  struct helper<Prefix<Tag, Args...>> {
-    using type = Prefix<dispatch_remove_variables_prefix<Tag>, Args...>;
-  };
-
-  template <typename Tag>
-  using f = typename helper<Tag>::type;
-};
-
-template <>
-struct remove_variables_prefix<DispatchTagType::Variables> {
-  template <typename Tag>
-  using f = Tags::Variables<tmpl::transform<typename Tag::tags_list,
-                                            remove_tag_prefix_impl<tmpl::_1>>>;
-};
-
-template <typename UnprefixedTag, template <typename...> class Prefix,
-          typename... Args>
-struct remove_tag_prefix_impl<Prefix<UnprefixedTag, Args...>> {
-  static_assert(cpp17::is_base_of_v<db::SimpleTag, UnprefixedTag>,
-                "Unwrapped tag is not a DataBoxTag");
-  using type = dispatch_remove_variables_prefix<UnprefixedTag>;
-};
-}  // namespace DataBox_detail
-
-/// \ingroup DataBoxTagsGroup
-/// Wrap `Tag` in `Prefix<_, Args...>`, also wrapping variables tags
-/// if `Tag` is a `Tags::Variables`.
-template <template <typename...> class Prefix, typename Tag, typename... Args>
-using add_tag_prefix =
-    Prefix<DataBox_detail::dispatch_add_tag_prefix_impl<Prefix, Tag, Args...>,
-           Args...>;
-
-/// \ingroup DataBoxTagsGroup
-/// Remove a prefix from `Tag`, also removing it from the variables
-/// tags if the unwrapped tag is a `Tags::Variables`.
-template <typename Tag>
-using remove_tag_prefix =
-    typename DataBox_detail::remove_tag_prefix_impl<Tag>::type;
-
-namespace DataBox_detail {
-template <class Tag, bool IsPrefix>
-struct remove_all_prefixes_impl;
-}  // namespace DataBox_detail
-
-/// \ingroup DataBoxGroup
-/// Completely remove all prefix tags from a Tag
-template <typename Tag>
-using remove_all_prefixes = typename DataBox_detail::remove_all_prefixes_impl<
-    Tag, cpp17::is_base_of_v<db::PrefixTag, Tag>>::type;
-
-namespace DataBox_detail {
-template <class Tag>
-struct remove_all_prefixes_impl<Tag, false> {
-  using type = Tag;
-};
-
-template <class Tag>
-struct remove_all_prefixes_impl<Tag, true> {
-  using type = remove_all_prefixes<remove_tag_prefix<Tag>>;
-};
-
-// Implementation of variables_tag_with_tags_list
-template <DispatchTagType TagType>
-struct variables_tag_with_tags_list_impl;
-}  // namespace DataBox_detail
-
-/// \ingroup DataBoxGroup
-/// Change the tags contained in a possibly prefixed Variables tag.
-/// \example
-/// \snippet Test_DataBoxTag.cpp variables_tag_with_tags_list
-template <typename Tag, typename NewTagsList>
-using variables_tag_with_tags_list =
-    typename DataBox_detail::variables_tag_with_tags_list_impl<
-        DataBox_detail::tag_type<Tag>>::template f<Tag, NewTagsList>;
-
-namespace DataBox_detail {
-// Implementation of variables_tag_with_tags_list
-template <>
-struct variables_tag_with_tags_list_impl<DispatchTagType::Variables> {
-  template <typename Tag, typename NewTagsList>
-  using f = Tags::Variables<NewTagsList>;
-};
-
-template <>
-struct variables_tag_with_tags_list_impl<DispatchTagType::Prefix> {
-  template <typename Tag, typename NewTagsList>
-  struct helper;
-
-  template <template <typename...> class Prefix, typename Tag, typename... Args,
-            typename NewTagsList>
-  struct helper<Prefix<Tag, Args...>, NewTagsList> {
-    using type =
-        Prefix<variables_tag_with_tags_list<Tag, NewTagsList>, Args...>;
-  };
-
-  template <typename Tag, typename NewTagsList>
-  using f = typename helper<Tag, NewTagsList>::type;
-};
-
-// Implementation of get_variables_tags_list
-template <DispatchTagType TagType>
-struct get_variables_tags_list_impl;
-}  // namespace DataBox_detail
-
-template <typename Tag>
-using get_variables_tags_list =
-    typename DataBox_detail::get_variables_tags_list_impl<
-        DataBox_detail::tag_type<Tag>>::template f<Tag>;
-
-namespace DataBox_detail {
-// Implementation of get_variables_tags_list
-template <>
-struct get_variables_tags_list_impl<DispatchTagType::Variables> {
-  template <typename Tag>
-  using f = typename Tag::tags_list;
-};
-
-template <>
-struct get_variables_tags_list_impl<DispatchTagType::Prefix> {
-  template <typename Tag>
-  using f = get_variables_tags_list<typename Tag::tag>;
 };
 }  // namespace DataBox_detail
 

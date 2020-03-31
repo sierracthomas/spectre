@@ -66,7 +66,7 @@ void weyl_electric_scalar_impl(
     }
   }
   for (size_t j = 0; j < SpatialDim; ++j) {
-    for (size_t k = 0; k < SpatialDim; ++k) {
+    for (size_t k = j; k < SpatialDim; ++k) {
       if (UNLIKELY(j == 0 and k == 0)) {
         get(*weyl_electric_scalar_result) =
             weyl_electric_up_down->get(j, k) * weyl_electric_up_down->get(j, k);

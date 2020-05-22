@@ -3,6 +3,7 @@
 
 import numpy as np
 
+
 def weyl_electric_tensor(spatial_ricci, extrinsic_curvature,
                          inverse_spatial_metric):
     return (np.einsum("ij", spatial_ricci) +

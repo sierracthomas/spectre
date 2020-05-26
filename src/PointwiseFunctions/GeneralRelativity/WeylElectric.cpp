@@ -48,6 +48,56 @@ void weyl_electric(
   }
 }
 
+namespace {
+template <size_t SpatialDim, typename Frame, typename DataType>
+void weyl_electric_scalar_impl(
+    const gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_result,
+    const gsl::not_null<tnsr::ii<DataType, SpatialDim, Frame>*>
+        weyl_electric_up_down,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept {
+  for (size_t i = 0; i < SpatialDim; ++i) {
+    for (size_t j = 0; j < SpatialDim; ++j) {
+      for (size_t k = j; k < SpatialDim; ++k) {
+        weyl_electric_up_down->get(j, k) +=
+            weyl_electric.get(i, j) * inverse_spatial_metric.get(i, k);
+      }
+    }
+  }
+  for (size_t j = 0; j < SpatialDim; ++j) {
+    for (size_t k = 0; k < SpatialDim; ++k) {
+      if (UNLIKELY(j == 0 and k == 0)) {
+        get(*weyl_electric_scalar_result) =
+            weyl_electric_up_down->get(j, k) * weyl_electric_up_down->get(j, k);
+      } else {
+        get(*weyl_electric_scalar_result) +=
+            weyl_electric_up_down->get(j, k) * weyl_electric_up_down->get(j, k);
+      }
+    }
+  }
+}
+  template <typename DataType, size_t SpatialDim>
+tnsr::ii<DataType, SpatialDim> initial_weyl_electric_up_down(
+    const DataType& used_for_size) {
+  return make_with_value<tnsr::ii<DataType, SpatialDim>>(used_for_size, 0.0);
+}
+}  // namespace
+
+template <size_t SpatialDim, typename Frame, typename DataType>
+void weyl_electric_scalar(
+    const gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_result,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept {
+  *weyl_electric_scalar_result =
+      make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
+
+  weyl_electric_scalar_impl(weyl_electric_scalar_result,
+                            make_not_null(&initial_weyl_electric_up_down(
+                                get<0, 0>(inverse_spatial_metric))),
+                            weyl_electric, inverse_spatial_metric);
+}
 template <size_t SpatialDim, typename Frame, typename DataType>
 Scalar<DataType> weyl_electric_scalar(
     const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
@@ -58,58 +108,35 @@ Scalar<DataType> weyl_electric_scalar(
                                    weyl_electric, inverse_spatial_metric);
   return weyl_electric_scalar_result;
 }
-
-template <size_t SpatialDim, typename Frame, typename DataType>
-void weyl_electric_scalar(
-    const gsl::not_null<Scalar<DataType>*> weyl_electric_scalar_result,
-    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
-    const tnsr::II<DataType, SpatialDim, Frame>&
-        inverse_spatial_metric) noexcept {
-  *weyl_electric_scalar_result =
-      make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
-  for (size_t i = 0; i < SpatialDim; ++i) {
-    for (size_t j = 0; j < SpatialDim; ++j) {
-      for (size_t k = 0; k < SpatialDim; ++k) {
-        for (size_t l = 0; l < SpatialDim; ++l) {
-          get(*weyl_electric_scalar_result) += weyl_electric.get(i, j) *
-                                             weyl_electric.get(k, l) *
-                                             inverse_spatial_metric.get(i, k) *
-                                             inverse_spatial_metric.get(j, l);
-        }
-      }
-    }
-  }
-}
-
 }  // namespace gr
 
 #define DIM(data) BOOST_PP_TUPLE_ELEM(0, data)
 #define DTYPE(data) BOOST_PP_TUPLE_ELEM(1, data)
 #define FRAME(data) BOOST_PP_TUPLE_ELEM(2, data)
 
-#define INSTANTIATE(_, data)                                                \
-  template tnsr::ii<DTYPE(data), DIM(data), FRAME(data)> gr::weyl_electric( \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& spatial_ricci,   \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>&                  \
-          extrinsic_curvature,                                              \
-      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                  \
-          inverse_spatial_metric) noexcept;                                 \
-  template void gr::weyl_electric(                                          \
-      const gsl::not_null<tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>*>   \
-          weyl_electric_part,                                               \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& spatial_ricci,   \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>&                  \
-          extrinsic_curvature,                                              \
-      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                  \
-          inverse_spatial_metric) noexcept;                                 \
-  template Scalar<DTYPE(data)> gr::weyl_electric_scalar(                    \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& weyl_electric,   \
-      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                  \
-          inverse_spatial_metric) noexcept;                                 \
-  template void gr::weyl_electric_scalar(                                   \
-      const gsl::not_null<Scalar<DTYPE(data)>*> weyl_electric_scalar_result,  \
-      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& weyl_electric,   \
-      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                  \
+#define INSTANTIATE(_, data)                                                 \
+  template tnsr::ii<DTYPE(data), DIM(data), FRAME(data)> gr::weyl_electric(  \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& spatial_ricci,    \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>&                   \
+          extrinsic_curvature,                                               \
+      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                   \
+          inverse_spatial_metric) noexcept;                                  \
+  template void gr::weyl_electric(                                           \
+      const gsl::not_null<tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>*>    \
+          weyl_electric_part,                                                \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& spatial_ricci,    \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>&                   \
+          extrinsic_curvature,                                               \
+      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                   \
+          inverse_spatial_metric) noexcept;                                  \
+  template Scalar<DTYPE(data)> gr::weyl_electric_scalar(                     \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& weyl_electric,    \
+      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                   \
+          inverse_spatial_metric) noexcept;                                  \
+  template void gr::weyl_electric_scalar(                                    \
+      const gsl::not_null<Scalar<DTYPE(data)>*> weyl_electric_scalar_result, \
+      const tnsr::ii<DTYPE(data), DIM(data), FRAME(data)>& weyl_electric,    \
+      const tnsr::II<DTYPE(data), DIM(data), FRAME(data)>&                   \
           inverse_spatial_metric) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATE, (1, 2, 3), (double, DataVector),

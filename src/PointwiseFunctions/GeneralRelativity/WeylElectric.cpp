@@ -77,10 +77,13 @@ void weyl_electric_scalar_impl(
     }
   }
 }
-  template <typename DataType, size_t SpatialDim>
-tnsr::ii<DataType, SpatialDim> initial_weyl_electric_up_down(
-    const DataType& used_for_size) {
-  return make_with_value<tnsr::ii<DataType, SpatialDim>>(used_for_size, 0.0);
+template <typename DataType, size_t SpatialDim, typename Frame>
+tnsr::Ij<DataType, SpatialDim, Frame> initial_weyl_electric_up_down(
+    const DataType& used_for_size,
+    const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,
+    const tnsr::II<DataType, SpatialDim, Frame>& inverse_spatial_metric) {
+  return make_with_value<tnsr::Ij<DataType, SpatialDim, Frame>>(used_for_size,
+                                                                0.0);
 }
 }  // namespace
 
@@ -93,10 +96,11 @@ void weyl_electric_scalar(
   *weyl_electric_scalar_result =
       make_with_value<Scalar<DataType>>(get<0, 0>(inverse_spatial_metric), 0.0);
 
-  weyl_electric_scalar_impl(weyl_electric_scalar_result,
-                            make_not_null(&initial_weyl_electric_up_down(
-                                get<0, 0>(inverse_spatial_metric))),
-                            weyl_electric, inverse_spatial_metric);
+  weyl_electric_scalar_impl(
+      weyl_electric_scalar_result,
+      make_not_null(&initial_weyl_electric_up_down<DataType, SpatialDim, Frame>(
+          get<0, 0>(inverse_spatial_metric))),
+      weyl_electric, inverse_spatial_metric);
 }
 template <size_t SpatialDim, typename Frame, typename DataType>
 Scalar<DataType> weyl_electric_scalar(

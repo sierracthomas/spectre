@@ -20,8 +20,6 @@
 #include "Evolution/Systems/GeneralizedHarmonic/Constraints.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/System.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
-#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
-#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "Parallel/ConstGlobalCache.hpp"
 #include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
 #include "PointwiseFunctions/AnalyticData/Tags.hpp"
@@ -44,12 +42,7 @@
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeNormalOneForm.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeNormalVector.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpatialMetric.hpp"
-#include "PointwiseFunctions/GeneralRelativity/ComputeGhQuantities.hpp"
-#include "PointwiseFunctions/GeneralRelativity/ComputeSpacetimeQuantities.hpp"
-#include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
-#include "PointwiseFunctions/GeneralRelativity/Ricci.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
-#include "PointwiseFunctions/GeneralRelativity/WeylElectric.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -134,23 +127,14 @@ struct InitializeGhAnd3Plus1Variables {
         gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<Dim, frame,
                                                             DataVector>,
         gr::Tags::SpatialChristoffelFirstKindCompute<Dim, frame, DataVector>,
-        gr::Tags::SpatialChristoffelSecondKindVarsCompute<Dim, frame,
-                                                          DataVector>,
-        ::Tags::DerivCompute<
-            ::Tags::Variables<tmpl::list<gr::Tags::SpatialChristoffelSecondKind<
-                Dim, frame, DataVector>>>,
-            ::Tags::InverseJacobian<::Tags::ElementMap<Dim>,
-                                    ::Tags::Coordinates<Dim, Frame::Logical>>>,
+        gr::Tags::SpatialChristoffelSecondKindCompute<Dim, frame, DataVector>,
         gr::Tags::TraceSpatialChristoffelFirstKindCompute<Dim, frame,
                                                           DataVector>,
-        gr::Tags::RicciTensorCompute<Dim, frame, DataVector>,
         GeneralizedHarmonic::Tags::ExtrinsicCurvatureCompute<Dim, frame>,
         GeneralizedHarmonic::Tags::TraceExtrinsicCurvatureCompute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma0Compute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma1Compute<Dim, frame>,
-        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>,
-        gr::Tags::WeylElectricCompute<Dim, frame, DataVector>,
-        gr::Tags::WeylElectricScalarCompute<Dim, frame, DataVector>>;
+        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>>;
 
     return std::make_tuple(
         Initialization::merge_into_databox<InitializeGhAnd3Plus1Variables,

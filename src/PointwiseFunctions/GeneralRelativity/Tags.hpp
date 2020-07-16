@@ -113,8 +113,6 @@ struct ExtrinsicCurvature : db::SimpleTag {
 template <typename DataType>
 struct TraceExtrinsicCurvature : db::SimpleTag {
   using type = Scalar<DataType>;
-};
-
   static std::string name() noexcept { return "TraceExtrinsicCurvature"; }
 };
 

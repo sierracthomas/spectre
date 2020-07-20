@@ -95,6 +95,7 @@ void weyl_electric_scalar(
                             make_not_null(&weyl_electric_up_down),
                             weyl_electric, inverse_spatial_metric);
 }
+
 template <size_t SpatialDim, typename Frame, typename DataType>
 Scalar<DataType> weyl_electric_scalar(
     const tnsr::ii<DataType, SpatialDim, Frame>& weyl_electric,

@@ -173,11 +173,10 @@ struct EvolutionMetavars {
 
   using analytic_solution_fields =
       db::get_variables_tags_list<typename system::variables_tag>;
-  using observe_fields = tmpl::append<
-      tmpl::push_back<
-          analytic_solution_fields,
+  using observe_fields = tmpl::append<tmpl::push_back<
+      analytic_solution_fields,
+      gr::Tags::WeylElectricScalar<volume_dim, Frame::Inertial, DataVector>,
       tmpl::list<
-          gr::Tags::WeylElectricScalar<volume_dim, Frame::Inertial, DataVector>,
           ::Tags::PointwiseL2Norm<
               GeneralizedHarmonic::Tags::GaugeConstraint<volume_dim, frame>>,
           ::Tags::PointwiseL2Norm<GeneralizedHarmonic::Tags::
@@ -186,7 +185,7 @@ struct EvolutionMetavars {
                           tmpl::list<::Tags::PointwiseL2Norm<
                               GeneralizedHarmonic::Tags::FourIndexConstraint<
                                   volume_dim, frame>>>,
-                          tmpl::list<>>>;
+                          tmpl::list<>>>>;
 
   // HACK until we merge in a compute tag StrahlkorperGr::AreaCompute.
   // For now, simply do a surface integral of unity on the horizon to get the

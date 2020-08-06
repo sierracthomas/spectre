@@ -4,6 +4,7 @@
 #include "PointwiseFunctions/GeneralRelativity/Christoffel.hpp"
 
 #include "DataStructures/Tensor/Tensor.hpp"  // IWYU pragma: keep
+#include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
@@ -36,6 +37,29 @@ tnsr::abb<DataType, SpatialDim, Frame, Index> christoffel_first_kind(
                                                                      0.);
   christoffel_first_kind(make_not_null(&christoffel), d_metric);
   return christoffel;
+}
+
+template <size_t SpatialDim, typename Frame, IndexType Index, typename DataType>
+void christoffel_second_kind(
+    const gsl::not_null<tnsr::Ijj<DataType, SpatialDim, Frame>*>
+        christoffel_second_kind_pointer,
+    const tnsr::ijj<DataType, SpatialDim, Frame>& christoffel_first_kind,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept {
+  *christoffel_second_kind_pointer = christoffel_first_kind;
+}
+
+template <size_t SpatialDim, typename Frame, IndexType Index, typename DataType>
+tnsr::Ijj<DataType, SpatialDim, Frame> christoffel_second_kind(
+    const tnsr::ijj<DataType, SpatialDim, Frame>& christoffel_first_kind,
+    const tnsr::II<DataType, SpatialDim, Frame>&
+        inverse_spatial_metric) noexcept {
+  auto christoffel_second_kind_pointer =
+      make_with_value<tnsr::Ijj<DataType, SpatialDim, Frame>>(
+          inverse_spatial_metric, 0.);
+  christoffel_second_kind(make_not_null(&christoffel_second_kind_pointer),
+                          inverse_spatial_metric);
+  return christoffel_second_kind_pointer;
 }
 }  // namespace gr
 

@@ -12,6 +12,7 @@
 #include "DataStructures/Tensor/IndexType.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "NumericalAlgorithms/LinearOperators/Divergence.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
@@ -94,6 +95,23 @@ struct SpatialChristoffelSecondKindCompute
                                   SpatialIndex<SpatialDim, UpLo::Lo, Frame>>);
 
   using base = SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>;
+};
+
+template <size_t SpatialDim, typename Frame, typename DataType>
+struct SpatialChristoffelSecondKindDerivCompute
+    : SpatialChristoffelSecondKindDeriv<SpatialDim, Frame, DataType>,
+      db::ComputeTag {
+  using argument_tags =
+      tmpl::list<SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>>;
+
+  using return_type = tnsr::Ijj<DataType, SpatialDim, Frame>;
+
+  static constexpr auto function = static_cast<void (*)(
+      gsl::not_null<tnsr::Ijj<DataType, SpatialDim, Frame>*>,
+      const tnsr::Ijj<DataType, SpatialDim, Frame>&) noexcept>(
+      *SpatialChristoffelSecondKindCompute.function<>);
+
+  using base = SpatialChristoffelSecondKindDeriv<SpatialDim, Frame, DataType>;
 };
 
 /// Compute item for the trace of the spatial Christoffel symbols

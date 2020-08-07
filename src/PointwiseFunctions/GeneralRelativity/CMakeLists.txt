@@ -53,6 +53,7 @@ target_link_libraries(
   ${LIBRARY}
   PUBLIC DataStructures
   INTERFACE ErrorHandling
+  PUBLIC LinearOperators
   )
 
 add_subdirectory(GeneralizedHarmonic)

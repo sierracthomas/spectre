@@ -10,9 +10,14 @@
 
 #include "DataStructures/DataBox/Tag.hpp"
 #include "DataStructures/Tensor/IndexType.hpp"
+#include "Domain/Tags.hpp"
+#include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
+#include "Domain/Tags.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "NumericalAlgorithms/LinearOperators/Divergence.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
+#include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 
@@ -94,6 +99,41 @@ struct SpatialChristoffelSecondKindCompute
                                   SpatialIndex<SpatialDim, UpLo::Lo, Frame>>);
 
   using base = SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>;
+};
+
+template <size_t SpatialDim, typename DataType, typename SourceFrame,
+          typename TargetFrame>
+struct SpatialChristoffelSecondKindDerivCompute
+    : SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>,
+      db::ComputeTag {
+  using argument_tags = tmpl::list<
+      SpatialChristoffelSecondKind<SpatialDim, TargetFrame, DataType>,
+      domain::Tags::Mesh<SpatialDim>,
+      domain::Tags::InverseJacobian<SpatialDim, SourceFrame, TargetFrame>>;
+  using return_type = tnsr::Ijj<DataType, SpatialDim, TargetFrame>;
+
+  static constexpr auto function(
+      gsl::not_null<tnsr::Ijj<DataType, SpatialDim, TargetFrame>*> return_deriv,
+      const tnsr::Ijj<DataType, SpatialDim, TargetFrame>&
+          spatial_christoffel_second_kind,
+      const Mesh<SpatialDim>& mesh,
+      const InverseJacobian<DataType, SpatialDim, SourceFrame, TargetFrame>&
+          inverse_jacobian) noexcept {
+    destructive_resize_components(return_deriv, mesh.number_of_grid_points());
+
+    using SpatialChristoffelSecondKindTag =
+        SpatialChristoffelSecondKind<SpatialDim, TargetFrame, DataType>;
+    Variables<tmpl::list<SpatialChristoffelSecondKindTag>> vars{
+        get<0, 0, 0>(spatial_christoffel_second_kind).size()};
+    get<SpatialChristoffelSecondKindTag>(vars) =
+        spatial_christoffel_second_kind;
+    auto deriv =
+        partial_derivatives<tmpl::list<SpatialChristoffelSecondKindTag>>(
+            vars, mesh, inverse_jacobian);
+  }
+
+  using base =
+      SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>;
 };
 
 /// Compute item for the trace of the spatial Christoffel symbols

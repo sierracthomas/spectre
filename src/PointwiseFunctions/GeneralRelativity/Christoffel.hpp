@@ -107,23 +107,14 @@ struct SpatialChristoffelSecondKindDerivCompute
 
   using return_type = tnsr::Ijj<DataType, SpatialDim, Frame>;
 
-  static constexpr auto function = static_cast<void (*)(
-      gsl::not_null<tnsr::Ijj<DataType, SpatialDim, Frame>*>,
-      const tnsr::ijj<DataType, SpatialDim, Frame>&,
-      const tnsr::II<DataType, SpatialDim, Frame>&) noexcept>(
-      &raise_or_lower_first_index<DataType,
-                                  SpatialIndex<SpatialDim, UpLo::Lo, Frame>,
-                                  SpatialIndex<SpatialDim, UpLo::Lo, Frame>>);
-
-  /*  static constexpr auto function(
-                                 gsl::not_null<tnsr::Ijj<DataType, SpatialDim,
-    Frame>*>;) noexcept {
-    //      const tnsr::ijj<DataType, SpatialDim, Frame>&
-    christoffel_first_kind,
-    // const tnsr::II<DataType, SpatialDim, Frame>& inverse_spacetime_metric)
-    noexcept { *deriv = raise_or_lower_first_index<christoffel_first_kind,
-                                        inverse_spacetime_metric>>;
-                                        } */
+  static constexpr auto function(
+      gsl::not_null<tnsr::Ijj<DataType, SpatialDim, Frame>*> deriv,
+      const tnsr::ijj<DataType, SpatialDim, Frame>& SpatialChristoffelFirstKind,
+      const tnsr::II<DataType, SpatialDim, Frame>&
+          InverseSpatialMetric) noexcept {
+    *deriv = &SpatialChristoffelSecondKindCompute<SpatialDim, Frame,
+                                                  DataType>::function;
+  }
 
   using base = SpatialChristoffelSecondKindDeriv<SpatialDim, Frame, DataType>;
 };

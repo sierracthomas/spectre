@@ -112,8 +112,8 @@ struct SpatialChristoffelSecondKindDerivCompute
       const tnsr::ijj<DataType, SpatialDim, Frame>& SpatialChristoffelFirstKind,
       const tnsr::II<DataType, SpatialDim, Frame>&
           InverseSpatialMetric) noexcept {
-    *deriv = &SpatialChristoffelSecondKindCompute<SpatialDim, Frame,
-                                                  DataType>::function;
+    SpatialChristoffelSecondKindCompute<SpatialDim, Frame, DataType>::function(
+        deriv, SpatialChristoffelFirstKind, InverseSpatialMetric);
   }
 
   using base = SpatialChristoffelSecondKindDeriv<SpatialDim, Frame, DataType>;

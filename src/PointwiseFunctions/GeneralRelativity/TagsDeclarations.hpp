@@ -17,7 +17,6 @@ struct SpacetimeMetric;
 template <size_t Dim, typename Frame = Frame::Inertial,
           typename DataType = DataVector>
 struct InverseSpacetimeMetric;
-
 template <size_t Dim, typename Frame = Frame::Inertial,
           typename DataType = DataVector>
 struct SpatialMetric;
@@ -50,7 +49,7 @@ template <size_t Dim, typename Frame = Frame::Inertial,
 struct SpatialChristoffelFirstKind;
 template <size_t Dim, typename Frame = Frame::Inertial,
           typename DataType = DataVector>
-struct SpatialChristoffelSecondKind;
+  struct SpatialChristoffelSecondKind;
 template <size_t Dim, typename Frame = Frame::Inertial,
           typename DataType = DataVector>
 struct SpatialChristoffelSecondKindDeriv;

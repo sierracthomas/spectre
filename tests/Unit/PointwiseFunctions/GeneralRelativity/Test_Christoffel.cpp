@@ -83,6 +83,10 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
                                                     DataVector>>(
       "SpatialChristoffelSecondKind");
   TestHelpers::db::test_compute_tag<
+      gr::Tags::SpatialChristoffelSecondKindDerivCompute<3, Frame::Inertial,
+                                                         DataVector>>(
+      "SpatialChristoffelSecondKindDeriv");
+  TestHelpers::db::test_compute_tag<
       gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
                                                          DataVector>>(
       "TraceSpatialChristoffelSecondKind");
@@ -162,6 +166,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
   const auto expected_spatial_christoffel_second_kind =
       raise_or_lower_first_index(expected_spatial_christoffel_first_kind,
                                  inverse_spatial_metric);
+  const auto expected_spatial_christoffel_second_kind_deriv =
+      expected_spatial_christoffel_second_kind;
   const auto expected_trace_spatial_christoffel_second_kind =
       trace_last_indices(expected_spatial_christoffel_second_kind,
                          inverse_spatial_metric);
@@ -183,20 +189,23 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
           gr::Tags::InverseSpacetimeMetric<3, Frame::Inertial, DataVector>,
           gr::Tags::DerivativesOfSpacetimeMetric<3, Frame::Inertial,
                                                  DataVector>>,
-      db::AddComputeTags<gr::Tags::SpatialChristoffelFirstKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::TraceSpatialChristoffelFirstKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::SpatialChristoffelSecondKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::TraceSpatialChristoffelSecondKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::SpacetimeChristoffelFirstKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<
-                             3, Frame::Inertial, DataVector>,
-                         gr::Tags::SpacetimeChristoffelSecondKindCompute<
-                             3, Frame::Inertial, DataVector>>>(
+      db::AddComputeTags<
+          gr::Tags::SpatialChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                       DataVector>,
+          gr::Tags::TraceSpatialChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                            DataVector>,
+          gr::Tags::SpatialChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                        DataVector>,
+          gr::Tags::SpatialChristoffelSecondKindDerivCompute<3, Frame::Inertial,
+                                                             DataVector>,
+          gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                             DataVector>,
+          gr::Tags::SpacetimeChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                         DataVector>,
+          gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<
+              3, Frame::Inertial, DataVector>,
+          gr::Tags::SpacetimeChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                          DataVector>>>(
       inverse_spatial_metric, deriv_spatial_metric, inverse_spacetime_metric,
       derivatives_of_spacetime_metric);
 
@@ -209,6 +218,9 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
   CHECK(db::get<gr::Tags::SpatialChristoffelSecondKind<3, Frame::Inertial,
                                                        DataVector>>(box) ==
         expected_spatial_christoffel_second_kind);
+  CHECK(db::get<gr::Tags::SpatialChristoffelSecondKindDeriv<3, Frame::Inertial,
+                                                            DataVector>>(box) ==
+        expected_spatial_christoffel_second_kind_deriv);
   CHECK(db::get<gr::Tags::TraceSpatialChristoffelSecondKind<3, Frame::Inertial,
                                                             DataVector>>(box) ==
         expected_trace_spatial_christoffel_second_kind);

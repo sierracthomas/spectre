@@ -166,8 +166,20 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
   const auto expected_spatial_christoffel_second_kind =
       raise_or_lower_first_index(expected_spatial_christoffel_first_kind,
                                  inverse_spatial_metric);
+  const auto spatial_christoffel_second_kind_deriv = [&]() {
+    auto deriv = expected_spatial_christoffel_second_kind;
+    for (size_t i = 0; i < 3; ++i) {
+      for (size_t j = 0; j < 3; ++j) {
+        for (size_t k = j; k < 3; ++k) {
+          deriv.get(i, j, k) *= 2.;
+        }
+      }
+    }
+    return deriv;
+  }();
+
   const auto expected_spatial_christoffel_second_kind_deriv =
-      expected_spatial_christoffel_second_kind;
+      spatial_christoffel_second_kind_deriv;
   const auto expected_trace_spatial_christoffel_second_kind =
       trace_last_indices(expected_spatial_christoffel_second_kind,
                          inverse_spatial_metric);

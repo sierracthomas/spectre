@@ -114,6 +114,14 @@ struct SpatialChristoffelSecondKindDerivCompute
           InverseSpatialMetric) noexcept {
     SpatialChristoffelSecondKindCompute<SpatialDim, Frame, DataType>::function(
         deriv, SpatialChristoffelFirstKind, InverseSpatialMetric);
+
+    for (size_t i = 0; i < SpatialDim; ++i) {
+      for (size_t j = 0; j < SpatialDim; ++j) {
+        for (size_t k = j; k < SpatialDim; ++k) {
+          deriv->get(i, j, k) *= 2.;
+        }
+      }
+    }
   }
 
   using base = SpatialChristoffelSecondKindDeriv<SpatialDim, Frame, DataType>;

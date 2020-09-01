@@ -102,7 +102,7 @@ struct WeylElectricCompute : WeylElectric<SpatialDim, Frame, DataType>,
 };
 
 /// Can be retrieved using gr::Tags::WeylElectricScalar
-template <typename SpatialDim, typename Frame, typename DataType>
+template <size_t SpatialDim, typename Frame, typename DataType>
 struct WeylElectricScalarCompute : WeylElectricScalar<DataType>,
                                    db::ComputeTag {
   using argument_tags =
@@ -112,7 +112,7 @@ struct WeylElectricScalarCompute : WeylElectricScalar<DataType>,
   using return_type = Scalar<DataType>;
 
   static constexpr auto function =
-      static_cast<void (*)(gsl::not_null<Scalar<DataType>*>,
+    static_cast<void (*)(gsl::not_null<Scalar<DataType>*>,
                            const tnsr::ii<DataType, SpatialDim, Frame>&,
                            const tnsr::II<DataType, SpatialDim, Frame>&)>(
           &gr::weyl_electric_scalar<SpatialDim, Frame, DataType>);

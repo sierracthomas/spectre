@@ -13,6 +13,7 @@
 #include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Helpers/DataStructures/MakeWithRandomValues.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 #include "PointwiseFunctions/GeneralRelativity/TagsDeclarations.hpp"
 #include "PointwiseFunctions/GeneralRelativity/WeylElectric.hpp"
 
@@ -26,6 +27,8 @@ void test_compute_item_in_databox(const DataType& used_for_size) noexcept {
   TestHelpers::db::test_compute_tag<
       gr::Tags::WeylElectricCompute<SpatialDim, Frame::Inertial, DataType>>(
       "WeylElectric");
+  TestHelpers::db::test_compute_tag<gr::Tags::WeylElectricScalarCompute<
+      SpatialDim, Frame::Inertial, DataType>>("WeylElectricScalar");
 
   MAKE_GENERATOR(generator);
   std::uniform_real_distribution<> distribution(-3.0, 3.0);
@@ -41,25 +44,36 @@ void test_compute_item_in_databox(const DataType& used_for_size) noexcept {
   const auto inv_spatial_metric =
       make_with_random_values<tnsr::II<DataType, SpatialDim>>(
           nn_generator, nn_distribution, used_for_size);
+  const auto weyl_electric =
+      make_with_random_values<tnsr::ii<DataType, SpatialDim>>(
+          nn_generator, nn_distribution, used_for_size);
 
   const auto box = db::create<
       db::AddSimpleTags<
           gr::Tags::SpatialRicci<SpatialDim, Frame::Inertial, DataType>,
           gr::Tags::ExtrinsicCurvature<SpatialDim, Frame::Inertial, DataType>,
-          gr::Tags::InverseSpatialMetric<SpatialDim, Frame::Inertial,
-                                         DataType>>,
-      db::AddComputeTags<gr::Tags::WeylElectricCompute<
-          SpatialDim, Frame::Inertial, DataType>>>(
-      spatial_ricci, extrinsic_curvature, inv_spatial_metric);
+          gr::Tags::InverseSpatialMetric<SpatialDim, Frame::Inertial, DataType>,
+          gr::Tags::WeylElectric<SpatialDim, Frame::Inertial, DataType>>,
+      db::AddComputeTags<
+          gr::Tags::WeylElectricCompute<SpatialDim, Frame::Inertial, DataType>,
+          gr::Tags::WeylElectricScalarCompute<SpatialDim, Frame::Inertial,
+                                              DataType>>>(
+      spatial_ricci, extrinsic_curvature, inv_spatial_metric, weyl_electric);
 
   const auto expected =
       gr::weyl_electric(spatial_ricci, extrinsic_curvature, inv_spatial_metric);
+  const auto expected_scalar =
+      gr::weyl_electric_scalar(weyl_electric, inv_spatial_metric);
   CHECK_ITERABLE_APPROX(
       (db::get<gr::Tags::WeylElectric<SpatialDim, Frame::Inertial, DataType>>(
           box)),
       expected);
+  CHECK_ITERABLE_APPROX(
+      (db::get<
+          gr::Tags::WeylElectricScalar<SpatialDim, Frame::Inertial, DataType>>(
+          box)),
+      expected_scalar);
 }
-
 template <size_t SpatialDim, typename DataType>
 void test_weyl_electric(const DataType& used_for_size) {
   tnsr::ii<DataType, SpatialDim, Frame::Inertial> (*f)(
@@ -76,7 +90,7 @@ void test_weyl_electric_scalar(const DataType& used_for_size) {
   Scalar<DataType> (*f)(
       const tnsr::ii<DataType, SpatialDim, Frame::Inertial>&,
       const tnsr::II<DataType, SpatialDim, Frame::Inertial>&) =
-    &gr::weyl_electric_scalar<SpatialDim, Frame::Inertial, DataType>;
+      &gr::weyl_electric_scalar<SpatialDim, Frame::Inertial, DataType>;
   pypp::check_with_random_values<1>(f, "WeylElectricScalar",
                                     "weyl_electric_scalar", {{{-1., 1.}}},
                                     used_for_size);

@@ -167,9 +167,9 @@ struct WeylElectric : db::SimpleTag {
  * Weyl tensor \f$E_{ij}\f$ and the inverse spatial metric \f$\gamma^{ij}\f$,
  * i.e. \f$E_{ij} E^{ij} = \gamma^{ik}\gamma^{jl}E_{ij}E_{kl}\f$.
  */
-template <size_t Dim, typename Frame, typename DataType>
+template <typename DataType>
 struct WeylElectricScalar : db::SimpleTag {
-  using type = Scalar<DataVector>;
+  using type = Scalar<DataType>;
   static std::string name() noexcept { return "WeylElectricScalar"; }
 };
 }  // namespace Tags

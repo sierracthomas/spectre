@@ -44,35 +44,29 @@ void test_compute_item_in_databox(const DataType& used_for_size) noexcept {
   const auto inv_spatial_metric =
       make_with_random_values<tnsr::II<DataType, SpatialDim>>(
           nn_generator, nn_distribution, used_for_size);
-  const auto weyl_electric =
-      make_with_random_values<tnsr::ii<DataType, SpatialDim>>(
-          nn_generator, nn_distribution, used_for_size);
 
   const auto box = db::create<
       db::AddSimpleTags<
           gr::Tags::SpatialRicci<SpatialDim, Frame::Inertial, DataType>,
           gr::Tags::ExtrinsicCurvature<SpatialDim, Frame::Inertial, DataType>,
-          gr::Tags::InverseSpatialMetric<SpatialDim, Frame::Inertial, DataType>,
-          gr::Tags::WeylElectric<SpatialDim, Frame::Inertial, DataType>>,
+          gr::Tags::InverseSpatialMetric<SpatialDim, Frame::Inertial,
+                                         DataType>>,
       db::AddComputeTags<
           gr::Tags::WeylElectricCompute<SpatialDim, Frame::Inertial, DataType>,
           gr::Tags::WeylElectricScalarCompute<SpatialDim, Frame::Inertial,
                                               DataType>>>(
-      spatial_ricci, extrinsic_curvature, inv_spatial_metric, weyl_electric);
+      spatial_ricci, extrinsic_curvature, inv_spatial_metric);
 
   const auto expected =
       gr::weyl_electric(spatial_ricci, extrinsic_curvature, inv_spatial_metric);
   const auto expected_scalar =
-      gr::weyl_electric_scalar(weyl_electric, inv_spatial_metric);
+      gr::weyl_electric_scalar(expected, inv_spatial_metric);
   CHECK_ITERABLE_APPROX(
       (db::get<gr::Tags::WeylElectric<SpatialDim, Frame::Inertial, DataType>>(
           box)),
       expected);
-  CHECK_ITERABLE_APPROX(
-      (db::get<
-          gr::Tags::WeylElectricScalar<DataType>>(
-          box)),
-      expected_scalar);
+  CHECK_ITERABLE_APPROX((db::get<gr::Tags::WeylElectricScalar<DataType>>(box)),
+                        expected_scalar);
 }
 template <size_t SpatialDim, typename DataType>
 void test_weyl_electric(const DataType& used_for_size) {

@@ -14,11 +14,13 @@
 #include "DataStructures/Tensor/EagerMath/DotProduct.hpp"
 #include "DataStructures/Tensor/EagerMath/Norms.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "DataStructures/Variables.hpp"
 #include "Domain/Tags.hpp"
 #include "ErrorHandling/Assert.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Constraints.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/System.hpp"
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
+#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "Parallel/GlobalCache.hpp"
 #include "ParallelAlgorithms/Initialization/MergeIntoDataBox.hpp"
@@ -37,12 +39,14 @@
 #include "PointwiseFunctions/GeneralRelativity/GeneralizedHarmonic/TimeDerivOfSpatialMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/InverseSpacetimeMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Lapse.hpp"
+#include "PointwiseFunctions/GeneralRelativity/Ricci.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Shift.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeNormalOneForm.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpacetimeNormalVector.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpatialMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
+#include "PointwiseFunctions/GeneralRelativity/WeylElectric.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -117,7 +121,22 @@ struct InitializeGhAnd3Plus1Variables {
         GeneralizedHarmonic::Tags::ThreeIndexConstraintCompute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma0Compute<Dim, frame>,
         GeneralizedHarmonic::Tags::ConstraintGamma1Compute<Dim, frame>,
-        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>>;
+        GeneralizedHarmonic::Tags::ConstraintGamma2Compute<Dim, frame>,
+        GeneralizedHarmonic::Tags::DerivSpatialMetricCompute<Dim, frame>,
+        GeneralizedHarmonic::Tags::DerivShiftCompute<Dim, frame>,
+        GeneralizedHarmonic::Tags::TimeDerivSpatialMetricCompute<Dim, frame>,
+        GeneralizedHarmonic::Tags::ExtrinsicCurvatureCompute<Dim, frame>,
+        gr::Tags::SpatialChristoffelFirstKindCompute<Dim, frame, DataVector>,
+        gr::Tags::SpatialChristoffelSecondKindVarsCompute<Dim, frame,
+                                                          DataVector>,
+        ::Tags::DerivCompute<
+            ::Tags::Variables<tmpl::list<gr::Tags::SpatialChristoffelSecondKind<
+                Dim, frame, DataVector>>>,
+            domain::Tags::InverseJacobian<Dim, Frame::Logical,
+                                          Frame::Inertial>>,
+        gr::Tags::SpatialRicciCompute<Dim, frame, DataVector>,
+        gr::Tags::WeylElectricCompute<Dim, frame, DataVector>,
+        gr::Tags::WeylElectricScalarCompute<Dim, frame, DataVector>>;
 
     return std::make_tuple(
         Initialization::merge_into_databox<InitializeGhAnd3Plus1Variables,

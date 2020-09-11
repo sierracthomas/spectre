@@ -200,6 +200,32 @@ struct SpacetimeChristoffelSecondKindCompute
   using base = SpacetimeChristoffelSecondKind<SpatialDim, Frame, DataType>;
 };
 
+/// Compute item for spatial Christoffel symbols of the second kind
+/// \f$\Gamma^i_{jk}\f$ computed from the Christoffel symbols of the
+/// first kind and the inverse spatial metric, returned as a
+/// `Variables<tmpl::list<gr::Tags::SpatialChristoffelSecondKind>>`.
+///
+/// Can be retrieved using `gr::Tags::SpatialChristoffelSecondKind`
+template <size_t SpatialDim, typename Frame, typename DataType>
+struct SpatialChristoffelSecondKindVarsCompute
+    : ::Tags::Variables<tmpl::list<
+          SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>>>,
+      db::ComputeTag {
+  using argument_tags =
+      tmpl::list<SpatialChristoffelFirstKind<SpatialDim, Frame, DataType>,
+                 InverseSpatialMetric<SpatialDim, Frame, DataType>>;
+  static ::Variables<
+      tmpl::list<SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>>>
+  function(
+      const tnsr::ijj<DataType, SpatialDim, Frame>& christoffel,
+      const tnsr::II<DataType, SpatialDim, Frame>& inverse_spatial_metric) {
+    return variables_from_tagged_tuple(
+        tuples::TaggedTuple<
+            SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>>(
+            raise_or_lower_first_index(christoffel, inverse_spatial_metric)));
+  }
+};
+
 /// Compute item for the trace of the spacetime Christoffel symbols
 /// of the first kind
 /// \f$\Gamma_{a} = \Gamma_{abc}g^{bc}\f$ computed from the

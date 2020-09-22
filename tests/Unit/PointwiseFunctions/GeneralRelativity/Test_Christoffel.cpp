@@ -13,12 +13,20 @@
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/EagerMath/DeterminantAndInverse.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
+#include "Domain/CoordinateMaps/Affine.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.hpp"
+#include "Domain/CoordinateMaps/CoordinateMap.tpp"
+#include "Domain/CoordinateMaps/ProductMaps.hpp"
+#include "Domain/CoordinateMaps/ProductMaps.tpp"
+#include "Domain/LogicalCoordinates.hpp"
+#include "Domain/Tags.hpp"
 #include "Framework/CheckWithRandomValues.hpp"
 #include "Framework/SetupLocalPythonEnvironment.hpp"
 #include "Framework/TestHelpers.hpp"
 #include "Helpers/DataStructures/DataBox/TestHelpers.hpp"
 #include "Helpers/DataStructures/MakeWithRandomValues.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
+#include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Christoffel.hpp"
 #include "PointwiseFunctions/GeneralRelativity/DerivativesOfSpacetimeMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
@@ -27,6 +35,9 @@
 #include "PointwiseFunctions/GeneralRelativity/Shift.hpp"
 #include "PointwiseFunctions/GeneralRelativity/SpatialMetric.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
+#include "PointwiseFunctions/MathFunctions/MathFunction.hpp"
+#include "PointwiseFunctions/MathFunctions/PowX.hpp"
+#include "PointwiseFunctions/MathFunctions/TensorProduct.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/TMPL.hpp"
 
@@ -48,6 +59,76 @@ void test_christoffel(const DataType& used_for_size) {
   pypp::check_with_random_values<1>(f, "Christoffel", "christoffel_first_kind",
                                     {{{-10., 10.}}}, used_for_size);
 }
+template <class MapType>
+struct MapTag : db::SimpleTag {
+  static constexpr size_t dim = MapType::dim;
+  using target_frame = typename MapType::target_frame;
+  using source_frame = typename MapType::source_frame;
+
+  using type = MapType;
+};
+
+using Affine = domain::CoordinateMaps::Affine;
+using Affine3D = domain::CoordinateMaps::ProductOf3Maps<Affine, Affine, Affine>;
+
+template <size_t VolumeDim>
+auto make_affine_map() noexcept;
+
+template <>
+auto make_affine_map<3>() noexcept {
+  return domain::make_coordinate_map<Frame::Logical, Frame::Inertial>(
+      Affine3D{Affine{-1.0, 1.0, -0.3, 0.7}, Affine{-1.0, 1.0, 0.3, 0.55},
+               Affine{-1.0, 1.0, 2.3, 2.8}});
+}
+
+template <size_t Dim, typename Frame>
+struct Flux1 : db::SimpleTag {
+  using type = tnsr::I<DataVector, Dim, Frame>;
+  static auto flux(const MathFunctions::TensorProduct<Dim>& f,
+                   const tnsr::I<DataVector, Dim, Frame>& x) noexcept {
+    auto result = make_with_value<tnsr::I<DataVector, Dim, Frame>>(x, 0.);
+    const auto f_of_x = f(x);
+    for (size_t d = 0; d < Dim; ++d) {
+      result.get(d) = (d + 0.5) * get(f_of_x);
+    }
+    return result;
+  }
+};
+
+template <size_t Dim, typename Frame>
+struct Flux2 : db::SimpleTag {
+  using type = tnsr::Ij<DataVector, Dim, Frame>;
+  static auto flux(const MathFunctions::TensorProduct<Dim>& f,
+                   const tnsr::I<DataVector, Dim, Frame>& x) noexcept {
+    auto result = make_with_value<tnsr::Ij<DataVector, Dim, Frame>>(x, 0.);
+    const auto f_of_x = f(x);
+    for (size_t d = 0; d < Dim; ++d) {
+      for (size_t j = 0; j < Dim; ++j) {
+        result.get(d, j) = (d + 0.5) * (j + 0.25) * get(f_of_x);
+      }
+    }
+    return result;
+  }
+};
+
+template <size_t Dim, typename Frame>
+using two_fluxes = tmpl::list<Flux1<Dim, Frame>, Flux2<Dim, Frame>>;
+
+const size_t n0 =
+    Spectral::maximum_number_of_points<Spectral::Basis::Legendre> / 2;
+const size_t n1 =
+    Spectral::maximum_number_of_points<Spectral::Basis::Legendre> / 2 + 1;
+const size_t n2 =
+    Spectral::maximum_number_of_points<Spectral::Basis::Legendre> / 2 - 1;
+
+const Mesh<1> mesh_1d{
+    {{n0}}, Spectral::Basis::Legendre, Spectral::Quadrature::GaussLobatto};
+const Mesh<2> mesh_2d{
+    {{n0, n1}}, Spectral::Basis::Legendre, Spectral::Quadrature::GaussLobatto};
+const Mesh<3> mesh_3d{{{n0, n1, n2}},
+                      Spectral::Basis::Legendre,
+                      Spectral::Quadrature::GaussLobatto};
+
 }  // namespace
 
 SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
@@ -83,8 +164,8 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
                                                     DataVector>>(
       "SpatialChristoffelSecondKind");
   TestHelpers::db::test_compute_tag<
-      gr::Tags::SpatialChristoffelSecondKindDerivCompute<3, Frame::Inertial,
-                                                         DataVector>>(
+      gr::Tags::SpatialChristoffelSecondKindDerivCompute<
+          3, Frame::Logical, DataVector, Frame::Logical>>(
       "SpatialChristoffelSecondKindDeriv");
   TestHelpers::db::test_compute_tag<
       gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
@@ -177,7 +258,6 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
     }
     return deriv;
   }();
-
   const auto expected_spatial_christoffel_second_kind_deriv =
       spatial_christoffel_second_kind_deriv;
   const auto expected_trace_spatial_christoffel_second_kind =
@@ -195,6 +275,9 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
 
   const auto box = db::create<
       db::AddSimpleTags<
+          domain::Tags::Mesh<3>,
+          MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
+          Tags::Variables<two_fluxes<3, Frame::Inertial>>,
           gr::Tags::InverseSpatialMetric<3, Frame::Inertial, DataVector>,
           ::Tags::deriv<gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
                         tmpl::size_t<3>, Frame::Inertial>,
@@ -202,14 +285,18 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
           gr::Tags::DerivativesOfSpacetimeMetric<3, Frame::Inertial,
                                                  DataVector>>,
       db::AddComputeTags<
+          domain::Tags::LogicalCoordinates<3>,
+          domain::Tags::InverseJacobianCompute<
+              MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
+              domain::Tags::LogicalCoordinates<3>>,
           gr::Tags::SpatialChristoffelFirstKindCompute<3, Frame::Inertial,
                                                        DataVector>,
           gr::Tags::TraceSpatialChristoffelFirstKindCompute<3, Frame::Inertial,
                                                             DataVector>,
           gr::Tags::SpatialChristoffelSecondKindCompute<3, Frame::Inertial,
                                                         DataVector>,
-          gr::Tags::SpatialChristoffelSecondKindDerivCompute<3, Frame::Inertial,
-                                                             DataVector>,
+          gr::Tags::SpatialChristoffelSecondKindDerivCompute<
+              3, Frame::Inertial, DataVector, Frame::Inertial>,
           gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
                                                              DataVector>,
           gr::Tags::SpacetimeChristoffelFirstKindCompute<3, Frame::Inertial,

@@ -17,6 +17,7 @@
 #include "Evolution/Systems/GeneralizedHarmonic/Tags.hpp"
 #include "NumericalAlgorithms/LinearOperators/Divergence.hpp"
 #include "NumericalAlgorithms/LinearOperators/PartialDerivatives.hpp"
+#include "NumericalAlgorithms/Spectral/Mesh.hpp"
 #include "PointwiseFunctions/GeneralRelativity/IndexManipulation.hpp"
 #include "PointwiseFunctions/GeneralRelativity/Tags.hpp"
 
@@ -100,10 +101,10 @@ struct SpatialChristoffelSecondKindCompute
   using base = SpatialChristoffelSecondKind<SpatialDim, Frame, DataType>;
 };
 
-  template <size_t SpatialDim, typename DataType, typename SourceFrame,
+template <size_t SpatialDim, typename DataType, typename SourceFrame,
           typename TargetFrame>
 struct SpatialChristoffelSecondKindDerivCompute
-  : SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>,
+    : SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>,
       db::ComputeTag {
   using argument_tags = tmpl::list<
       SpatialChristoffelSecondKind<SpatialDim, TargetFrame, DataType>,
@@ -131,7 +132,8 @@ struct SpatialChristoffelSecondKindDerivCompute
             vars, mesh, inverse_jacobian);
   }
 
-  using base = SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>;
+  using base =
+      SpatialChristoffelSecondKindDeriv<SpatialDim, TargetFrame, DataType>;
 };
 
 /// Compute item for the trace of the spatial Christoffel symbols

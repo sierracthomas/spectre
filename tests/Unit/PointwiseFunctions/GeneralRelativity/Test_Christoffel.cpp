@@ -111,11 +111,11 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
       gr::Tags::SpatialChristoffelSecondKindCompute<3, Frame::Inertial,
                                                     DataVector>>(
       "SpatialChristoffelSecondKind");
-  /*  TestHelpers::db::test_compute_tag<
+  TestHelpers::db::test_compute_tag<
       gr::Tags::SpatialChristoffelSecondKindDerivCompute<
           3, Frame::Inertial, DataVector, Frame::Inertial>>(
       "SpatialChristoffelSecondKindDeriv");
-  */
+
   TestHelpers::db::test_compute_tag<
       gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
                                                          DataVector>>(
@@ -232,45 +232,42 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
                         Spectral::Basis::Legendre,
                         Spectral::Quadrature::GaussLobatto};
 
-  const auto box = db::
-      create<db::AddSimpleTags<
-                 domain::Tags::Mesh<3>,
-                 MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
-                 gr::Tags::InverseSpatialMetric<3, Frame::Inertial, DataVector>,
-                 ::Tags::deriv<
-                     gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
-                     tmpl::size_t<3>, Frame::Inertial>,
-                 gr::Tags::InverseSpacetimeMetric<3, Frame::Inertial,
-                                                  DataVector>,
-                 gr::Tags::DerivativesOfSpacetimeMetric<3, Frame::Inertial,
-                                                        DataVector>>,
-             db::AddComputeTags<
-                 domain::Tags::LogicalCoordinates<3>,
-                 domain::Tags::InverseJacobianCompute<
-                     MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
-                     domain::Tags::LogicalCoordinates<3>>,
-                 gr::Tags::SpatialChristoffelFirstKindCompute<
-                     3, Frame::Inertial, DataVector>,
-                 gr::Tags::TraceSpatialChristoffelFirstKindCompute<
-                     3, Frame::Inertial, DataVector>,
-                 gr::Tags::SpatialChristoffelSecondKindCompute<
-                     3, Frame::Inertial, DataVector>,
-                 gr::Tags::
-                     SpatialChristoffelSecondKindDerivCompute<
-                         3, DataVector,
-                         Frame::Logical, Frame::Inertial> /*,
-         gr::Tags::TraceSpatialChristoffelSecondKindCompute<3,
- Frame::Inertial, DataVector>,
- gr::Tags::SpacetimeChristoffelFirstKindCompute<3, Frame::Inertial,
-                                                DataVector>,
- gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<
-     3, Frame::Inertial, DataVector>,
- gr::Tags::SpacetimeChristoffelSecondKindCompute<3, Frame::Inertial,
- DataVector>*/>>(mesh_3d, make_affine_map<3>(), inverse_spatial_metric,
-                 deriv_spatial_metric, inverse_spacetime_metric,
-                 derivatives_of_spacetime_metric);
+  const auto box = db::create<
+      db::AddSimpleTags<
+          domain::Tags::Mesh<3>,
+          MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
+          gr::Tags::InverseSpatialMetric<3, Frame::Inertial, DataVector>,
+          ::Tags::deriv<gr::Tags::SpatialMetric<3, Frame::Inertial, DataVector>,
+                        tmpl::size_t<3>, Frame::Inertial>,
+          gr::Tags::InverseSpacetimeMetric<3, Frame::Inertial, DataVector>,
+          gr::Tags::DerivativesOfSpacetimeMetric<3, Frame::Inertial,
+                                                 DataVector>>,
+      db::AddComputeTags<
+          domain::Tags::LogicalCoordinates<3>,
+          domain::Tags::InverseJacobianCompute<
+              MapTag<std::decay_t<decltype(make_affine_map<3>())>>,
+              domain::Tags::LogicalCoordinates<3>>,
+          gr::Tags::SpatialChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                       DataVector>,
+          gr::Tags::TraceSpatialChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                            DataVector>,
+          gr::Tags::SpatialChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                        DataVector>,
+          gr::Tags::SpatialChristoffelSecondKindDerivCompute<
+              3, DataVector, Frame::Logical, Frame::Inertial>,
+          gr::Tags::TraceSpatialChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                             DataVector>,
+          gr::Tags::SpacetimeChristoffelFirstKindCompute<3, Frame::Inertial,
+                                                         DataVector>,
+          gr::Tags::TraceSpacetimeChristoffelFirstKindCompute<
+              3, Frame::Inertial, DataVector>,
+          gr::Tags::SpacetimeChristoffelSecondKindCompute<3, Frame::Inertial,
+                                                          DataVector>>>(
+      mesh_3d, make_affine_map<3>(), inverse_spatial_metric,
+      deriv_spatial_metric, inverse_spacetime_metric,
+      derivatives_of_spacetime_metric);
 
-  /*CHECK(db::get<gr::Tags::SpatialChristoffelFirstKind<3, Frame::Inertial,
+  CHECK(db::get<gr::Tags::SpatialChristoffelFirstKind<3, Frame::Inertial,
                                                       DataVector>>(box) ==
         expected_spatial_christoffel_first_kind);
   CHECK(db::get<gr::Tags::TraceSpatialChristoffelFirstKind<3, Frame::Inertial,
@@ -279,12 +276,10 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
   CHECK(db::get<gr::Tags::SpatialChristoffelSecondKind<3, Frame::Inertial,
                                                        DataVector>>(box) ==
         expected_spatial_christoffel_second_kind);
-  // CHECK(db::get<gr::Tags::SpatialChristoffelSecondKindDeriv<3,
-  // Frame::Inertial,
-  //                                                         DataVector>>(box)
-  //                                                         ==
-  //     expected_spatial_christoffel_second_kind_deriv);
-CHECK(db::get<gr::Tags::TraceSpatialChristoffelSecondKind<3, Frame::Inertial,
+  CHECK(db::get<gr::Tags::SpatialChristoffelSecondKindDeriv<3, Frame::Inertial,
+                                                            DataVector>>(box) ==
+        expected_spatial_christoffel_second_kind_deriv);
+  CHECK(db::get<gr::Tags::TraceSpatialChristoffelSecondKind<3, Frame::Inertial,
                                                             DataVector>>(box) ==
         expected_trace_spatial_christoffel_second_kind);
 
@@ -297,4 +292,4 @@ CHECK(db::get<gr::Tags::TraceSpatialChristoffelSecondKind<3, Frame::Inertial,
   CHECK(db::get<gr::Tags::SpacetimeChristoffelSecondKind<3, Frame::Inertial,
                                                          DataVector>>(box) ==
         expected_spacetime_christoffel_second_kind);
-  */}
+}

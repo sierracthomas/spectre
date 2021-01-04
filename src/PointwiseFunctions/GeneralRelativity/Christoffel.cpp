@@ -39,6 +39,12 @@ tnsr::abb<DataType, SpatialDim, Frame, Index> christoffel_first_kind(
 }
 }  // namespace gr
 
+namespace {
+template <size_t Dim, typename Frame, typename DataType>
+using variables_tags =
+    tmpl::list<gr::Tags::SpatialChristoffelSecondKind<Dim, Frame, DataType>>;
+}
+
 #define DIM(data) BOOST_PP_TUPLE_ELEM(0, data)
 #define DTYPE(data) BOOST_PP_TUPLE_ELEM(1, data)
 #define FRAME(data) BOOST_PP_TUPLE_ELEM(2, data)
@@ -56,7 +62,20 @@ tnsr::abb<DataType, SpatialDim, Frame, Index> christoffel_first_kind(
           tnsr::abb<DTYPE(data), DIM(data), FRAME(data), INDEXTYPE(data)>*>  \
           christoffel,                                                       \
       const tnsr::abb<DTYPE(data), DIM(data), FRAME(data), INDEXTYPE(data)>& \
-          d_metric) noexcept;
+          d_metric) noexcept;                                                \
+  template Variables<                                                        \
+      db::wrap_tags_in<::Tags::deriv,                                        \
+                       gr::Tags::SpatialChristoffelSecondKind<               \
+                           DIM(data), FRAME(data), DTYPE(data)>,             \
+                       tmpl::size_t<DIM(data)>, Frame::Inertial>>            \
+  partial_derivatives<gr::Tags::SpatialChristoffelSecondKind<                \
+                          DIM(data), FRAME(data), DTYPE(data)>,              \
+                      variables_tags<DIM(data), FRAME(data), DTYPE(data)>,   \
+                      DIM(data), Frame::Inertial>(                           \
+      const Variables<variables_tags<DIM(data), FRAME(data), DTYPE(data)>>,  \
+      const Mesh<DIM(data)>,                                                 \
+      const InverseJacobian<DTYPE(data), DIM(data), FRAME(data),             \
+                            Frame::Inertial>) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATE, (1, 2, 3), (double, DataVector),
                         (Frame::Grid, Frame::Inertial,

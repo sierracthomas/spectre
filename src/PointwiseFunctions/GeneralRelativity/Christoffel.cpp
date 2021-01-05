@@ -44,7 +44,7 @@ namespace {
 template <size_t Dim, typename Frame, typename DataType>
 using variables_tags =
     tmpl::list<gr::Tags::SpatialChristoffelSecondKind<Dim, Frame, DataType>>;
-}
+} // namespace
 
 #define DIM(data) BOOST_PP_TUPLE_ELEM(0, data)
 #define DTYPE(data) BOOST_PP_TUPLE_ELEM(1, data)

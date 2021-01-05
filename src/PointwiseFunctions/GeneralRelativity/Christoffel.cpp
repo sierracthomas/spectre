@@ -4,6 +4,7 @@
 #include "PointwiseFunctions/GeneralRelativity/Christoffel.hpp"
 
 #include "DataStructures/Tensor/Tensor.hpp"  // IWYU pragma: keep
+#include "NumericalAlgorithms/LinearOperators/PartialDerivatives.tpp"
 #include "Utilities/GenerateInstantiations.hpp"
 #include "Utilities/Gsl.hpp"
 #include "Utilities/MakeWithValue.hpp"
@@ -52,6 +53,7 @@ using variables_tags =
 
 // The not_null versions are instantiated during instantiation of the
 // return-by-value versions.
+
 #define INSTANTIATE(_, data)                                                 \
   template tnsr::abb<DTYPE(data), DIM(data), FRAME(data), INDEXTYPE(data)>   \
   gr::christoffel_first_kind(                                                \
@@ -62,29 +64,32 @@ using variables_tags =
           tnsr::abb<DTYPE(data), DIM(data), FRAME(data), INDEXTYPE(data)>*>  \
           christoffel,                                                       \
       const tnsr::abb<DTYPE(data), DIM(data), FRAME(data), INDEXTYPE(data)>& \
-          d_metric) noexcept;                                                \
-  template Variables<                                                        \
-      db::wrap_tags_in<::Tags::deriv,                                        \
-                       gr::Tags::SpatialChristoffelSecondKind<               \
-                           DIM(data), FRAME(data), DTYPE(data)>,             \
-                       tmpl::size_t<DIM(data)>, Frame::Inertial>>            \
-  partial_derivatives<gr::Tags::SpatialChristoffelSecondKind<                \
-                          DIM(data), FRAME(data), DTYPE(data)>,              \
-                      variables_tags<DIM(data), FRAME(data), DTYPE(data)>,   \
-                      DIM(data), Frame::Inertial>(                           \
-      const Variables<variables_tags<DIM(data), FRAME(data), DTYPE(data)>>,  \
-      const Mesh<DIM(data)>,                                                 \
-      const InverseJacobian<DTYPE(data), DIM(data), FRAME(data),             \
-                            Frame::Inertial>) noexcept;
+          d_metric) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATE, (1, 2, 3), (double, DataVector),
                         (Frame::Grid, Frame::Inertial,
                          Frame::Spherical<Frame::Inertial>),
                         (IndexType::Spatial, IndexType::Spacetime))
+#undef INDEXTYPE
+#undef INSTANTIATE
 
+#define INSTANTIATE(_, data)                                                 \
+  template Variables<                                                        \
+      tmpl::list<::Tags::deriv<gr::Tags::SpatialChristoffelSecondKind<       \
+                                   DIM(data), FRAME(data), DTYPE(data)>,     \
+                               tmpl::size_t<DIM(data)>, FRAME(data)>>>       \
+  partial_derivatives<tmpl::list<gr::Tags::SpatialChristoffelSecondKind<     \
+      DIM(data), FRAME(data), DTYPE(data)>>>(                                \
+      const Variables<variables_tags<DIM(data), FRAME(data), DTYPE(data)>>&, \
+      const Mesh<DIM(data)>&,                                                \
+      const InverseJacobian<DTYPE(data), DIM(data), Frame::Logical,          \
+                            FRAME(data)>&) noexcept;
+
+GENERATE_INSTANTIATIONS(INSTANTIATE, (1, 2, 3), (DataVector),
+                        (Frame::Grid, Frame::Inertial,
+                         Frame::Spherical<Frame::Inertial>))
 #undef DIM
 #undef DTYPE
 #undef FRAME
-#undef INDEXTYPE
 #undef INSTANTIATE
 /// \endcond

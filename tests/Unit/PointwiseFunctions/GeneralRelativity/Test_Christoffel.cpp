@@ -199,7 +199,7 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
   const auto expected_trace_spatial_christoffel_second_kind =
       trace_last_indices(expected_spatial_christoffel_second_kind,
                          inverse_spatial_metric);
-  const auto spatial_christoffel_second_kind_deriv = [&]() {
+  const auto expected_spatial_christoffel_second_kind_deriv = [&]() {
     auto deriv = expected_spatial_christoffel_second_kind;
     for (size_t i = 0; i < 3; ++i) {
       for (size_t j = 0; j < 3; ++j) {
@@ -210,8 +210,6 @@ SPECTRE_TEST_CASE("Unit.PointwiseFunctions.GeneralRelativity.Christoffel",
     }
     return deriv;
   }();
-  const auto expected_spatial_christoffel_second_kind_deriv =
-      spatial_christoffel_second_kind_deriv;
   const auto expected_spacetime_christoffel_first_kind =
       gr::christoffel_first_kind(derivatives_of_spacetime_metric);
   const auto expected_trace_spacetime_christoffel_first_kind =

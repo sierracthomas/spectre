@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 #include "DataStructures/DataVector.hpp"
@@ -124,6 +125,41 @@ auto logical_partial_derivative(
   return result;
 }
 
+template <typename SymmList, typename IndexList, size_t Dim>
+auto partial_derivative(
+    gsl::not_null<TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
+        Frame::Logical>*>
+        logical_derivative_of_u,
+    const Mesh<Dim>& mesh,
+    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
+        inverse_jacobian) noexcept
+    -> TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
+        Frame::Logical> {
+  return *logical_derivative_of_u;
+}
+
+template <typename SymmList, typename IndexList, size_t Dim>
+void partial_derivative(
+    gsl::not_null<TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
+        Frame::Logical>*>
+        logical_derivative_of_u,
+    const Tensor<DataVector, SymmList, IndexList>& output,
+    const Mesh<Dim>& mesh,
+    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
+        inverse_jacobian) noexcept {
+  for (auto it = logical_derivative_of_u->begin();
+       it != logical_derivative_of_u->end(); it++) {
+    const auto result_indices = logical_derivative_of_u->get_tensor_index(it);
+    std::cout << it << "\n";
+    for (size_t d = 1; d < Dim; d++) {
+      std::cout << d << "\n";
+    }
+  }
+}
+
 #define GET_DIM(data) BOOST_PP_TUPLE_ELEM(0, data)
 #define GET_TENSOR(data) BOOST_PP_TUPLE_ELEM(1, data)
 #define GET_FRAME(data) BOOST_PP_TUPLE_ELEM(2, data)
@@ -150,7 +186,32 @@ auto logical_partial_derivative(
       Frame::Logical > logical_partial_derivative(                             \
                            const GET_TENSOR(data) < DataVector, GET_DIM(data), \
                            GET_FRAME(data) > &u,                               \
-                           const Mesh<GET_DIM(data)>& mesh) noexcept;
+                           const Mesh<GET_DIM(data)>& mesh) noexcept;          \
+  template TensorMetafunctions::prepend_spatial_index<                         \
+      GET_TENSOR(data) < DataVector, GET_DIM(data), GET_FRAME(data)>,          \
+      GET_DIM(data), UpLo::Lo,                                                 \
+      Frame::Logical >                                                         \
+          partial_derivative<GET_TENSOR(data) < DataVector, GET_DIM(data),     \
+                             GET_FRAME(data)>::symmetry,                       \
+      GET_TENSOR(                                                              \
+          data)<DataVector, GET_DIM(data), GET_FRAME(data)>::index_list>       \
+          (gsl::not_null<TensorMetafunctions::prepend_spatial_index<           \
+                             GET_TENSOR(data) < DataVector, GET_DIM(data),     \
+                             GET_FRAME(data)>,                                 \
+                         GET_DIM(data), UpLo::Lo, Frame::Logical>* >           \
+               logical_derivative_of_u,                                        \
+           const Mesh<GET_DIM(data)>& mesh,                                    \
+           const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,    \
+                                 Frame::Grid>& inverse_jacobian) noexcept;     \
+  template void partial_derivative(                                            \
+      gsl::not_null<                                                           \
+          TensorMetafunctions::prepend_spatial_index<                          \
+              GET_TENSOR(data) < DataVector, GET_DIM(data), GET_FRAME(data)>,  \
+          GET_DIM(data), UpLo::Lo, Frame::Logical>* > logical_derivative_of_u, \
+      const GET_TENSOR(data) < DataVector, GET_DIM(data),                      \
+      GET_FRAME(data) > &output, const Mesh<GET_DIM(data)>& mesh,              \
+      const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,         \
+                            Frame::Grid>& inverse_jacobian) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3),
                         (tnsr::a, tnsr::A, tnsr::i, tnsr::I, tnsr::ab, tnsr::Ab,

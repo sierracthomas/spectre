@@ -128,14 +128,16 @@ auto logical_partial_derivative(
 template <typename SymmList, typename IndexList, size_t Dim>
 //          typename DerivativeFrame, typename DataVector>
 auto partial_derivative(
-    Tensor<DataVector, SymmList, IndexList>& input, const Mesh<Dim>& mesh,
+    Tensor<DataVector, SymmList, IndexList>& logical_derivative_of_u,
+    const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept;
 
-template <typename SymmList, typename IndexList, size_t Dim>
-//          typename DerivativeFrame, typename DataVector>
+template <typename SymmList, typename IndexList, size_t Dim,
+          typename... RemainingIndices>
 void partial_derivative(
-    gsl::not_null<Tensor<DataVector, SymmList, IndexList>*>
+    const gsl::not_null<Tensor<DataVector, tmpl::pop_front<SymmList>,
+                               index_list<RemainingIndices...>>*>
         logical_derivative_of_u,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
@@ -177,7 +179,14 @@ void partial_derivative(
       Frame::Logical > logical_partial_derivative(                             \
                            const GET_TENSOR(data) < DataVector, GET_DIM(data), \
                            GET_FRAME(data) > &u,                               \
-                           const Mesh<GET_DIM(data)>& mesh) noexcept;
+                           const Mesh<GET_DIM(data)>& mesh) noexcept;          \
+  template void partial_derivative(                                            \
+      gsl::not_null<GET_TENSOR(data) < DataVector,                             \
+                    tmpl::pop_front<GET_DIM(data)>,                            \
+                    index_list<GET_FRAME(data)>>* > logical_derivative_of_u,   \
+      const Mesh<GET_DIM(data)>& mesh,                                         \
+      const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,         \
+                            Frame::Grid>& inverse_jacobian) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3),
                         (tnsr::a, tnsr::A, tnsr::i, tnsr::I, tnsr::ab, tnsr::Ab,
@@ -205,12 +214,7 @@ GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3),
   template TensorMetafunctions::prepend_spatial_index<                        \
       Scalar<DataVector>, GET_DIM(data), UpLo::Lo, Frame::Logical>            \
   logical_partial_derivative(const Scalar<DataVector>& u,                     \
-                             const Mesh<GET_DIM(data)>& mesh) noexcept;       \
-  template void partial_derivative(                                           \
-      Tensor<DataVector, SymmList, IndexList>* logical_derivative_of_u,       \
-      const Mesh<GET_DIM(data)>& mesh,                                        \
-      const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,        \
-                            Frame::Grid>& inverse_jacobian) noexcept;
+                             const Mesh<GET_DIM(data)>& mesh) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3))
 

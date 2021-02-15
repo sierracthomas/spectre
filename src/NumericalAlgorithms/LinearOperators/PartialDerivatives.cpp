@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <iostream>
 #include <vector>
 
 #include "DataStructures/DataVector.hpp"
@@ -124,6 +125,32 @@ auto logical_partial_derivative(
   return result;
 }
 
+template <typename SymmList, typename IndexList, size_t Dim>
+//          typename DerivativeFrame, typename DataVector>
+auto partial_derivative(
+    Tensor<DataVector, SymmList, IndexList>& input, const Mesh<Dim>& mesh,
+    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
+        inverse_jacobian) noexcept;
+
+template <typename SymmList, typename IndexList, size_t Dim>
+//          typename DerivativeFrame, typename DataVector>
+void partial_derivative(
+    gsl::not_null<Tensor<DataVector, SymmList, IndexList>*>
+        logical_derivative_of_u,
+    const Mesh<Dim>& mesh,
+    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
+        inverse_jacobian) noexcept {
+  std::cout << "test\n";
+  for (auto it = *logical_derivative_of_u->begin();
+       it != *logical_derivative_of_u->end(); it++) {
+    const auto result_indices = *logical_derivative_of_u->get_tensor_index(it);
+    std::cout << it << "\n";
+    for (size_t d = 1; d < Dim; d++) {
+      std::cout << d << "\n";
+    }
+  }
+}
+
 #define GET_DIM(data) BOOST_PP_TUPLE_ELEM(0, data)
 #define GET_TENSOR(data) BOOST_PP_TUPLE_ELEM(1, data)
 #define GET_FRAME(data) BOOST_PP_TUPLE_ELEM(2, data)
@@ -178,7 +205,12 @@ GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3),
   template TensorMetafunctions::prepend_spatial_index<                        \
       Scalar<DataVector>, GET_DIM(data), UpLo::Lo, Frame::Logical>            \
   logical_partial_derivative(const Scalar<DataVector>& u,                     \
-                             const Mesh<GET_DIM(data)>& mesh) noexcept;
+                             const Mesh<GET_DIM(data)>& mesh) noexcept;       \
+  template void partial_derivative(                                           \
+      Tensor<DataVector, SymmList, IndexList>* logical_derivative_of_u,       \
+      const Mesh<GET_DIM(data)>& mesh,                                        \
+      const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,        \
+                            Frame::Grid>& inverse_jacobian) noexcept;
 
 GENERATE_INSTANTIATIONS(INSTANTIATION, (1, 2, 3))
 

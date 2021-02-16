@@ -163,7 +163,7 @@ void partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical>*>
         logical_derivative_of_u,
-    Tensor<DataVector, SymmList, IndexList>& input, const Mesh<Dim>& mesh,
+    const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept;
 // @}

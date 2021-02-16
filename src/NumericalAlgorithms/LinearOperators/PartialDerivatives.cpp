@@ -190,8 +190,8 @@ void partial_derivative(
       GET_DIM(data), UpLo::Lo,                                                 \
       Frame::Logical >                                                         \
           partial_derivative(                                                  \
-              const GET_TENSOR(data) < DataVector, GET_FRAME(data),            \
-              GET_DIM(data) > &output, const Mesh<GET_DIM(data)>& mesh,        \
+              const GET_TENSOR(data) < DataVector, GET_DIM(data),              \
+              GET_FRAME(data) > &output, const Mesh<GET_DIM(data)>& mesh,      \
               const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical, \
                                     Frame::Grid>& inverse_jacobian) noexcept;  \
   template void partial_derivative(                                            \

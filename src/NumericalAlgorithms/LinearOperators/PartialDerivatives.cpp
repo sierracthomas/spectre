@@ -131,9 +131,12 @@ auto partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical>*>
         logical_derivative_of_u,
+    const Tensor<DataVector, SymmList, IndexList>& output,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
-        inverse_jacobian) noexcept;
+        inverse_jacobian) noexcept {
+  return output;
+}
 
 template <typename SymmList, typename IndexList, size_t Dim>
 void partial_derivative(
@@ -187,7 +190,8 @@ void partial_derivative(
       GET_DIM(data), UpLo::Lo,                                                 \
       Frame::Logical >                                                         \
           partial_derivative(                                                  \
-              const Mesh<GET_DIM(data)>& mesh,                                 \
+              const GET_TENSOR(data) < DataVector, GET_FRAME(data),            \
+              GET_DIM(data) > &output, const Mesh<GET_DIM(data)>& mesh,        \
               const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical, \
                                     Frame::Grid>& inverse_jacobian) noexcept;  \
   template void partial_derivative(                                            \

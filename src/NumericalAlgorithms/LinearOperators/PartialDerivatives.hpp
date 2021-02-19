@@ -159,7 +159,9 @@ auto partial_derivative(
         logical_derivative_of_u,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
-        inverse_jacobian) noexcept;
+        inverse_jacobian) noexcept
+    -> TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>;
 
 template <typename SymmList, typename IndexList, size_t Dim>
 void partial_derivative(

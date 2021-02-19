@@ -131,11 +131,10 @@ auto partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical>*>
         logical_derivative_of_u,
-    const Tensor<DataVector, SymmList, IndexList>& output,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept {
-  return output;
+  return *logical_derivative_of_u;
 }
 
 template <typename SymmList, typename IndexList, size_t Dim>
@@ -144,10 +143,10 @@ void partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical>*>
         logical_derivative_of_u,
+    const Tensor<DataVector, SymmList, IndexList>& output,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept {
-  std::cout << "test\n";
   for (auto it = *logical_derivative_of_u->begin();
        it != *logical_derivative_of_u->end(); it++) {
     const auto result_indices = *logical_derivative_of_u->get_tensor_index(it);
@@ -190,16 +189,22 @@ void partial_derivative(
       GET_DIM(data), UpLo::Lo,                                                 \
       Frame::Logical >                                                         \
           partial_derivative(                                                  \
-              const GET_TENSOR(data) < DataVector, GET_DIM(data),              \
-              GET_FRAME(data) > &output, const Mesh<GET_DIM(data)>& mesh,      \
+              gsl::not_null<TensorMetafunctions::prepend_spatial_index<        \
+                                GET_TENSOR(data) < DataVector, GET_DIM(data),  \
+                                GET_FRAME(data)>,                              \
+                            GET_DIM(data), UpLo::Lo, Frame::Logical>* >        \
+                  logical_derivative_of_u,                                     \
+              const Mesh<GET_DIM(data)>& mesh,      \
               const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical, \
                                     Frame::Grid>& inverse_jacobian) noexcept;  \
   template void partial_derivative(                                            \
       gsl::not_null<                                                           \
           TensorMetafunctions::prepend_spatial_index<                          \
               GET_TENSOR(data) < DataVector, GET_DIM(data), GET_FRAME(data)>,  \
-          GET_DIM(data), UpLo::Lo, Frame::Logical> > * >                       \
+          GET_DIM(data), UpLo::Lo, Frame::Logical>> * >                        \
           logical_derivative_of_u,                                             \
+      const GET_TENSOR(data) < DataVector, GET_DIM(data),              \
+      GET_FRAME(data) > &output,                                               \
       const Mesh<GET_DIM(data)>& mesh,                                         \
       const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,         \
                             Frame::Grid>& inverse_jacobian) noexcept;

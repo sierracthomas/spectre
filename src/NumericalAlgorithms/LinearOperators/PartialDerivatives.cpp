@@ -21,6 +21,13 @@
 #include "Utilities/Gsl.hpp"
 
 namespace {
+template <size_t Dim, typename SymmList>
+struct VectorTag {
+  using type = tnsr::I<DataVector, Dim, SymmList>;
+};
+}  // namespace
+
+namespace {
 void apply_matrix_in_first_dim(double* result, const double* const input,
                                const Matrix& matrix,
                                const size_t size) noexcept {
@@ -137,7 +144,10 @@ auto partial_derivative(
     -> TensorMetafunctions::prepend_spatial_index<
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical> {
-  return *logical_derivative_of_u;
+  Tensor<DataVector, SymmList, IndexList> output{mesh.number_of_grid_points()};
+  partial_derivative(logical_derivative_of_u, make_not_null(&output), mesh,
+                     inverse_jacobian);
+  return output;
 }
 
 template <typename SymmList, typename IndexList, size_t Dim>
@@ -146,16 +156,20 @@ void partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
         Frame::Logical>*>
         logical_derivative_of_u,
-    const Tensor<DataVector, SymmList, IndexList>& output,
+    gsl::not_null<Tensor<DataVector, SymmList, IndexList>*> output,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept {
+  using VectorTag = VectorTag<Dim, SymmList>;
+  Variables<tmpl::list<VectorTag>> vars{get<0>(logical_derivative_of_u).size()};
+  destructive_resize_components(output, mesh.number_of_grid_points());
   for (auto it = logical_derivative_of_u->begin();
        it != logical_derivative_of_u->end(); it++) {
     const auto result_indices = logical_derivative_of_u->get_tensor_index(it);
-    std::cout << it << "\n";
     for (size_t d = 1; d < Dim; d++) {
-      std::cout << d << "\n";
+      get(*output) =
+          inverse_jacobian.get(it, d) *
+          get<VectorTag>(gsl::at(logical_derivative_of_u, d)).get(it);
     }
   }
 }

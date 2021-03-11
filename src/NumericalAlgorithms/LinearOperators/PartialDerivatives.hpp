@@ -152,18 +152,6 @@ auto logical_partial_derivative(
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>;
 
 template <typename SymmList, typename IndexList, size_t Dim>
-auto partial_derivative(
-    gsl::not_null<TensorMetafunctions::prepend_spatial_index<
-        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
-        Frame::Logical>*>
-        logical_derivative_of_u,
-    const Mesh<Dim>& mesh,
-    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
-        inverse_jacobian) noexcept
-    -> TensorMetafunctions::prepend_spatial_index<
-        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>;
-
-template <typename SymmList, typename IndexList, size_t Dim>
 void partial_derivative(
     gsl::not_null<TensorMetafunctions::prepend_spatial_index<
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
@@ -173,6 +161,17 @@ void partial_derivative(
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept;
+
+template <typename SymmList, typename IndexList, size_t Dim>
+auto partial_derivative(
+    TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>&
+        logical_derivative_of_u,
+    const Mesh<Dim>& mesh,
+    const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
+        inverse_jacobian) noexcept
+    -> TensorMetafunctions::prepend_spatial_index<
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>;
 // @}
 
 // @{

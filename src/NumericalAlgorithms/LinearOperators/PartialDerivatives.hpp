@@ -164,7 +164,7 @@ void partial_derivative(
 
 template <typename SymmList, typename IndexList, size_t Dim>
 auto partial_derivative(
-    TensorMetafunctions::prepend_spatial_index<
+    const TensorMetafunctions::prepend_spatial_index<
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>&
         logical_derivative_of_u,
     const Mesh<Dim>& mesh,

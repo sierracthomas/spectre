@@ -143,7 +143,8 @@ void partial_derivative(
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept {
   using VectorTag = VectorTag<Dim, SymmList>;
-  Variables<tmpl::list<VectorTag>> vars{get<0>(logical_derivative_of_u).size()};
+  Variables<tmpl::list<VectorTag>> vars{
+      get<0>(*logical_derivative_of_u).size()};
   destructive_resize_components(output, mesh.number_of_grid_points());
   for (auto it = logical_derivative_of_u->begin();
        it != logical_derivative_of_u->end(); it++) {
@@ -158,15 +159,14 @@ void partial_derivative(
 
 template <typename SymmList, typename IndexList, size_t Dim>
 auto partial_derivative(
-    TensorMetafunctions::prepend_spatial_index<
+    const TensorMetafunctions::prepend_spatial_index<
         Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Logical>&
         logical_derivative_of_u,
     const Mesh<Dim>& mesh,
     const InverseJacobian<DataVector, Dim, Frame::Logical, Frame::Grid>&
         inverse_jacobian) noexcept
     -> TensorMetafunctions::prepend_spatial_index<
-        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo,
-        Frame::Logical> {
+        Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Grid> {
   TensorMetafunctions::prepend_spatial_index<
       Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Grid>
       output{mesh.number_of_grid_points()};
@@ -210,9 +210,9 @@ auto partial_derivative(
                              GET_FRAME(data)>::symmetry,                       \
       GET_TENSOR(                                                              \
           data)<DataVector, GET_DIM(data), GET_FRAME(data)>::index_list >      \
-          (TensorMetafunctions::prepend_spatial_index<                         \
+          (const TensorMetafunctions::prepend_spatial_index<                   \
                GET_TENSOR(data) < DataVector, GET_DIM(data), GET_FRAME(data)>, \
-           GET_DIM(data), UpLo::Lo, Frame::Logical>& logical_derivative_of_u, \
+           GET_DIM(data), UpLo::Lo, Frame::Logical > &logical_derivative_of_u, \
            const Mesh<GET_DIM(data)>& mesh,                                    \
            const InverseJacobian<DataVector, GET_DIM(data), Frame::Logical,    \
                                  Frame::Grid>& inverse_jacobian) noexcept;     \

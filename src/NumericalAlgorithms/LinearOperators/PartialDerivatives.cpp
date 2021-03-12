@@ -170,8 +170,8 @@ auto partial_derivative(
   TensorMetafunctions::prepend_spatial_index<
       Tensor<DataVector, SymmList, IndexList>, Dim, UpLo::Lo, Frame::Grid>
       output{mesh.number_of_grid_points()};
-  partial_derivative(logical_derivative_of_u, make_not_null(&output), mesh,
-                     inverse_jacobian);
+  partial_derivative(make_not_null(&logical_derivative_of_u),
+                     make_not_null(&output), mesh, inverse_jacobian);
   return output;
 }
 
